@@ -1,47 +1,56 @@
 'use client'
-import useSWR from 'swr'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
-import { mockApi } from '@/lib/mock/data'
+import {
+  mockDashboard,
+  mockTodayBookings,
+  mockWeeklyChart,
+  mockNotifications,
+} from '@/lib/mock/data'
 import { formatMoney } from '@/lib/utils'
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_STYLE } from '@/constants'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
+import type { BookingStatus } from '@/types'
 
 export default function DashboardPage() {
-  const { data: summary } = useSWR('dashboard-summary', () => mockApi.getDashboardSummary())
-  const { data: bookings } = useSWR('today-bookings', () => mockApi.getBookings())
-  const { data: weekly } = useSWR('weekly-stats', () => mockApi.getWeeklyStats())
-  const { data: notifications } = useSWR('notifications', () => mockApi.getNotifications())
-
-  const today = bookings?.filter((b) => b.booking_date === '2026-06-24').slice(0, 5) ?? []
-
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { label: '오늘 예약', value: `${summary?.today_bookings ?? '-'}건` },
-          { label: '이번달 매출', value: formatMoney(summary?.month_sales ?? 0) },
-          { label: '미정산 금액', value: formatMoney(summary?.unsettled_amount ?? 0) },
-          { label: '신규 고객', value: `${summary?.new_customers ?? '-'}명` },
-        ].map((s) => (
-          <Card key={s.label}>
-            <div className="text-xs text-gray-400 mb-1">{s.label}</div>
-            <div className="text-lg font-semibold">{s.value}</div>
-          </Card>
-        ))}
+        <Card>
+          <div className="text-xs text-gray-400 mb-1">오늘 예약</div>
+          <div className="text-lg font-semibold">{mockDashboard.today_bookings}건</div>
+          <div className="text-[11px] text-green-600 mt-0.5">↑ 어제 대비 +{mockDashboard.today_bookings_diff}</div>
+        </Card>
+        <Card>
+          <div className="text-xs text-gray-400 mb-1">이번달 매출</div>
+          <div className="text-lg font-semibold">{formatMoney(mockDashboard.monthly_revenue)}</div>
+          <div className="text-[11px] text-green-600 mt-0.5">↑ 전월 대비 {mockDashboard.monthly_revenue_diff}%</div>
+        </Card>
+        <Card>
+          <div className="text-xs text-gray-400 mb-1">미정산 금액</div>
+          <div className="text-lg font-semibold">{formatMoney(mockDashboard.unsettled_amount)}</div>
+          <div className="text-[11px] text-gray-400 mt-0.5">{mockDashboard.unsettled_date}</div>
+        </Card>
+        <Card>
+          <div className="text-xs text-gray-400 mb-1">신규 고객</div>
+          <div className="text-lg font-semibold">{mockDashboard.new_customers}명</div>
+          <div className="text-[11px] text-green-600 mt-0.5">↑ 이번달 +{mockDashboard.new_customers_diff}</div>
+        </Card>
       </div>
 
       <Card title="오늘 예약">
         <div className="space-y-2">
-          {today.map((b) => (
+          {mockTodayBookings.map((b) => (
             <div key={b.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
               <div>
-                <div className="text-sm font-medium">{b.booking_time} {b.user.name}</div>
-                <div className="text-xs text-gray-400">{b.service_menu.name}</div>
+                <div className="text-sm font-medium">{b.time} {b.customer_name}</div>
+                <div className="text-xs text-gray-400">{b.service_name}</div>
               </div>
-              <Badge className={BOOKING_STATUS_STYLE[b.status]}>{BOOKING_STATUS_LABEL[b.status]}</Badge>
+              <Badge className={BOOKING_STATUS_STYLE[b.status as BookingStatus]}>
+                {BOOKING_STATUS_LABEL[b.status as BookingStatus]}
+              </Badge>
             </div>
           ))}
         </div>
@@ -53,8 +62,8 @@ export default function DashboardPage() {
       <Card title="이번주 예약 현황">
         <div className="h-48">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={weekly ?? []}>
-              <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+            <BarChart data={mockWeeklyChart}>
+              <XAxis dataKey="day" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip />
               <Bar dataKey="count" fill="#2563EB" radius={[4, 4, 0, 0]} />
@@ -65,10 +74,10 @@ export default function DashboardPage() {
 
       <Card title="최근 알림">
         <div className="space-y-2">
-          {notifications?.slice(0, 3).map((n) => (
-            <div key={n.id} className={`text-sm py-2 border-b border-gray-50 last:border-0 ${!n.is_read ? 'font-medium' : 'text-gray-500'}`}>
-              <div>{n.title}</div>
-              <div className="text-xs text-gray-400">{n.body}</div>
+          {mockNotifications.map((n) => (
+            <div key={n.id} className="text-sm py-2 border-b border-gray-50 last:border-0">
+              <div>{n.message}</div>
+              <div className="text-xs text-gray-400">{n.time}</div>
             </div>
           ))}
         </div>

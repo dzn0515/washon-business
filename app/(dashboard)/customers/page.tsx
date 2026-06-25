@@ -1,26 +1,25 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { useCustomers } from '@/hooks/useCustomers'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import { CUSTOMER_GRADE_LABEL, CUSTOMER_GRADE_STYLE } from '@/constants'
 import { formatMoney } from '@/lib/utils'
 import { Search, AlertTriangle } from 'lucide-react'
+import { mockCustomers, getLongTermAbsentCount } from '@/lib/mock/data'
 import type { CustomerGrade } from '@/types'
 
 export default function CustomersPage() {
-  const { data: customers } = useCustomers()
   const [search, setSearch] = useState('')
   const [grade, setGrade] = useState<CustomerGrade | 'ALL'>('ALL')
 
-  const filtered = customers?.filter((c) => {
+  const filtered = mockCustomers.filter((c) => {
     if (grade !== 'ALL' && c.grade !== grade) return false
-    if (search && !c.name.includes(search) && !c.phone.includes(search)) return false
+    if (search && !c.name.includes(search) && !c.phone.includes(search) && !c.car_number.includes(search)) return false
     return true
-  }) ?? []
+  })
 
-  const longTerm = customers?.filter((c) => c.memo.includes('장기')).length ?? 0
+  const longTerm = getLongTermAbsentCount()
 
   return (
     <div className="space-y-4">
@@ -52,9 +51,9 @@ export default function CustomersPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{c.name}</span>
-                    <Badge className={CUSTOMER_GRADE_STYLE[c.grade]}>{CUSTOMER_GRADE_LABEL[c.grade]}</Badge>
+                    <Badge className={CUSTOMER_GRADE_STYLE[c.grade as CustomerGrade]}>{CUSTOMER_GRADE_LABEL[c.grade as CustomerGrade]}</Badge>
                   </div>
-                  <div className="text-xs text-gray-400 mt-0.5">{c.vehicles[0]?.car_model} · 방문 {c.visit_count}회</div>
+                  <div className="text-xs text-gray-400 mt-0.5">{c.car_model} · 방문 {c.visit_count}회</div>
                 </div>
                 <div className="text-right text-sm">
                   <div className="font-medium">{formatMoney(c.total_spent)}</div>

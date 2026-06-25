@@ -1,17 +1,15 @@
 'use client'
 import { useState } from 'react'
-import useSWR from 'swr'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import { mockApi } from '@/lib/mock/data'
+import { mockBusiness } from '@/lib/mock/data'
 import { QRCodeSVG } from 'qrcode.react'
 import { Copy, Download } from 'lucide-react'
 
 export default function BrandPage() {
-  const { data: business } = useSWR('business', () => mockApi.getBusiness())
-  const [color, setColor] = useState(business?.primary_color ?? '#1E40AF')
-  const url = `https://washon.kr/${business?.slug ?? 'store'}`
+  const [color, setColor] = useState(mockBusiness.primary_color)
+  const url = `https://washon.kr/${mockBusiness.slug}`
 
   return (
     <div className="grid lg:grid-cols-2 gap-4">
@@ -48,8 +46,8 @@ export default function BrandPage() {
         <div className="rounded-xl overflow-hidden border border-gray-200" style={{ borderTopColor: color, borderTopWidth: 4 }}>
           <div className="h-24 bg-gray-100 flex items-center justify-center text-xs text-gray-400">배너 영역</div>
           <div className="p-4">
-            <div className="font-bold text-lg">{business?.name}</div>
-            <div className="text-xs text-gray-500 mt-1">{business?.address}</div>
+            <div className="font-bold text-lg">{mockBusiness.name}</div>
+            <div className="text-xs text-gray-500 mt-1">{mockBusiness.address}</div>
             <button className="w-full mt-4 py-2.5 rounded-xl text-white text-sm font-medium" style={{ backgroundColor: color }}>
               예약하기
             </button>

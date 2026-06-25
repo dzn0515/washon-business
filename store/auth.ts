@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { Business } from '@/types'
 import { setToken, clearToken } from '@/lib/auth'
-import { mockBusiness } from '@/lib/mock/data'
+import { toBusinessEntity } from '@/lib/mock/data'
 
 interface AuthState {
   user: { id: number; name: string; email: string } | null
@@ -23,7 +23,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     setToken(`mock_${provider}_token`)
     set({
       user: { id: 1, name: '사장님', email: 'owner@washon.kr' },
-      business: mockBusiness,
+      business: toBusinessEntity(),
       isLoading: false,
     })
   },
@@ -34,6 +34,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   loadBusiness: async () => {
-    set({ business: mockBusiness })
+    set({ business: toBusinessEntity() })
   },
 }))

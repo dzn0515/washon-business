@@ -1,43 +1,44 @@
 'use client'
-import { useState, useCallback } from 'react'
-import { useBookings } from '@/hooks/useBookings'
+import { useMemo, useState } from 'react'
+import { mockBookings, toBooking } from '@/lib/mock/data'
 import { BookingCard } from '@/components/features/bookings/BookingCard'
+import { BOOKING_STATUS_LABEL } from '@/constants'
 import type { BookingStatus } from '@/types'
-import { cn } from '@/lib/utils'
 
-const TABS: (BookingStatus | 'ALL')[] = ['ALL', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW']
-const TAB_LABEL: Record<string, string> = {
-  ALL: '전체', PENDING: '대기', CONFIRMED: '확정', COMPLETED: '완료', CANCELLED: '취소', NO_SHOW: '노쇼',
-}
+const TABS: (BookingStatus | 'ALL')[] = ['ALL', 'PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'NO_SHOW']
 
 export default function BookingsPage() {
   const [tab, setTab] = useState<BookingStatus | 'ALL'>('ALL')
-  const { data: bookings, mutate } = useBookings({ status: tab })
 
-  const handleStatusChange = useCallback(() => {
-    mutate()
-  }, [mutate])
+  const bookings = useMemo(() => {
+    const list = mockBookings.map(toBooking)
+    if (tab === 'ALL') return list
+    return list.filter((b) => b.status === tab)
+  }, [tab])
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-1">
         {TABS.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={cn(
-              'px-3 py-1.5 rounded-full text-xs whitespace-nowrap border',
-              tab === t ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-gray-500 border-gray-200'
-            )}
+            className={`px-3 py-1.5 rounded-full text-xs whitespace-nowrap border ${
+              tab === t ? 'bg-primary-600 text-white border-primary-600' : 'border-gray-200 text-gray-500'
+            }`}
           >
-            {TAB_LABEL[t]}
+            {t === 'ALL' ? '전체' : BOOKING_STATUS_LABEL[t]}
           </button>
         ))}
       </div>
-      <div className="space-y-3">
-        {bookings?.map((b) => (
-          <BookingCard key={b.id} booking={b} onStatusChange={handleStatusChange} />
+
+      <div className="space-y-2">
+        {bookings.map((b) => (
+          <BookingCard key={b.id} booking={b} />
         ))}
+        {bookings.length === 0 && (
+          <div className="text-center text-sm text-gray-400 py-12">예약이 없습니다</div>
+        )}
       </div>
     </div>
   )
