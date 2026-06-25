@@ -9,12 +9,14 @@ import type {
 export const mockDashboard = {
   today_bookings: 7,
   today_bookings_diff: +3,
-  monthly_revenue: 4800000,
-  monthly_revenue_diff: 12.4,
+  today_revenue: 115000,
+  monthly_revenue: 5800000,
+  monthly_revenue_diff: 12,
   unsettled_amount: 1260000,
   unsettled_date: 'D+2 정산 예정',
   new_customers: 12,
   new_customers_diff: +4,
+  app_exposure: 2847,
 }
 
 export const mockTodayBookings = [
@@ -454,6 +456,144 @@ export const mockStaff = [
   { id: 2, name: '김철수', role: '직원', phone: '010-9876-5432', is_active: true },
 ]
 
+export const mockCustomerStats = {
+  total: 284,
+  new: 12,
+  regular: 67,
+  regular_pct: 23,
+  vip: 18,
+}
+
+export const mockMonthlyReservationStats = {
+  total: 127,
+  completed: 118,
+  no_show: 9,
+}
+
+export const mockWeeklyRevenue = [
+  { day: '월', amount: 420000 },
+  { day: '화', amount: 510000 },
+  { day: '수', amount: 380000 },
+  { day: '목', amount: 460000 },
+  { day: '금', amount: 290000 },
+  { day: '토', amount: 620000 },
+  { day: '일', amount: 480000 },
+]
+
+export const mockMonthlyBookingTrend = [
+  { week: '1주', count: 28 },
+  { week: '2주', count: 32 },
+  { week: '3주', count: 35 },
+  { week: '4주', count: 32 },
+]
+
+export const mockRevenueLast7Days = [
+  { date: '06.19', amount: 400000 },
+  { date: '06.20', amount: 315000 },
+  { date: '06.21', amount: 210000 },
+  { date: '06.22', amount: 480000 },
+  { date: '06.23', amount: 290000 },
+  { date: '06.24', amount: 420000 },
+  { date: '06.25', amount: 360000 },
+]
+
+export const mockRevenueByMenu = [
+  { name: '중형 실내외 세차', amount: 1120000, pct: 32 },
+  { name: '디테일링 풀코스', amount: 750000, pct: 21 },
+  { name: '외부 세차', amount: 480000, pct: 14 },
+  { name: '소형 실내외 세차', amount: 420000, pct: 12 },
+  { name: '대형 실내외 세차', amount: 380000, pct: 11 },
+  { name: '기타', amount: 350000, pct: 10 },
+]
+
+export const mockPaymentsToday = mockTodayBookings
+  .filter((b) => b.status === 'COMPLETED' || b.status === 'IN_PROGRESS')
+  .map((b) => ({
+    id: b.id,
+    time: b.time,
+    customer_name: b.customer_name,
+    menu: b.service_name,
+    amount: b.price,
+    method: '앱결제',
+  }))
+
+export const mockRevenueTodayKpi = {
+  today_sales: 360000,
+  completed_count: 2,
+  pending_settlement: 1260000,
+  app_maintenance_fee: 28000,
+}
+
+export const mockRevenueWeeklyKpi = {
+  week_sales: 3160000,
+  week_bookings: 42,
+}
+
+export const mockRevenueMonthlyKpi = {
+  month_sales: 5800000,
+  month_bookings: 127,
+  platform_fee: 580000,
+  app_maintenance_fee: 28000,
+}
+
+export const mockMonthlyRevenueTrend = [
+  { month: '1월', amount: 3200000 },
+  { month: '2월', amount: 3800000 },
+  { month: '3월', amount: 4100000 },
+  { month: '4월', amount: 4500000 },
+  { month: '5월', amount: 5170000 },
+  { month: '6월', amount: 5800000 },
+]
+
+export const mockAds = {
+  monthly_exposure: 2847,
+  clicks: 312,
+  booking_conversions: 38,
+  radius_km: 5,
+  conversion_rate: 1.3,
+  app_maintenance_fee: 28000,
+}
+
+export const mockExposurePlans = [
+  { id: 'basic', label: '기본 반경', radius: '5km', extra_fee: 0, selected: true },
+  { id: 'extend', label: '확장 반경', radius: '10km', extra_fee: 15000, selected: false },
+  { id: 'wide', label: '광역 반경', radius: '30km', extra_fee: 30000, selected: false },
+  { id: 'nation', label: '전국 노출', radius: '전국', extra_fee: 50000, selected: false },
+]
+
+export const mockPremiumProducts = [
+  { id: 1, name: '상단 고정 노출', desc: '검색 결과 최상단 7일', price: 50000, badge: '인기' },
+  { id: 2, name: '메인 배너', desc: '앱 홈 화면 배너 3일', price: 80000, badge: null },
+  { id: 3, name: '푸시 알림', desc: '반경 5km 고객 대상 1회', price: 30000, badge: null },
+  { id: 4, name: '리뷰 부스팅', desc: '리뷰 작성 고객 쿠폰 자동 발송', price: 20000, badge: '신규' },
+]
+
+export const mockMenuCards = [
+  { id: 1, name: '소형 실내외 세차', duration_minutes: 40, monthly_bookings: 42, is_popular: true, is_active: true, price_grid: { domestic_small: 25000, domestic_medium: 30000, domestic_large: 35000, import_small: 31250, import_medium: 36250, import_large: 41250 } },
+  { id: 2, name: '중형 실내외 세차', duration_minutes: 60, monthly_bookings: 58, is_popular: true, is_active: true, price_grid: { domestic_small: 35000, domestic_medium: 42000, domestic_large: 49000, import_small: 43750, import_medium: 50750, import_large: 57750 } },
+  { id: 3, name: '대형 실내외 세차', duration_minutes: 80, monthly_bookings: 24, is_popular: false, is_active: true, price_grid: { domestic_small: 50000, domestic_medium: 60000, domestic_large: 70000, import_small: 62500, import_medium: 72500, import_large: 82500 } },
+  { id: 4, name: '외부 세차', duration_minutes: 20, monthly_bookings: 31, is_popular: false, is_active: true, price_grid: { domestic_small: 15000, domestic_medium: 18000, domestic_large: 21000, import_small: 18750, import_medium: 21750, import_large: 24750 } },
+  { id: 5, name: '디테일링 풀코스', duration_minutes: 180, monthly_bookings: 12, is_popular: false, is_active: true, price_grid: { domestic_small: 150000, domestic_medium: 180000, domestic_large: 210000, import_small: 187500, import_medium: 217500, import_large: 247500 } },
+  { id: 6, name: '유리막 코팅', duration_minutes: 240, monthly_bookings: 3, is_popular: false, is_active: false, price_grid: { domestic_small: 200000, domestic_medium: 240000, domestic_large: 280000, import_small: 250000, import_medium: 290000, import_large: 330000 } },
+]
+
+export const mockHolidayCards = [
+  { id: 1, date: '2026-06-25', reason: '우천 휴무 (오후)', type: 'RAIN' },
+  { id: 2, date: '2026-08-15', reason: '광복절', type: 'HOLIDAY' },
+]
+
+export const mockCustomerVisitHistory: Record<number, { date: string; menu: string; amount: number }[]> = {
+  1: [
+    { date: '2026-06-25', menu: '중형 실내외 세차', amount: 35000 },
+    { date: '2026-06-11', menu: '중형 실내외 세차', amount: 35000 },
+    { date: '2026-05-28', menu: '외부 세차 + 광택', amount: 55000 },
+  ],
+  2: [
+    { date: '2026-06-25', menu: '외부 세차 + 광택', amount: 55000 },
+    { date: '2026-06-04', menu: '중형 실내외 세차', amount: 35000 },
+  ],
+}
+
 // ── 어댑터 (기존 API 레이어 호환) ──
 
 const TODAY = '2026-06-25'
@@ -512,7 +652,7 @@ export function toBusinessEntity(): Business {
   }
 }
 
-const mockHours: BusinessHours[] = [
+export const mockBusinessHours: BusinessHours[] = [
   { day: 0, label: '일', is_open: false, open_time: '09:00', close_time: '18:00' },
   { day: 1, label: '월', is_open: true, open_time: '09:00', close_time: '19:00' },
   { day: 2, label: '화', is_open: true, open_time: '09:00', close_time: '19:00' },
@@ -522,7 +662,7 @@ const mockHours: BusinessHours[] = [
   { day: 6, label: '토', is_open: true, open_time: '09:00', close_time: '18:00' },
 ]
 
-const mockHolidays: Holiday[] = [
+export const mockHolidaysList: Holiday[] = [
   { id: 1, date: '2026-08-15', reason: '광복절' },
 ]
 
@@ -576,8 +716,8 @@ export const mockApi = {
     await delay()
     return mockStaff.map((s) => ({ id: s.id, name: s.name, is_active: s.is_active })) as Staff[]
   },
-  getHours: async () => { await delay(); return mockHours },
-  getHolidays: async () => { await delay(); return mockHolidays },
+  getHours: async () => { await delay(); return mockBusinessHours },
+  getHolidays: async () => { await delay(); return mockHolidaysList },
   getDashboardSummary: async () => {
     await delay()
     return {

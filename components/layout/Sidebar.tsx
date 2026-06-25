@@ -2,13 +2,14 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, Calendar, List, Users, Wallet, Ticket, Palette, Settings,
+  LayoutDashboard, Calendar, List, Users, Wallet, Settings, Megaphone,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/constants'
+import { mockBusiness } from '@/lib/mock/data'
 
 const ICONS = {
-  LayoutDashboard, Calendar, List, Users, Wallet, Ticket, Palette, Settings,
+  LayoutDashboard, Calendar, List, Users, Wallet, Settings, Megaphone,
 }
 
 interface SidebarProps {
@@ -24,13 +25,15 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         <span className="text-[15px] font-bold text-washon">💧 WashOn Business</span>
       </div>
       <div className="px-4 py-3 border-b border-gray-100">
-        <div className="text-sm font-medium text-gray-900">반짝반짝 손세차</div>
+        <div className="text-sm font-medium text-gray-900">{mockBusiness.name}</div>
         <div className="text-[11px] text-primary-600 mt-0.5">business.washon.kr</div>
       </div>
       <nav className="flex-1 py-2 overflow-y-auto">
         {NAV_ITEMS.map((item) => {
           const Icon = ICONS[item.icon]
-          const active = pathname === item.href || pathname.startsWith(item.href + '/')
+          const active = item.href === '/dashboard'
+            ? pathname === '/dashboard'
+            : pathname === item.href || pathname.startsWith(item.href + '/')
           return (
             <Link
               key={item.href}
@@ -38,7 +41,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               onClick={onNavigate}
               className={cn(
                 'flex items-center gap-2.5 px-4 py-2.5 text-[13px] transition-colors',
-                active ? 'bg-primary-50 text-primary-700 font-medium' : 'text-gray-500 hover:bg-gray-50'
+                active ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-500 hover:bg-gray-50'
               )}
             >
               <Icon size={16} />

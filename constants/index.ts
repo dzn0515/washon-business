@@ -59,18 +59,15 @@ export const SERVICE_TYPE_LABEL: Record<ServiceTypeCode, string> = {
 
 export const NAV_ITEMS = [
   { href: '/dashboard', label: '대시보드', icon: 'LayoutDashboard' as const },
-  { href: '/bookings', label: '예약 관리', icon: 'Calendar' as const },
-  { href: '/menus', label: '메뉴/요금', icon: 'List' as const },
-  { href: '/customers', label: '고객 관리', icon: 'Users' as const },
-  { href: '/settlements', label: '정산 내역', icon: 'Wallet' as const },
-  { href: '/coupons', label: '쿠폰', icon: 'Ticket' as const },
-  { href: '/brand', label: '브랜드', icon: 'Palette' as const },
-  { href: '/settings/hours', label: '영업 설정', icon: 'Settings' as const },
+  { href: '/dashboard/reservations', label: '예약 관리', icon: 'Calendar' as const },
+  { href: '/dashboard/menus', label: '메뉴/요금', icon: 'List' as const },
+  { href: '/dashboard/customers', label: '고객 관리', icon: 'Users' as const },
+  { href: '/dashboard/revenue', label: '매출 현황', icon: 'Wallet' as const },
+  { href: '/dashboard/ads', label: '앱 노출', icon: 'Megaphone' as const },
+  { href: '/dashboard/settings', label: '설정', icon: 'Settings' as const },
 ]
 
 export const SETTINGS_NAV = [
-  { href: '/settings/hours', label: '영업시간' },
-  { href: '/settings/holidays', label: '휴무일' },
-  { href: '/settings/booking', label: '예약 설정' },
-  { href: '/settings/staff', label: '직원/베이' },
+  { href: '/dashboard/settings', label: '설정' },
+  { href: '/dashboard/menus', label: '영업시간/휴무' },
 ]

@@ -4,12 +4,19 @@ import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import MobileNav from '@/components/layout/MobileNav'
+import ApiAuthProvider from '@/components/providers/ApiAuthProvider'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/constants'
 
 const TITLES: Record<string, string> = Object.fromEntries(NAV_ITEMS.map((n) => [n.href, n.label]))
 
 function getTitle(pathname: string) {
+  if (pathname.startsWith('/dashboard/reservations')) return '예약 관리'
+  if (pathname.startsWith('/dashboard/menus')) return '메뉴/요금'
+  if (pathname.startsWith('/dashboard/customers')) return '고객 관리'
+  if (pathname.startsWith('/dashboard/revenue')) return '매출 현황'
+  if (pathname.startsWith('/dashboard/ads')) return '앱 노출'
+  if (pathname.startsWith('/dashboard/settings')) return '설정'
   if (pathname.startsWith('/bookings/')) return '예약 상세'
   if (pathname.startsWith('/customers/')) return '고객 상세'
   if (pathname.startsWith('/menus/')) return '메뉴 상세'
@@ -23,7 +30,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
 
   return (
-    <div className="flex h-[100dvh] bg-gray-50 overflow-hidden">
+    <ApiAuthProvider>
+      <div className="flex h-[100dvh] bg-gray-50 overflow-hidden">
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -40,6 +48,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
         <MobileNav />
       </div>
-    </div>
+      </div>
+    </ApiAuthProvider>
   )
 }
