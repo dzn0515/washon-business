@@ -1,8 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import {
   Calendar,
+  CheckCircle,
   ChevronLeft,
   Clock,
   MapPin,
@@ -10,6 +13,7 @@ import {
   Star,
   X,
 } from 'lucide-react'
+import { sendAlimtalk } from '@/lib/alimtalk'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import {
@@ -24,7 +28,7 @@ import {
 import { FALLBACK_HOURS, FALLBACK_REVIEWS } from '@/lib/public-fallback'
 import { won } from '@/lib/dashboard-ui'
 
-const SLUG = 'sparkling'
+const PWA_BANNER_KEY = 'washon-pwa-banner-dismissed'
 
 type Step = 'menu' | 'datetime' | 'info' | 'done'
 
@@ -52,10 +56,23 @@ function Stars({ n }: { n: number }) {
   )
 }
 
-export default function SparklingPage() {
+function isStandaloneMode(): boolean {
+  if (typeof window === 'undefined') return false
+  const nav = window.navigator as Navigator & { standalone?: boolean }
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    nav.standalone === true
+  )
+}
+
+export default function PublicShopPage() {
+  const params = useParams()
+  const slug = String(params.slug ?? 'sparkling')
+
   const [business, setBusiness] = useState<PublicBusiness | null>(null)
   const [menus, setMenus] = useState<PublicMenu[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [showPwaBanner, setShowPwaBanner] = useState(false)
 
   const [bookingOpen, setBookingOpen] = useState(false)
   const [step, setStep] = useState<Step>('menu')
@@ -75,23 +92,28 @@ export default function SparklingPage() {
   const brandColor = business?.brand_color ?? '#1A6DFF'
 
   useEffect(() => {
+    const dismissed = localStorage.getItem(PWA_BANNER_KEY) === '1'
+    setShowPwaBanner(!dismissed && !isStandaloneMode())
+  }, [])
+
+  useEffect(() => {
     Promise.all([
-      publicFetch<PublicBusiness>(`/public/${SLUG}`),
-      publicFetch<PublicMenu[]>(`/public/${SLUG}/menus`),
+      publicFetch<PublicBusiness>(`/public/${slug}`),
+      publicFetch<PublicMenu[]>(`/public/${slug}/menus`),
     ])
       .then(([b, m]) => {
         setBusiness(b)
         setMenus(m)
       })
       .catch((e: Error) => setLoadError(e.message))
-  }, [])
+  }, [slug])
 
   const loadSlots = useCallback(async (menuId: string, date: string) => {
     setSlotsLoading(true)
     setSelectedTime('')
     try {
       const data = await publicFetch<AvailableSlot[]>(
-        `/public/${SLUG}/available-slots?menu_id=${menuId}&booking_date=${date}`,
+        `/public/${slug}/available-slots?menu_id=${menuId}&booking_date=${date}`,
       )
       setSlots(data.filter((s) => s.available))
     } catch {
@@ -99,7 +121,12 @@ export default function SparklingPage() {
     } finally {
       setSlotsLoading(false)
     }
-  }, [])
+  }, [slug])
+
+  function dismissPwaBanner() {
+    localStorage.setItem(PWA_BANNER_KEY, '1')
+    setShowPwaBanner(false)
+  }
 
   function openBooking(menu?: PublicMenu) {
     setStep('menu')
@@ -144,7 +171,7 @@ export default function SparklingPage() {
       const result = await publicFetch<PublicBookingResult>('/public/bookings', {
         method: 'POST',
         body: JSON.stringify({
-          slug: SLUG,
+          slug,
           menu_id: selectedMenu.id,
           booking_date: selectedDate,
           start_time: startTime,
@@ -154,6 +181,15 @@ export default function SparklingPage() {
         }),
       })
       setBookingResult(result)
+      await sendAlimtalk({
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        storeName: business?.name ?? '매장',
+        menuName: selectedMenu.name,
+        bookingDate: selectedDate,
+        bookingTime: formatTimeLabel(startTime),
+        price: result.price,
+      })
       setStep('done')
     } catch (e) {
       setFormError(e instanceof Error ? e.message : '예약에 실패했습니다.')
@@ -191,7 +227,7 @@ export default function SparklingPage() {
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto px-4 -mt-4 relative z-10 pb-28 space-y-4">
+      <div className={`max-w-lg mx-auto px-4 -mt-4 relative z-10 space-y-4 ${showPwaBanner ? 'pb-44' : 'pb-28'}`}>
         {/* Store info */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
           <div className="flex items-start gap-2 text-sm text-gray-600">
@@ -278,6 +314,31 @@ export default function SparklingPage() {
       {/* Sticky CTA */}
       <div className="fixed bottom-0 inset-x-0 z-30 p-4 bg-gradient-to-t from-gray-50 via-gray-50 to-transparent">
         <div className="max-w-lg mx-auto">
+          {showPwaBanner && (
+            <div className="mb-3 bg-white rounded-xl border border-gray-200 shadow-sm p-3 flex items-center gap-2">
+              <div className="w-10 h-10 bg-[#1A6DFF] rounded-xl flex items-center justify-center text-lg shrink-0">
+                💧
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-gray-900">WashOn 앱처럼 사용하기</p>
+                <p className="text-[11px] text-gray-500">홈 화면에 추가하면 바로 예약</p>
+              </div>
+              <Link
+                href="/install"
+                className="shrink-0 text-xs font-semibold text-white bg-[#1A6DFF] px-2.5 py-2 rounded-lg whitespace-nowrap"
+              >
+                홈 화면에 추가
+              </Link>
+              <button
+                type="button"
+                onClick={dismissPwaBanner}
+                className="shrink-0 p-1 text-gray-400 hover:text-gray-600"
+                aria-label="배너 닫기"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
           <Button
             size="lg"
             className="w-full shadow-lg"
@@ -430,15 +491,22 @@ export default function SparklingPage() {
               )}
 
               {step === 'done' && bookingResult && (
-                <div className="text-center py-6 space-y-4">
-                  <div className="text-5xl">✅</div>
-                  <h4 className="text-xl font-bold">예약이 완료됐어요!</h4>
-                  <div className="bg-gray-50 rounded-xl p-4 text-sm text-left space-y-2">
+                <div className="py-4 space-y-4">
+                  <div className="bg-white border rounded-2xl p-5 text-center max-w-md mx-auto">
+                    <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle className="text-blue-600" size={32} />
+                    </div>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-2">예약이 완료됐어요!</h2>
+                    <div className="flex flex-col gap-1 text-sm text-gray-500 mb-4">
+                      <p>📱 예약 확인 알림톡이 발송됐어요.</p>
+                      <p>⏰ 방문 1시간 전 리마인더도 보내드려요.</p>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4 text-sm text-left space-y-2 max-w-md mx-auto">
                     <p><span className="text-gray-400">예약번호</span> {bookingResult.id.slice(0, 8).toUpperCase()}</p>
                     <p><span className="text-gray-400">일시</span> {bookingResult.booking_date} {formatTimeLabel(bookingResult.start_time)}</p>
                     <p><span className="text-gray-400">금액</span> {won(bookingResult.price)}</p>
                   </div>
-                  <p className="text-sm text-gray-500">방문 전 연락처로 안내 문자를 보내드릴게요.</p>
                 </div>
               )}
             </div>
