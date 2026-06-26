@@ -1,551 +1,449 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useState } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import {
+  ArrowLeft,
   Calendar,
-  CheckCircle,
-  ChevronLeft,
+  Car,
   Clock,
+  Heart,
+  Info,
   MapPin,
   Phone,
+  Share2,
+  Sparkles,
   Star,
-  X,
 } from 'lucide-react'
-import { sendAlimtalk } from '@/lib/alimtalk'
-import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
-import {
-  type AvailableSlot,
-  type PublicBookingResult,
-  type PublicBusiness,
-  type PublicMenu,
-  formatTimeLabel,
-  minMenuPrice,
-  publicFetch,
-} from '@/lib/public-api'
-import { FALLBACK_HOURS, FALLBACK_REVIEWS } from '@/lib/public-fallback'
-import { won } from '@/lib/dashboard-ui'
 
-const PWA_BANNER_KEY = 'washon-pwa-banner-dismissed'
+type Tab = 'menu' | 'review' | 'info'
 
-type Step = 'menu' | 'datetime' | 'info' | 'done'
-
-function nextDays(count = 14): { iso: string; label: string; weekday: string }[] {
-  const days = ['일', '월', '화', '수', '목', '금', '토']
-  return Array.from({ length: count }, (_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() + i)
-    const iso = d.toISOString().slice(0, 10)
-    return {
-      iso,
-      label: `${d.getMonth() + 1}/${d.getDate()}`,
-      weekday: days[d.getDay()],
-    }
-  })
+const store = {
+  name: '반짝반짝 손세차',
+  rating: 4.9,
+  reviewCount: 127,
+  distance: '0.4km',
+  hours: '09:00~20:00',
+  address: '강원도 원주시 무실로 42',
+  phone: '033-123-4567',
+  bays: 3,
+  isOpen: true,
+  tags: ['손세차', '실내세차', '유리막코팅', '주차가능', '즉시예약'],
 }
 
-function Stars({ n }: { n: number }) {
+const menus = [
+  {
+    id: '1',
+    name: '기본 외부 세차',
+    description: '외관 전체 거품세차 + 물기제거 + 유리 닦기',
+    duration: 40,
+    isPopular: true,
+    prices: {
+      small: { domestic: 20000, imported: 25000 },
+      medium: { domestic: 25000, imported: 30000 },
+      large: { domestic: 30000, imported: 38000 },
+    },
+  },
+  {
+    id: '2',
+    name: '실내+외부 풀세차',
+    description: '외부 세차 + 실내 진공청소 + 대시보드 닦기',
+    duration: 90,
+    isPopular: false,
+    prices: {
+      small: { domestic: 35000, imported: 45000 },
+      medium: { domestic: 45000, imported: 55000 },
+      large: { domestic: 55000, imported: 68000 },
+    },
+  },
+  {
+    id: '3',
+    name: '유리막 코팅',
+    description: '발수 유리막 코팅 · 3~6개월 지속',
+    duration: 120,
+    isPopular: false,
+    prices: {
+      small: { domestic: 60000, imported: 80000 },
+      medium: { domestic: 80000, imported: 100000 },
+      large: { domestic: 100000, imported: 130000 },
+    },
+  },
+  {
+    id: '4',
+    name: '엔진룸 세척',
+    description: '엔진룸 고압 스팀 세척 · 방청 처리 포함',
+    duration: 60,
+    isPopular: false,
+    prices: {
+      small: { domestic: 35000, imported: 45000 },
+      medium: { domestic: 35000, imported: 45000 },
+      large: { domestic: 35000, imported: 45000 },
+    },
+  },
+]
+
+const reviews = [
+  {
+    id: '1',
+    name: '김민준',
+    date: '2026.06.18',
+    menu: '기본 외부 세차',
+    rating: 5,
+    content: '꼼꼼하게 닦아주셔서 너무 만족해요. 40분 정도 걸렸고 차가 새 차처럼 됐어요.',
+    tags: ['꼼꼼해요', '친절해요', '재방문 의사 있음'],
+  },
+  {
+    id: '2',
+    name: '이수진',
+    date: '2026.06.12',
+    menu: '실내+외부 풀세차',
+    rating: 5,
+    content: '앱으로 예약하고 바로 방문했어요. 실내까지 깨끗하게 해주시고 사장님이 너무 친절하세요!',
+    tags: ['친절해요', '예약이 편해요'],
+  },
+  {
+    id: '3',
+    name: '박현우',
+    date: '2026.05.30',
+    menu: '유리막 코팅',
+    rating: 4,
+    content: '코팅 퀄리티는 좋은데 대기가 조금 있었어요. 예약 시스템 생겨서 다음엔 편할 것 같아요.',
+    tags: ['퀄리티 좋아요'],
+  },
+]
+
+const RATING_DIST = [
+  { star: 5, pct: 88 },
+  { star: 4, pct: 8 },
+  { star: 3, pct: 3 },
+  { star: 2, pct: 1 },
+  { star: 1, pct: 0 },
+]
+
+const VEHICLE_ROWS = [
+  { key: 'small' as const, label: '소형', badge: 'bg-green-50 text-green-700', examples: '모닝·아반떼' },
+  { key: 'medium' as const, label: '중형', badge: 'bg-blue-50 text-blue-700', examples: '쏘나타·그랜저' },
+  { key: 'large' as const, label: '대형', badge: 'bg-amber-50 text-amber-700', examples: '카니발·팰리세이드' },
+]
+
+const TABS: { key: Tab; label: string }[] = [
+  { key: 'menu', label: '메뉴' },
+  { key: 'review', label: '리뷰' },
+  { key: 'info', label: '정보' },
+]
+
+function formatPrice(amount: number) {
+  return `${amount.toLocaleString()}원`
+}
+
+function Stars({ count, size = 12 }: { count: number; size?: number }) {
   return (
-    <span className="inline-flex gap-0.5 text-amber-400">
+    <span className="inline-flex text-amber-400" style={{ fontSize: size }}>
       {Array.from({ length: 5 }, (_, i) => (
-        <Star key={i} size={12} fill={i < n ? 'currentColor' : 'none'} />
+        <Star key={i} size={size} fill={i < count ? 'currentColor' : 'none'} />
       ))}
     </span>
   )
 }
 
-function isStandaloneMode(): boolean {
-  if (typeof window === 'undefined') return false
-  const nav = window.navigator as Navigator & { standalone?: boolean }
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    nav.standalone === true
-  )
-}
-
 export default function PublicShopPage() {
+  const router = useRouter()
   const params = useParams()
   const slug = String(params.slug ?? 'sparkling')
+  const [tab, setTab] = useState<Tab>('menu')
+  const [liked, setLiked] = useState(false)
 
-  const [business, setBusiness] = useState<PublicBusiness | null>(null)
-  const [menus, setMenus] = useState<PublicMenu[]>([])
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [showPwaBanner, setShowPwaBanner] = useState(false)
-
-  const [bookingOpen, setBookingOpen] = useState(false)
-  const [step, setStep] = useState<Step>('menu')
-  const [selectedMenu, setSelectedMenu] = useState<PublicMenu | null>(null)
-  const [selectedDate, setSelectedDate] = useState('')
-  const [slots, setSlots] = useState<AvailableSlot[]>([])
-  const [slotsLoading, setSlotsLoading] = useState(false)
-  const [selectedTime, setSelectedTime] = useState('')
-  const [customerName, setCustomerName] = useState('')
-  const [customerPhone, setCustomerPhone] = useState('')
-  const [vehicleModel, setVehicleModel] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [bookingResult, setBookingResult] = useState<PublicBookingResult | null>(null)
-  const [formError, setFormError] = useState<string | null>(null)
-
-  const dates = useMemo(() => nextDays(), [])
-  const brandColor = business?.brand_color ?? '#1A6DFF'
-
-  useEffect(() => {
-    const dismissed = localStorage.getItem(PWA_BANNER_KEY) === '1'
-    setShowPwaBanner(!dismissed && !isStandaloneMode())
-  }, [])
-
-  useEffect(() => {
-    Promise.all([
-      publicFetch<PublicBusiness>(`/public/${slug}`),
-      publicFetch<PublicMenu[]>(`/public/${slug}/menus`),
-    ])
-      .then(([b, m]) => {
-        setBusiness(b)
-        setMenus(m)
-      })
-      .catch((e: Error) => setLoadError(e.message))
-  }, [slug])
-
-  const loadSlots = useCallback(async (menuId: string, date: string) => {
-    setSlotsLoading(true)
-    setSelectedTime('')
-    try {
-      const data = await publicFetch<AvailableSlot[]>(
-        `/public/${slug}/available-slots?menu_id=${menuId}&booking_date=${date}`,
-      )
-      setSlots(data.filter((s) => s.available))
-    } catch {
-      setSlots([])
-    } finally {
-      setSlotsLoading(false)
-    }
-  }, [slug])
-
-  function dismissPwaBanner() {
-    localStorage.setItem(PWA_BANNER_KEY, '1')
-    setShowPwaBanner(false)
-  }
-
-  function openBooking(menu?: PublicMenu) {
-    setStep('menu')
-    setSelectedMenu(menu ?? null)
-    setSelectedDate(dates[0]?.iso ?? '')
-    setSelectedTime('')
-    setCustomerName('')
-    setCustomerPhone('')
-    setVehicleModel('')
-    setBookingResult(null)
-    setFormError(null)
-    setBookingOpen(true)
-  }
-
-  function closeBooking() {
-    setBookingOpen(false)
-  }
-
-  async function handleDateSelect(date: string) {
-    setSelectedDate(date)
-    if (selectedMenu) await loadSlots(selectedMenu.id, date)
-  }
-
-  async function handleMenuSelect(menu: PublicMenu) {
-    setSelectedMenu(menu)
-    const date = selectedDate || dates[0]?.iso || ''
-    setSelectedDate(date)
-    if (date) await loadSlots(menu.id, date)
-    setStep('datetime')
-  }
-
-  async function submitBooking() {
-    if (!selectedMenu || !selectedDate || !selectedTime) return
-    if (!customerName.trim() || !customerPhone.trim()) {
-      setFormError('이름과 연락처를 입력해주세요.')
-      return
-    }
-    setFormError(null)
-    setSubmitting(true)
-    try {
-      const startTime = selectedTime.length === 5 ? `${selectedTime}:00` : selectedTime
-      const result = await publicFetch<PublicBookingResult>('/public/bookings', {
-        method: 'POST',
-        body: JSON.stringify({
-          slug,
-          menu_id: selectedMenu.id,
-          booking_date: selectedDate,
-          start_time: startTime,
-          customer_name: customerName.trim(),
-          customer_phone: customerPhone.trim(),
-          vehicle_model: vehicleModel.trim() || null,
-        }),
-      })
-      setBookingResult(result)
-      await sendAlimtalk({
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        storeName: business?.name ?? '매장',
-        menuName: selectedMenu.name,
-        bookingDate: selectedDate,
-        bookingTime: formatTimeLabel(startTime),
-        price: result.price,
-      })
-      setStep('done')
-    } catch (e) {
-      setFormError(e instanceof Error ? e.message : '예약에 실패했습니다.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  if (loadError && !business) {
-    return (
-      <div className="flex min-h-[100dvh] items-center justify-center p-6 text-center">
-        <div>
-          <p className="text-gray-500 mb-4">매장 정보를 불러오지 못했습니다.</p>
-          <p className="text-sm text-gray-400">{loadError}</p>
-        </div>
-      </div>
-    )
-  }
+  const infoGrid = [
+    { icon: MapPin, label: '주소', value: store.address },
+    { icon: Phone, label: '전화', value: store.phone },
+    { icon: Car, label: '베이', value: `${store.bays}개` },
+    { icon: Clock, label: '영업', value: store.hours },
+  ]
 
   return (
-    <>
-      {/* Banner */}
-      <div
-        className="relative h-48 sm:h-56 bg-gradient-to-br from-blue-600 to-blue-800"
-        style={business?.banner_image_url ? {
-          backgroundImage: `url(${business.banner_image_url})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        } : { background: `linear-gradient(135deg, ${brandColor}, #0f172a)` }}
-      >
-        <div className="absolute inset-0 bg-black/30" />
-        <div className="relative h-full max-w-lg mx-auto px-4 flex flex-col justify-end pb-5">
-          <p className="text-white/80 text-xs mb-1">WashOn 예약</p>
-          <h1 className="text-2xl font-bold text-white">{business?.name ?? '반짝반짝 손세차'}</h1>
-        </div>
+    <div className="max-w-md mx-auto bg-white min-h-screen pb-24">
+      {/* 1. 히어로 */}
+      <div className="relative h-[180px] bg-gray-100 flex items-center justify-center">
+        <Car className="text-gray-300" size={48} />
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="absolute top-3 left-3 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center"
+          aria-label="뒤로가기"
+        >
+          <ArrowLeft className="text-white" size={18} />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (typeof navigator !== 'undefined' && navigator.share) {
+              navigator.share({ title: store.name, url: window.location.href }).catch(() => {})
+            }
+          }}
+          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center"
+          aria-label="공유"
+        >
+          <Share2 className="text-white" size={18} />
+        </button>
+        {store.isOpen && (
+          <span className="absolute bottom-2 right-3 bg-green-600 text-white text-xs px-2.5 py-1 rounded-full font-medium">
+            영업중
+          </span>
+        )}
       </div>
 
-      <div className={`max-w-lg mx-auto px-4 -mt-4 relative z-10 space-y-4 ${showPwaBanner ? 'pb-44' : 'pb-28'}`}>
-        {/* Store info */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
-          <div className="flex items-start gap-2 text-sm text-gray-600">
-            <MapPin size={16} className="shrink-0 mt-0.5 text-gray-400" />
-            <span>{business?.address ?? '주소 불러오는 중...'}</span>
-          </div>
-          {business?.phone && (
-            <a href={`tel:${business.phone}`} className="flex items-center gap-2 text-sm text-blue-600">
-              <Phone size={16} />
-              {business.phone}
-            </a>
-          )}
+      {/* 2. 매장 정보 */}
+      <div className="px-4 pt-4">
+        <h1 className="text-[18px] font-semibold text-gray-900 mb-1">{store.name}</h1>
+        <div className="flex items-center gap-1.5 text-[13px] text-gray-500 mb-2 flex-wrap">
+          <Star className="text-amber-400 shrink-0" size={13} fill="currentColor" />
+          <span>{store.rating}</span>
+          <span>·</span>
+          <span>리뷰 {store.reviewCount}개</span>
+          <span>·</span>
+          <span>{store.distance}</span>
+          <span>·</span>
+          <span>{store.hours}</span>
         </div>
-
-        {/* Menus */}
-        <section>
-          <h2 className="text-sm font-semibold text-gray-900 mb-2">세차 메뉴</h2>
-          <div className="space-y-2">
-            {menus.map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => openBooking(m)}
-                className="w-full text-left bg-white rounded-2xl border border-gray-100 p-4 hover:border-blue-200 transition-colors"
-              >
-                <div className="flex justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-gray-900">{m.name}</span>
-                      {m.is_popular && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">인기</span>
-                      )}
-                    </div>
-                    {m.description && <p className="text-xs text-gray-400 mt-1 line-clamp-2">{m.description}</p>}
-                    <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                      <Clock size={12} /> {m.duration_minutes}분
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-semibold text-blue-600">{won(minMenuPrice(m))}~</p>
-                  </div>
-                </div>
-              </button>
-            ))}
-            {!menus.length && !loadError && (
-              <p className="text-sm text-gray-400 text-center py-6">메뉴를 불러오는 중...</p>
-            )}
-          </div>
-        </section>
-
-        {/* Hours */}
-        <section>
-          <h2 className="text-sm font-semibold text-gray-900 mb-2">영업시간</h2>
-          <div className="bg-white rounded-2xl border border-gray-100 p-4">
-            <ul className="space-y-2">
-              {FALLBACK_HOURS.map((h) => (
-                <li key={h.label} className="flex justify-between text-sm">
-                  <span className="text-gray-500 w-6">{h.label}</span>
-                  <span className={h.closed ? 'text-gray-400' : 'text-gray-900'}>{h.time}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        {/* Reviews */}
-        <section>
-          <h2 className="text-sm font-semibold text-gray-900 mb-2">리뷰</h2>
-          <div className="space-y-2">
-            {FALLBACK_REVIEWS.map((r) => (
-              <div key={r.id} className="bg-white rounded-2xl border border-gray-100 p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">{r.name}</span>
-                  <span className="text-xs text-gray-400">{r.date}</span>
-                </div>
-                <Stars n={r.rating} />
-                <p className="text-sm text-gray-600 mt-2">{r.content}</p>
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {store.tags.map((tag) => (
+            <span key={tag} className="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">
+              {tag}
+            </span>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          {infoGrid.map(({ icon: Icon, label, value }) => (
+            <div key={label} className="flex items-start gap-2 bg-gray-50 rounded-xl p-3">
+              <Icon className="text-[#1A6DFF] shrink-0 mt-0.5" size={15} />
+              <div className="min-w-0">
+                <p className="text-[11px] text-gray-400">{label}</p>
+                <p className="text-[13px] font-medium text-gray-900 truncate">{value}</p>
               </div>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      {/* Sticky CTA */}
-      <div className="fixed bottom-0 inset-x-0 z-30 p-4 bg-gradient-to-t from-gray-50 via-gray-50 to-transparent">
-        <div className="max-w-lg mx-auto">
-          {showPwaBanner && (
-            <div className="mb-3 bg-white rounded-xl border border-gray-200 shadow-sm p-3 flex items-center gap-2">
-              <div className="w-10 h-10 bg-[#1A6DFF] rounded-xl flex items-center justify-center text-lg shrink-0">
-                💧
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-gray-900">WashOn 앱처럼 사용하기</p>
-                <p className="text-[11px] text-gray-500">홈 화면에 추가하면 바로 예약</p>
-              </div>
-              <Link
-                href="/install"
-                className="shrink-0 text-xs font-semibold text-white bg-[#1A6DFF] px-2.5 py-2 rounded-lg whitespace-nowrap"
-              >
-                홈 화면에 추가
-              </Link>
-              <button
-                type="button"
-                onClick={dismissPwaBanner}
-                className="shrink-0 p-1 text-gray-400 hover:text-gray-600"
-                aria-label="배너 닫기"
-              >
-                <X size={16} />
-              </button>
             </div>
-          )}
-          <Button
-            size="lg"
-            className="w-full shadow-lg"
-            style={{ backgroundColor: brandColor }}
-            onClick={() => openBooking()}
+          ))}
+        </div>
+      </div>
+
+      {/* 3. 탭 바 */}
+      <div className="sticky top-0 z-10 flex border-b border-gray-200 bg-white">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            className={`flex-1 py-2.5 text-[13px] text-center cursor-pointer ${
+              tab === t.key
+                ? 'text-[#1A6DFF] border-b-2 border-[#1A6DFF] font-medium'
+                : 'text-gray-500'
+            }`}
           >
-            예약하기
-          </Button>
-        </div>
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Booking sheet */}
-      {bookingOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={closeBooking} />
-          <div className="relative bg-white rounded-t-3xl sm:rounded-2xl max-h-[92dvh] overflow-hidden flex flex-col w-full sm:max-w-lg sm:mx-auto shadow-2xl">
-            {/* Header */}
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 shrink-0">
-              {step !== 'menu' && step !== 'done' && (
-                <button
-                  type="button"
-                  onClick={() => setStep(step === 'info' ? 'datetime' : 'menu')}
-                  className="p-1.5 rounded-lg hover:bg-gray-50 text-gray-500"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-              )}
-              <h3 className="flex-1 font-semibold text-center pr-8">
-                {step === 'menu' && '메뉴 선택'}
-                {step === 'datetime' && '날짜 · 시간'}
-                {step === 'info' && '예약 정보'}
-                {step === 'done' && '예약 완료'}
-              </h3>
-              <button type="button" onClick={closeBooking} className="absolute right-4 p-1.5 text-gray-400">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4">
-              {step === 'menu' && (
-                <div className="space-y-2">
-                  {menus.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => handleMenuSelect(m)}
-                      className={`w-full text-left p-4 rounded-xl border ${
-                        selectedMenu?.id === m.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                      }`}
-                    >
-                      <p className="font-medium">{m.name}</p>
-                      <p className="text-sm text-blue-600 mt-1">{won(minMenuPrice(m))}~ · {m.duration_minutes}분</p>
-                    </button>
-                  ))}
+      {/* 4. 메뉴 탭 */}
+      {tab === 'menu' && (
+        <div className="px-4 py-3">
+          {menus.map((menu) => (
+            <div
+              key={menu.id}
+              className={`border rounded-xl p-3 mb-2 ${
+                menu.isPopular ? 'border-[#1A6DFF]' : 'border-gray-100'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 mb-2">
+                <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
+                  <Sparkles className="text-blue-400" size={24} />
                 </div>
-              )}
-
-              {step === 'datetime' && selectedMenu && (
-                <div className="space-y-5">
-                  <div className="bg-gray-50 rounded-xl p-3 text-sm">
-                    <span className="font-medium">{selectedMenu.name}</span>
-                    <span className="text-gray-400"> · {selectedMenu.duration_minutes}분</span>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-gray-400 font-medium mb-2 flex items-center gap-1">
-                      <Calendar size={14} /> 날짜 선택
-                    </p>
-                    <div className="flex gap-2 overflow-x-auto pb-1">
-                      {dates.map((d) => (
-                        <button
-                          key={d.iso}
-                          type="button"
-                          onClick={() => handleDateSelect(d.iso)}
-                          className={`shrink-0 px-3 py-2 rounded-xl border text-center min-w-[56px] ${
-                            selectedDate === d.iso
-                              ? 'bg-blue-600 text-white border-blue-600'
-                              : 'border-gray-200 text-gray-700'
-                          }`}
-                        >
-                          <p className="text-[10px] opacity-80">{d.weekday}</p>
-                          <p className="text-sm font-medium">{d.label}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-gray-400 font-medium mb-2 flex items-center gap-1">
-                      <Clock size={14} /> 시간 선택
-                    </p>
-                    {slotsLoading ? (
-                      <p className="text-sm text-gray-400 py-4 text-center">시간대 불러오는 중...</p>
-                    ) : slots.length === 0 ? (
-                      <p className="text-sm text-gray-400 py-4 text-center">예약 가능한 시간이 없습니다.</p>
-                    ) : (
-                      <div className="grid grid-cols-4 gap-2">
-                        {slots.map((s) => {
-                          const t = formatTimeLabel(s.start_time)
-                          return (
-                            <button
-                              key={s.start_time}
-                              type="button"
-                              onClick={() => setSelectedTime(s.start_time)}
-                              className={`py-2 rounded-xl text-sm border ${
-                                selectedTime === s.start_time
-                                  ? 'bg-blue-600 text-white border-blue-600'
-                                  : 'border-gray-200 hover:border-blue-300'
-                              }`}
-                            >
-                              {t}
-                            </button>
-                          )
-                        })}
-                      </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[14px] font-medium text-gray-900">{menu.name}</span>
+                    {menu.isPopular && (
+                      <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full">
+                        인기
+                      </span>
                     )}
                   </div>
+                  <p className="text-[12px] text-gray-500 mt-0.5">{menu.description}</p>
+                  <p className="flex items-center gap-1 text-[11px] text-gray-400 mt-1">
+                    <Clock size={11} />
+                    약 {menu.duration}분
+                  </p>
                 </div>
-              )}
+              </div>
 
-              {step === 'info' && selectedMenu && (
-                <div className="space-y-4">
-                  <div className="bg-blue-50 rounded-xl p-3 text-sm space-y-1">
-                    <p><span className="text-gray-500">메뉴</span> {selectedMenu.name}</p>
-                    <p><span className="text-gray-500">일시</span> {selectedDate} {formatTimeLabel(selectedTime)}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-400 mb-1 block">이름 *</label>
-                    <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="홍길동" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-400 mb-1 block">연락처 *</label>
-                    <Input
-                      value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value)}
-                      placeholder="010-0000-0000"
-                      type="tel"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-400 mb-1 block">차종</label>
-                    <Input
-                      value={vehicleModel}
-                      onChange={(e) => setVehicleModel(e.target.value)}
-                      placeholder="예: 현대 아반떼"
-                    />
-                  </div>
-                  {formError && <p className="text-sm text-red-600">{formError}</p>}
-                </div>
-              )}
-
-              {step === 'done' && bookingResult && (
-                <div className="py-4 space-y-4">
-                  <div className="bg-white border rounded-2xl p-5 text-center max-w-md mx-auto">
-                    <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <CheckCircle className="text-blue-600" size={32} />
-                    </div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-2">예약이 완료됐어요!</h2>
-                    <div className="flex flex-col gap-1 text-sm text-gray-500 mb-4">
-                      <p>📱 예약 확인 알림톡이 발송됐어요.</p>
-                      <p>⏰ 방문 1시간 전 리마인더도 보내드려요.</p>
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-4 text-sm text-left space-y-2 max-w-md mx-auto">
-                    <p><span className="text-gray-400">예약번호</span> {bookingResult.id.slice(0, 8).toUpperCase()}</p>
-                    <p><span className="text-gray-400">일시</span> {bookingResult.booking_date} {formatTimeLabel(bookingResult.start_time)}</p>
-                    <p><span className="text-gray-400">금액</span> {won(bookingResult.price)}</p>
-                  </div>
-                </div>
-              )}
+              <table className="w-full border-collapse mt-1">
+                <thead>
+                  <tr>
+                    <th className="w-[28%]" />
+                    <th className="text-[11px] text-blue-600 font-medium text-center bg-blue-50/50 py-1.5 rounded-tl-lg">
+                      🇰🇷 국산차
+                    </th>
+                    <th className="text-[11px] text-purple-600 font-medium text-center bg-purple-50/50 py-1.5 rounded-tr-lg">
+                      🌐 수입차
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {VEHICLE_ROWS.map((row) => (
+                    <tr key={row.key}>
+                      <td className="py-2 pr-2 align-top">
+                        <span
+                          className={`inline-flex items-center text-[10px] px-2 py-0.5 rounded-full font-medium ${row.badge}`}
+                        >
+                          {row.label}
+                        </span>
+                        <p className="text-[10px] text-gray-400 mt-0.5">[{row.examples}]</p>
+                      </td>
+                      <td className="text-[13px] font-medium text-gray-900 text-center bg-blue-50/30 py-2">
+                        {formatPrice(menu.prices[row.key].domestic)}
+                      </td>
+                      <td className="text-[13px] font-medium text-purple-700 text-center bg-purple-50/30 py-2">
+                        {formatPrice(menu.prices[row.key].imported)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={3} className="pt-2">
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          className="w-8 h-8 rounded-full bg-[#1A6DFF] text-white flex items-center justify-center text-lg cursor-pointer"
+                          aria-label="메뉴 추가"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
+          ))}
+        </div>
+      )}
 
-            {/* Footer actions */}
-            {step !== 'done' && (
-              <div className="p-4 border-t border-gray-100 shrink-0">
-                {step === 'datetime' && (
-                  <Button
-                    className="w-full"
-                    style={{ backgroundColor: brandColor }}
-                    disabled={!selectedTime}
-                    onClick={() => setStep('info')}
-                  >
-                    다음
-                  </Button>
-                )}
-                {step === 'info' && (
-                  <Button
-                    className="w-full"
-                    style={{ backgroundColor: brandColor }}
-                    disabled={submitting}
-                    onClick={submitBooking}
-                  >
-                    {submitting ? '예약 중...' : '예약 확정'}
-                  </Button>
-                )}
+      {/* 5. 리뷰 탭 */}
+      {tab === 'review' && (
+        <div className="px-4 py-3">
+          <div className="flex gap-4 items-center pb-3 mb-3 border-b border-gray-100">
+            <div className="shrink-0">
+              <p className="text-[36px] font-semibold text-gray-900 leading-none">{store.rating}</p>
+              <div className="mt-1">
+                <Stars count={5} size={13} />
               </div>
-            )}
-            {step === 'done' && (
-              <div className="p-4 border-t border-gray-100 shrink-0">
-                <Button className="w-full" variant="secondary" onClick={closeBooking}>
-                  닫기
-                </Button>
+              <p className="text-[12px] text-gray-500 mt-1">리뷰 {store.reviewCount}개</p>
+            </div>
+            <div className="flex-1 space-y-1.5">
+              {RATING_DIST.map((r) => (
+                <div key={r.star} className="flex items-center gap-2">
+                  <span className="text-[11px] text-gray-500 w-3">{r.star}</span>
+                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-amber-400 rounded-full"
+                      style={{ width: `${r.pct}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {reviews.map((review) => (
+            <div key={review.id} className="pb-3 mb-3 border-b border-gray-50 last:border-0">
+              <div className="flex items-center gap-2.5 mb-2">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[12px] font-medium shrink-0">
+                  {review.name[0]}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[13px] font-medium text-gray-900">{review.name}</span>
+                    <span className="text-[11px] text-gray-400 shrink-0">{review.date}</span>
+                  </div>
+                  <p className="text-[11px] text-gray-400">{review.menu}</p>
+                </div>
               </div>
-            )}
+              <div className="mb-1">
+                <Stars count={review.rating} size={12} />
+              </div>
+              <p className="text-[13px] text-gray-600 leading-relaxed">{review.content}</p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {review.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 6. 정보 탭 */}
+      {tab === 'info' && (
+        <div className="px-4 py-3 flex flex-col gap-4">
+          <div className="flex items-start gap-3">
+            <MapPin className="text-[#1A6DFF] shrink-0 mt-0.5" size={16} />
+            <div>
+              <p className="text-[12px] text-gray-400 mb-1">주소</p>
+              <p className="text-[13px] text-gray-900 leading-relaxed">
+                {store.address} (무실동)
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <Clock className="text-[#1A6DFF] shrink-0 mt-0.5" size={16} />
+            <div>
+              <p className="text-[12px] text-gray-400 mb-1">영업시간</p>
+              <p className="text-[13px] text-gray-900 leading-relaxed whitespace-pre-line">
+                {`월~금 09:00 ~ 20:00\n토 09:00 ~ 18:00\n일 10:00 ~ 18:00`}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-1">* 우천·악천후 시 임시 휴무</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <Info className="text-[#1A6DFF] shrink-0 mt-0.5" size={16} />
+            <div>
+              <p className="text-[12px] text-gray-400 mb-1">안내사항</p>
+              <p className="text-[13px] text-gray-900 leading-relaxed whitespace-pre-line">
+                {`예약 48시간 전까지 무료 취소\n노쇼 시 다음 예약 제한될 수 있어요\n주차 공간 3대 가능`}
+              </p>
+            </div>
           </div>
         </div>
       )}
-    </>
+
+      {/* 7. 하단 고정 버튼 */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 z-20">
+        <div className="flex gap-3 items-center max-w-md mx-auto">
+          <button
+            type="button"
+            onClick={() => setLiked((v) => !v)}
+            className="w-11 h-11 border border-gray-200 rounded-xl flex items-center justify-center shrink-0"
+            aria-label="찜하기"
+          >
+            <Heart
+              className={liked ? 'text-red-500 fill-red-500' : 'text-gray-400'}
+              size={20}
+            />
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push(`/${slug}/booking`)}
+            className="flex-1 h-11 bg-[#1A6DFF] text-white rounded-xl font-medium text-[14px] flex items-center justify-center gap-1.5"
+          >
+            <Calendar size={16} />
+            예약하기
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }

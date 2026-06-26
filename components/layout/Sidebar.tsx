@@ -2,14 +2,15 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, Calendar, List, Users, Wallet, Settings, Megaphone,
+  LayoutDashboard, Calendar, List, Users, Wallet, Settings, Megaphone, ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/constants'
 import { mockBusiness } from '@/lib/mock/data'
+import { isAdminUser } from '@/lib/api-client'
 
 const ICONS = {
-  LayoutDashboard, Calendar, List, Users, Wallet, Settings, Megaphone,
+  LayoutDashboard, Calendar, List, Users, Wallet, Settings, Megaphone, ShieldCheck,
 }
 
 interface SidebarProps {
@@ -29,7 +30,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         <div className="text-[11px] text-primary-600 mt-0.5">business.washon.kr</div>
       </div>
       <nav className="flex-1 py-2 overflow-y-auto">
-        {NAV_ITEMS.map((item) => {
+        {NAV_ITEMS.filter((item) => item.href !== '/dashboard/admin' || isAdminUser()).map((item) => {
           const Icon = ICONS[item.icon]
           const active = item.href === '/dashboard'
             ? pathname === '/dashboard'

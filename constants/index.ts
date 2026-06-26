@@ -64,6 +64,7 @@ export const NAV_ITEMS = [
   { href: '/dashboard/customers', label: '고객 관리', icon: 'Users' as const },
   { href: '/dashboard/revenue', label: '매출 현황', icon: 'Wallet' as const },
   { href: '/dashboard/ads', label: '앱 노출', icon: 'Megaphone' as const },
+  { href: '/dashboard/admin', label: '업체 승인', icon: 'ShieldCheck' as const },
   { href: '/dashboard/settings', label: '설정', icon: 'Settings' as const },
 ]
 

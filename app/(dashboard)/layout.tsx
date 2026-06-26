@@ -16,6 +16,7 @@ function getTitle(pathname: string) {
   if (pathname.startsWith('/dashboard/customers')) return '고객 관리'
   if (pathname.startsWith('/dashboard/revenue')) return '매출 현황'
   if (pathname.startsWith('/dashboard/ads')) return '앱 노출'
+  if (pathname.startsWith('/dashboard/admin')) return '업체 승인'
   if (pathname.startsWith('/dashboard/settings')) return '설정'
   if (pathname.startsWith('/bookings/')) return '예약 상세'
   if (pathname.startsWith('/customers/')) return '고객 상세'
