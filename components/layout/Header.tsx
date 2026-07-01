@@ -1,5 +1,6 @@
 'use client'
-import { Bell, Menu, LogOut } from 'lucide-react'
+import { Menu, LogOut } from 'lucide-react'
+import NotificationBell from '@/components/layout/NotificationBell'
 import { useAuthStore } from '@/store/auth'
 import { useRouter } from 'next/navigation'
 
@@ -23,9 +24,7 @@ export default function Header({ title, onMenuClick }: HeaderProps) {
         <Menu size={18} />
       </button>
       <h1 className="flex-1 text-[15px] font-semibold text-gray-900 truncate">{title}</h1>
-      <button className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-50">
-        <Bell size={18} />
-      </button>
+      <NotificationBell />
       <button
         onClick={() => { logout(); router.push('/login') }}
         className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-50"

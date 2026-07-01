@@ -1,42 +1,71 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { apiFetch } from '@/lib/api-client'
-import { mockNotifications } from '@/lib/mock/data'
-
-type ApiNotification = {
-  id: string
-  title: string
-  body: string
-  type: string
-  created_at: string
-}
+import { useCallback, useEffect, useState } from 'react'
+import {
+  fetchNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type ApiNotification,
+} from '@/lib/notifications-api'
 
 export function useNotifications() {
-  const [notifications, setNotifications] = useState<typeof mockNotifications | null>(null)
+  const [items, setItems] = useState<ApiNotification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [isLive, setIsLive] = useState(false)
 
-  useEffect(() => {
-    apiFetch<ApiNotification[]>('/business/notifications/')
-      .then((rows) =>
-        setNotifications(
-          rows.slice(0, 10).map((n, i) => ({
-            id: i + 1,
-            message: n.title || n.body,
-            time: new Date(n.created_at).toLocaleString('ko-KR', {
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
-            type: n.type.includes('booking') ? 'BOOKING' : n.type === 'settlement' ? 'SETTLEMENT' : 'REVIEW',
-          })),
-        ),
-      )
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false))
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await fetchNotifications()
+      setItems(data.items)
+      setUnreadCount(data.unread_count)
+      setIsLive(true)
+    } catch {
+      setItems([])
+      setUnreadCount(0)
+      setIsLive(false)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  return { notifications: notifications ?? mockNotifications, loading, error, isLive: notifications !== null }
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const markRead = useCallback(
+    async (id: string) => {
+      if (!isLive) return
+      try {
+        await markNotificationRead(id)
+        setItems((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)))
+        setUnreadCount((c) => Math.max(c - 1, 0))
+      } catch {
+        // ignore
+      }
+    },
+    [isLive],
+  )
+
+  const markAllRead = useCallback(async () => {
+    if (!isLive) return
+    try {
+      await markAllNotificationsRead()
+      setItems((prev) => prev.map((n) => ({ ...n, is_read: true })))
+      setUnreadCount(0)
+    } catch {
+      // ignore
+    }
+  }, [isLive])
+
+  return {
+    notifications: items,
+    unreadCount,
+    loading,
+    isLive,
+    refetch: load,
+    markRead,
+    markAllRead,
+  }
 }

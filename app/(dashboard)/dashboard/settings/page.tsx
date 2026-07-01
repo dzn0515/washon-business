@@ -1,6 +1,7 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import { mockBusiness } from '@/lib/mock/data'
+import BookingReminderSettingsPanel from '@/components/features/bookings/BookingReminderSettingsPanel'
 import { CARD } from '@/lib/dashboard-ui'
 import { useAuthStore } from '@/store/auth'
 import { LogOut } from 'lucide-react'
@@ -50,6 +51,8 @@ export default function SettingsPage() {
           매장 정보 수정
         </button>
       </div>
+
+      <BookingReminderSettingsPanel />
 
       <div className={CARD}>
         <p className="text-[12px] text-gray-400 font-medium mb-3">알림 설정</p>

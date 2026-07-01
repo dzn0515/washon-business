@@ -1,174 +1,351 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
-import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
-import Badge from '@/components/ui/Badge'
-import Modal from '@/components/ui/Modal'
-import Card from '@/components/ui/Card'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
+import AdminTable from '@/components/admin/AdminTable'
+import AdminBadge from '@/components/admin/AdminBadge'
+import AdminModal from '@/components/admin/AdminModal'
+import { useToast } from '@/components/admin/AdminToast'
 import {
-  mockAllBusinesses,
-  mockApprovedBusinesses,
-  mockPendingBusinesses,
-  mockRejectedBusinesses,
-  REGIONS,
-  STATUS_LABEL,
-  type MockBusiness,
-  type BusinessStatus,
-} from '@/lib/mock/admin-data'
+  fetchAdminAllBusinesses,
+  updateBusinessStatus,
+  type AdminBusinessListItem,
+} from '@/lib/admin-api'
+import {
+  ADMIN_BIZ_TYPE_FILTERS,
+  BUSINESS_STATUS_LABEL,
+  BUSINESS_STATUS_VARIANT,
+  getAdminBizTypeLabel,
+  type AdminBizTypeFilterKey,
+} from '@/lib/admin-ui'
 
-const STATUS_FILTERS: { key: string; label: string; statuses?: BusinessStatus[] }[] = [
+const STATUS_TABS = [
   { key: 'all', label: '전체' },
-  { key: 'active', label: '운영중', statuses: ['active'] },
-  { key: 'pending', label: '승인대기', statuses: ['pending'] },
-  { key: 'suspended', label: '정지', statuses: ['suspended', 'inactive', 'rejected'] },
-]
+  { key: 'pending', label: '승인대기' },
+  { key: 'active', label: '운영중' },
+  { key: 'suspended', label: '정지' },
+  { key: 'rejected', label: '거절' },
+] as const
+
+type ConfirmAction = {
+  business: AdminBusinessListItem
+  title: string
+  message: string
+  nextStatus: string
+  variant: 'danger' | 'primary'
+  needsReason?: boolean
+}
 
 export default function AdminBusinessesPage() {
+  const router = useRouter()
+  const { showToast, ToastComponent } = useToast()
+  const [statusTab, setStatusTab] = useState('all')
+  const [bizTypeTab, setBizTypeTab] = useState<AdminBizTypeFilterKey>('all')
   const [search, setSearch] = useState('')
-  const [region, setRegion] = useState('전체')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [detail, setDetail] = useState<MockBusiness | null>(null)
+  const [searchInput, setSearchInput] = useState('')
+  const [businesses, setBusinesses] = useState<AdminBusinessListItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [confirm, setConfirm] = useState<ConfirmAction | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
 
-  const filtered = useMemo(() => {
-    const sf = STATUS_FILTERS.find((f) => f.key === statusFilter)
-    return mockAllBusinesses.filter((b) => {
-      const q = search.trim().toLowerCase()
-      const matchSearch =
-        !q ||
-        b.name.toLowerCase().includes(q) ||
-        b.ownerName.toLowerCase().includes(q) ||
-        b.businessNumber.includes(q) ||
-        b.email.toLowerCase().includes(q)
-      const matchRegion = region === '전체' || b.region === region
-      const matchStatus = !sf?.statuses || sf.statuses.includes(b.status)
-      return matchSearch && matchRegion && matchStatus
-    })
-  }, [search, region, statusFilter])
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(false)
+    try {
+      const data = await fetchAdminAllBusinesses({ status: statusTab, search })
+      setBusinesses(data)
+    } catch {
+      setError(true)
+      setBusinesses([])
+    } finally {
+      setLoading(false)
+    }
+  }, [statusTab, search])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const bizTypeCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: businesses.length }
+    for (const b of businesses) {
+      counts[b.bizType] = (counts[b.bizType] ?? 0) + 1
+    }
+    return counts
+  }, [businesses])
+
+  const filteredBusinesses = useMemo(() => {
+    if (bizTypeTab === 'all') return businesses
+    return businesses.filter((b) => b.bizType === bizTypeTab)
+  }, [businesses, bizTypeTab])
+
+  const handleStatusAction = async () => {
+    if (!confirm) return
+    if (confirm.needsReason && !rejectReason.trim()) return
+    setActionLoading(true)
+    try {
+      await updateBusinessStatus(
+        confirm.business.id,
+        confirm.nextStatus,
+        confirm.needsReason ? rejectReason : undefined,
+      )
+      showToast('상태가 변경되었습니다.', 'success')
+      setConfirm(null)
+      setRejectReason('')
+      load()
+    } catch {
+      showToast('상태 변경에 실패했습니다.', 'error')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const openConfirm = (action: ConfirmAction) => {
+    setRejectReason('')
+    setConfirm(action)
+  }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-          <Input
-            className="pl-9"
-            placeholder="업체명, 사장님명, 사업자번호 검색"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <select
-          value={region}
-          onChange={(e) => setRegion(e.target.value)}
-          className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white"
-        >
-          {REGIONS.map((r) => (
-            <option key={r} value={r}>
-              {r === '전체' ? '지역 전체' : r}
-            </option>
-          ))}
-        </select>
-      </div>
+    <div className="space-y-6">
+      {ToastComponent}
+      <AdminPageHeader title="업체 관리" description="가입 업체 승인 및 운영 상태 관리" />
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {STATUS_FILTERS.map((f) => (
+      <div className="flex flex-wrap gap-2">
+        {STATUS_TABS.map((tab) => (
           <button
-            key={f.key}
+            key={tab.key}
             type="button"
-            onClick={() => setStatusFilter(f.key)}
-            className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border ${
-              statusFilter === f.key
+            onClick={() => setStatusTab(tab.key)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              statusTab === tab.key
                 ? 'bg-blue-50 text-blue-600 border-blue-200'
-                : 'bg-white text-gray-500 border-gray-200'
+                : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
             }`}
           >
-            {f.label}
+            {tab.label}
           </button>
         ))}
       </div>
 
-      <Card>
-        <div className="overflow-x-auto -mx-1">
-          <table className="w-full text-sm min-w-[640px]">
-            <thead>
-              <tr className="text-left text-xs text-gray-400 border-b border-gray-100">
-                <th className="pb-2 font-medium">업체명</th>
-                <th className="pb-2 font-medium">대표자</th>
-                <th className="pb-2 font-medium">연락처</th>
-                <th className="pb-2 font-medium">지역</th>
-                <th className="pb-2 font-medium">상태</th>
-                <th className="pb-2 font-medium">가입일</th>
-                <th className="pb-2 font-medium">관리</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((b) => (
-                <tr key={b.id} className="border-b border-gray-50 last:border-0">
-                  <td className="py-3 font-medium text-gray-900">{b.name}</td>
-                  <td className="py-3 text-gray-600">{b.ownerName}</td>
-                  <td className="py-3 text-gray-500">{b.phone}</td>
-                  <td className="py-3 text-gray-500">{b.region}</td>
-                  <td className="py-3">
-                    <StatusBadge status={b.status} />
-                  </td>
-                  <td className="py-3 text-gray-500">{b.appliedAt}</td>
-                  <td className="py-3">
-                    <Button size="sm" variant="secondary" onClick={() => setDetail(b)}>
-                      상세보기
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <p className="text-center text-sm text-gray-400 py-8">검색 결과가 없습니다.</p>
-          )}
-        </div>
-      </Card>
-
-      <div className="grid sm:grid-cols-3 gap-3 text-center text-xs text-gray-400">
-        <span>대기 중 {mockPendingBusinesses.length}건</span>
-        <span>승인됨 {mockApprovedBusinesses.length}건 (샘플)</span>
-        <span>거절됨 {mockRejectedBusinesses.length}건 (샘플)</span>
+      <div className="flex flex-wrap gap-2">
+        {ADMIN_BIZ_TYPE_FILTERS.map((tab) => {
+          const count = bizTypeCounts[tab.key] ?? 0
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setBizTypeTab(tab.key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                bizTypeTab === tab.key
+                  ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
+                  : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              {tab.label} {count}
+            </button>
+          )
+        })}
       </div>
 
-      <Modal open={!!detail} onClose={() => setDetail(null)} title="업체 상세" size="md">
-        {detail && (
-          <div className="space-y-3 text-sm">
-            <Row label="업체명" value={detail.name} />
-            <Row label="대표자" value={detail.ownerName} />
-            <Row label="이메일" value={detail.email} />
-            <Row label="전화" value={detail.phone} />
-            <Row label="사업자번호" value={detail.businessNumber} />
-            <Row label="주소" value={detail.address} />
-            <Row label="업종" value={`${detail.type} · 베이 ${detail.bays}개`} />
-            <Row label="상태" value={STATUS_LABEL[detail.status]} />
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && setSearch(searchInput)}
+          placeholder="업체명, 대표자, 연락처 검색"
+          className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <button
+          type="button"
+          onClick={() => setSearch(searchInput)}
+          className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700"
+        >
+          검색
+        </button>
+      </div>
+
+      {error ? (
+        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
+          <p className="text-sm text-gray-500 mb-4">업체 목록을 불러오지 못했습니다.</p>
+          <button
+            type="button"
+            onClick={load}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+          >
+            다시 시도
+          </button>
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <AdminTable
+            loading={loading}
+            columns={[
+              { key: 'name', label: '업체명' },
+              { key: 'bizType', label: '업종' },
+              { key: 'ownerName', label: '대표자' },
+              { key: 'phone', label: '연락처' },
+              { key: 'plan', label: '플랜' },
+              { key: 'status', label: '상태' },
+              { key: 'lastLogin', label: '최근 로그인' },
+              { key: 'recentReservations', label: '최근 예약' },
+              { key: 'rating', label: '평점' },
+              { key: 'actions', label: '액션', width: '160px' },
+            ]}
+            data={filteredBusinesses.map((b) => ({
+              ...b,
+              bizType: getAdminBizTypeLabel(b.bizType),
+              plan: b.plan ?? '-',
+              lastLogin: b.lastLogin ?? '-',
+              rating: b.rating != null ? b.rating.toFixed(1) : '-',
+              status: (
+                <AdminBadge
+                  label={BUSINESS_STATUS_LABEL[b.status] ?? b.status}
+                  variant={BUSINESS_STATUS_VARIANT[b.status] ?? 'neutral'}
+                />
+              ),
+              actions: (
+                <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
+                  <ActionBtn label="상세" onClick={() => router.push(`/admin/businesses/${b.id}`)} />
+                  {b.status === 'pending' && (
+                    <>
+                      <ActionBtn
+                        label="승인"
+                        onClick={() =>
+                          openConfirm({
+                            business: b,
+                            title: '업체 승인',
+                            message: `${b.name} 업체를 승인하시겠습니까?`,
+                            nextStatus: 'active',
+                            variant: 'primary',
+                          })
+                        }
+                      />
+                      <ActionBtn
+                        label="거절"
+                        danger
+                        onClick={() =>
+                          openConfirm({
+                            business: b,
+                            title: '업체 거절',
+                            message: `${b.name} 업체 가입을 거절하시겠습니까?`,
+                            nextStatus: 'rejected',
+                            variant: 'danger',
+                            needsReason: true,
+                          })
+                        }
+                      />
+                    </>
+                  )}
+                  {b.status === 'active' && (
+                    <ActionBtn
+                      label="정지"
+                      danger
+                      onClick={() =>
+                        openConfirm({
+                          business: b,
+                          title: '업체 정지',
+                          message: `${b.name} 업체를 정지하시겠습니까?`,
+                          nextStatus: 'suspended',
+                          variant: 'danger',
+                        })
+                      }
+                    />
+                  )}
+                  {b.status === 'suspended' && (
+                    <ActionBtn
+                      label="복구"
+                      onClick={() =>
+                        openConfirm({
+                          business: b,
+                          title: '업체 복구',
+                          message: `${b.name} 업체를 복구하시겠습니까?`,
+                          nextStatus: 'active',
+                          variant: 'primary',
+                        })
+                      }
+                    />
+                  )}
+                </div>
+              ),
+            }))}
+            onRowClick={(row) => router.push(`/admin/businesses/${row.id}`)}
+            emptyMessage="등록된 업체가 없습니다."
+          />
+        </div>
+      )}
+
+      <AdminModal
+        open={!!confirm}
+        onClose={() => {
+          setConfirm(null)
+          setRejectReason('')
+        }}
+        title={confirm?.title ?? ''}
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirm(null)}
+              disabled={actionLoading}
+              className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={handleStatusAction}
+              disabled={actionLoading || (confirm?.needsReason && !rejectReason.trim())}
+              className={`px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 ${
+                confirm?.variant === 'danger'
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+            >
+              {actionLoading ? '처리 중...' : '확인'}
+            </button>
           </div>
+        }
+      >
+        <p className="text-sm text-gray-600">{confirm?.message}</p>
+        {confirm?.needsReason && (
+          <textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="거절 사유를 입력하세요"
+            rows={3}
+            className="mt-3 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         )}
-      </Modal>
+      </AdminModal>
     </div>
   )
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function ActionBtn({
+  label,
+  onClick,
+  danger,
+}: {
+  label: string
+  onClick: () => void
+  danger?: boolean
+}) {
   return (
-    <div className="flex gap-2">
-      <span className="text-gray-400 w-24 shrink-0">{label}</span>
-      <span className="text-gray-800">{value}</span>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-2 py-1 rounded text-xs font-medium border ${
+        danger
+          ? 'border-red-200 text-red-600 hover:bg-red-50'
+          : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+      }`}
+    >
+      {label}
+    </button>
   )
-}
-
-function StatusBadge({ status }: { status: BusinessStatus }) {
-  const map: Record<BusinessStatus, string> = {
-    pending: 'bg-amber-100 text-amber-700',
-    active: 'bg-green-100 text-green-700',
-    inactive: 'bg-gray-100 text-gray-600',
-    suspended: 'bg-red-100 text-red-700',
-    rejected: 'bg-red-50 text-red-600',
-  }
-  return <Badge className={map[status]}>{STATUS_LABEL[status]}</Badge>
 }

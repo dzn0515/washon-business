@@ -5,6 +5,7 @@ import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
 import MobileNav from '@/components/layout/MobileNav'
 import ApiAuthProvider from '@/components/providers/ApiAuthProvider'
+import BookingReminderHost from '@/components/features/bookings/BookingReminderHost'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/constants'
 
@@ -14,8 +15,12 @@ function getTitle(pathname: string) {
   if (pathname.startsWith('/dashboard/reservations')) return '예약 관리'
   if (pathname.startsWith('/dashboard/menus')) return '메뉴/요금'
   if (pathname.startsWith('/dashboard/customers')) return '고객 관리'
-  if (pathname.startsWith('/dashboard/revenue')) return '매출 현황'
+  if (pathname.startsWith('/dashboard/vehicles')) return '차량 관리'
+  if (pathname.startsWith('/dashboard/revenue')) return '매출관리'
   if (pathname.startsWith('/dashboard/ads')) return '앱 노출'
+  if (pathname.startsWith('/dashboard/marketing')) return '쿠폰 관리'
+  if (pathname.startsWith('/dashboard/store-app')) return '매장앱 관리'
+  if (pathname.startsWith('/dashboard/operations')) return '운영관리'
   if (pathname.startsWith('/dashboard/admin')) return '업체 승인'
   if (pathname.startsWith('/dashboard/settings')) return '설정'
   if (pathname.startsWith('/bookings/')) return '예약 상세'
@@ -49,6 +54,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
         <MobileNav />
       </div>
+      <BookingReminderHost />
       </div>
     </ApiAuthProvider>
   )

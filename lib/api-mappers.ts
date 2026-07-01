@@ -1,15 +1,56 @@
-import type { BookingStatus, CustomerGrade } from '@/types'
+import type { BookingStatus, CustomerGrade, PaymentMethod, PaymentStatus } from '@/types'
 import { calcPriceGrid, type PriceGrid } from '@/lib/dashboard-ui'
 
+const BOOKING_STATUSES: BookingStatus[] = [
+  'pending',
+  'waiting',
+  'confirmed',
+  'arrived',
+  'in_progress',
+  'completed',
+  'paid',
+  'reviewed',
+  'cancelled',
+  'noshow',
+]
+
 export function mapBookingStatus(status: string): BookingStatus {
-  const map: Record<string, BookingStatus> = {
-    pending: 'PENDING',
-    confirmed: 'CONFIRMED',
-    completed: 'COMPLETED',
-    cancelled: 'CANCELLED',
-    noshow: 'NO_SHOW',
+  const s = status.toLowerCase()
+  if (BOOKING_STATUSES.includes(s as BookingStatus)) {
+    return s as BookingStatus
   }
-  return map[status.toLowerCase()] ?? 'PENDING'
+  const legacy: Record<string, BookingStatus> = {
+    pending: 'pending',
+    confirmed: 'confirmed',
+    in_progress: 'in_progress',
+    completed: 'completed',
+    cancelled: 'cancelled',
+    noshow: 'noshow',
+  }
+  return legacy[s] ?? 'pending'
+}
+
+export function mapBookingStatusToApi(status: BookingStatus): string {
+  return status
+}
+
+export function mapPaymentStatus(status: string): PaymentStatus {
+  const map: Record<string, PaymentStatus> = {
+    unpaid: 'UNPAID',
+    paid: 'PAID',
+    refunded: 'REFUNDED',
+    cancelled: 'CANCELLED',
+  }
+  return map[status.toLowerCase()] ?? 'UNPAID'
+}
+
+export function mapPaymentMethod(method: string): PaymentMethod {
+  const map: Record<string, PaymentMethod> = {
+    onsite: 'ONSITE',
+    app: 'APP',
+    none: 'NONE',
+  }
+  return map[method.toLowerCase()] ?? 'NONE'
 }
 
 export function mapCustomerGrade(grade: string): CustomerGrade {

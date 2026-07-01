@@ -19,6 +19,77 @@ export const mockDashboard = {
   app_exposure: 2847,
 }
 
+export const mockDashboardToday = {
+  date: '2026-06-25',
+  total_bookings: 7,
+  status_counts: {
+    pending: 1,
+    confirmed: 3,
+    in_progress: 0,
+    completed: 2,
+    cancelled: 1,
+    noshow: 0,
+  },
+  expected_revenue: 295000,
+  bay_summary: {
+    total: 3,
+    active: 3,
+    busy_now: 1,
+    available_now: 2,
+  },
+  staff_summary: [
+    { staff_id: 'mock-staff-1', name: '홍길동', color: '#2563EB', assigned_count: 3, active: true },
+    { staff_id: 'mock-staff-2', name: '김철수', color: '#16A34A', assigned_count: 2, active: true },
+    { staff_id: null, name: '미배정', color: '#94A3B8', assigned_count: 1, active: true },
+  ],
+  current_bookings: [
+    {
+      id: 'mock-current-1',
+      booking_number: 'B20260625003',
+      customer_name: '박철수',
+      service_name: '소형 실내외 세차',
+      start_time: '11:00',
+      end_time: '12:00',
+      status: 'confirmed',
+      bay_id: 'mock-bay-1',
+      bay_name: '베이 1',
+      staff_id: 'mock-staff-1',
+      staff_name: '홍길동',
+      price: 25000,
+    },
+  ],
+  next_bookings: [
+    {
+      id: 'mock-next-1',
+      booking_number: 'B20260625004',
+      customer_name: '최지원',
+      service_name: '디테일링 풀코스',
+      start_time: '13:00',
+      end_time: '15:00',
+      status: 'confirmed',
+      bay_id: 'mock-bay-2',
+      bay_name: '베이 2',
+      staff_id: 'mock-staff-2',
+      staff_name: '김철수',
+      price: 150000,
+    },
+    {
+      id: 'mock-next-2',
+      booking_number: 'B20260625005',
+      customer_name: '정수진',
+      service_name: '중형 실내외 세차',
+      start_time: '14:30',
+      end_time: '15:30',
+      status: 'confirmed',
+      bay_id: 'mock-bay-1',
+      bay_name: '베이 1',
+      staff_id: 'mock-staff-1',
+      staff_name: '홍길동',
+      price: 35000,
+    },
+  ],
+}
+
 export const mockTodayBookings = [
   {
     id: 1,
@@ -29,7 +100,7 @@ export const mockTodayBookings = [
     car_number: '12가 3456',
     car_model: '현대 소나타',
     staff_name: '홍길동',
-    status: 'COMPLETED',
+    status: 'completed',
     price: 35000,
   },
   {
@@ -41,7 +112,7 @@ export const mockTodayBookings = [
     car_number: '34나 5678',
     car_model: '기아 K5',
     staff_name: '김철수',
-    status: 'COMPLETED',
+    status: 'completed',
     price: 55000,
   },
   {
@@ -53,7 +124,7 @@ export const mockTodayBookings = [
     car_number: '56다 7890',
     car_model: '현대 아반떼',
     staff_name: '홍길동',
-    status: 'IN_PROGRESS',
+    status: 'in_progress',
     price: 25000,
   },
   {
@@ -65,7 +136,7 @@ export const mockTodayBookings = [
     car_number: '78라 1234',
     car_model: 'BMW 5시리즈',
     staff_name: '김철수',
-    status: 'CONFIRMED',
+    status: 'confirmed',
     price: 150000,
   },
   {
@@ -77,7 +148,7 @@ export const mockTodayBookings = [
     car_number: '90마 5678',
     car_model: '르노 QM6',
     staff_name: '홍길동',
-    status: 'CONFIRMED',
+    status: 'confirmed',
     price: 35000,
   },
   {
@@ -89,7 +160,7 @@ export const mockTodayBookings = [
     car_number: '11바 2345',
     car_model: '테슬라 모델3',
     staff_name: '김철수',
-    status: 'CONFIRMED',
+    status: 'confirmed',
     price: 20000,
   },
   {
@@ -101,7 +172,7 @@ export const mockTodayBookings = [
     car_number: '33사 6789',
     car_model: '볼보 XC60',
     staff_name: '홍길동',
-    status: 'PENDING',
+    status: 'pending',
     price: 40000,
   },
 ]
@@ -150,7 +221,7 @@ export const mockBookings: DemoBooking[] = [
     car_number: '55아 1234',
     car_model: '기아 카니발',
     staff_name: '홍길동',
-    status: 'COMPLETED',
+    status: 'completed',
     price: 50000,
     date: '2026-06-24',
   },
@@ -163,7 +234,7 @@ export const mockBookings: DemoBooking[] = [
     car_number: '77자 5678',
     car_model: '현대 그랜저',
     staff_name: '김철수',
-    status: 'COMPLETED',
+    status: 'completed',
     price: 25000,
     date: '2026-06-24',
   },
@@ -176,7 +247,7 @@ export const mockBookings: DemoBooking[] = [
     car_number: '99차 9012',
     car_model: '포르쉐 카이엔',
     staff_name: '김철수',
-    status: 'NO_SHOW',
+    status: 'noshow',
     price: 200000,
     date: '2026-06-24',
   },
@@ -456,6 +527,36 @@ export const mockStaff = [
   { id: 2, name: '김철수', role: '직원', phone: '010-9876-5432', is_active: true },
 ]
 
+export const mockStaffMembers = [
+  {
+    id: 'mock-staff-1',
+    name: '홍길동',
+    phone: '010-1234-5678',
+    position: '대표',
+    color: '#2563EB',
+    sort_order: 1,
+    is_active: true,
+  },
+  {
+    id: 'mock-staff-2',
+    name: '김철수',
+    phone: '010-9876-5432',
+    position: '광택',
+    color: '#16A34A',
+    sort_order: 2,
+    is_active: true,
+  },
+  {
+    id: 'mock-staff-3',
+    name: '이영희',
+    phone: '010-5555-1234',
+    position: '실내세차',
+    color: '#9333EA',
+    sort_order: 3,
+    is_active: false,
+  },
+]
+
 export const mockCustomerStats = {
   total: 284,
   new: 12,
@@ -507,7 +608,7 @@ export const mockRevenueByMenu = [
 ]
 
 export const mockPaymentsToday = mockTodayBookings
-  .filter((b) => b.status === 'COMPLETED' || b.status === 'IN_PROGRESS')
+  .filter((b) => b.status === 'completed' || b.status === 'in_progress')
   .map((b) => ({
     id: b.id,
     time: b.time,
@@ -605,7 +706,15 @@ export function toBooking(raw: DemoBooking): Booking {
     user: { id: raw.id, name: raw.customer_name, phone: '' },
     vehicle: { car_number: raw.car_number, car_model: raw.car_model },
     service_menu: { name: raw.service_name, duration_minutes: 60 },
-    staff: raw.staff_name ? { id: 1, name: raw.staff_name } : null,
+    staff: raw.staff_name
+      ? (() => {
+          const found = mockStaffMembers.find((s) => s.name === raw.staff_name)
+          return found
+            ? { id: found.id, name: found.name, color: found.color }
+            : { id: 'unknown', name: raw.staff_name }
+        })()
+      : null,
+    bay: null,
     booking_date: raw.date ?? TODAY,
     booking_time: raw.time,
     price: raw.price,
@@ -666,6 +775,12 @@ export const mockHolidaysList: Holiday[] = [
   { id: 1, date: '2026-08-15', reason: '광복절' },
 ]
 
+export const mockBays = [
+  { id: 'mock-bay-1', name: '베이 1', sort_order: 1, is_active: true },
+  { id: 'mock-bay-2', name: '베이 2', sort_order: 2, is_active: true },
+  { id: 'mock-bay-3', name: '광택실', sort_order: 3, is_active: false },
+]
+
 export function mapMockBookings(status?: string): Booking[] {
   let list = mockBookings.map(toBooking)
   if (status && status !== 'ALL') {
@@ -714,7 +829,12 @@ export const mockApi = {
   getCoupons: async () => { await delay(); return mockCoupons as Coupon[] },
   getStaff: async () => {
     await delay()
-    return mockStaff.map((s) => ({ id: s.id, name: s.name, is_active: s.is_active })) as Staff[]
+    return mockStaffMembers.map((s) => ({
+      id: s.id,
+      name: s.name,
+      is_active: s.is_active,
+      color: s.color,
+    })) as Staff[]
   },
   getHours: async () => { await delay(); return mockBusinessHours },
   getHolidays: async () => { await delay(); return mockHolidaysList },

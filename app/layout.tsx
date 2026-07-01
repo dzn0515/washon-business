@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import UpdateNotifier from '@/components/UpdateNotifier'
 
 export const metadata: Metadata = {
   title: 'WashOn Business — 세차장 관리자',
@@ -15,7 +16,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+        <UpdateNotifier />
+      </body>
     </html>
   )
 }

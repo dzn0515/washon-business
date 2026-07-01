@@ -1,5 +1,71 @@
 export type BookingStatus =
-  | 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'
+  | 'pending'
+  | 'waiting'
+  | 'confirmed'
+  | 'arrived'
+  | 'in_progress'
+  | 'completed'
+  | 'paid'
+  | 'reviewed'
+  | 'cancelled'
+  | 'noshow'
+
+export const BOOKING_STATUS_MAP: Record<BookingStatus, { label: string; color: string; bg: string }> = {
+  pending: { label: '예약 접수', color: '#6B7280', bg: '#F3F4F6' },
+  waiting: { label: '승인 대기', color: '#D97706', bg: '#FEF3C7' },
+  confirmed: { label: '예약 확정', color: '#2563EB', bg: '#EFF6FF' },
+  arrived: { label: '입차 완료', color: '#7C3AED', bg: '#F5F3FF' },
+  in_progress: { label: '작업중', color: '#EA580C', bg: '#FFF7ED' },
+  completed: { label: '작업 완료', color: '#059669', bg: '#ECFDF5' },
+  paid: { label: '결제 완료', color: '#059669', bg: '#ECFDF5' },
+  reviewed: { label: '리뷰 완료', color: '#6B7280', bg: '#F3F4F6' },
+  cancelled: { label: '취소', color: '#DC2626', bg: '#FEF2F2' },
+  noshow: { label: '노쇼', color: '#DC2626', bg: '#FEF2F2' },
+}
+
+export const CATEGORY_LABELS: Record<string, string> = {
+  wash: '세차',
+  interior: '실내크리닝',
+  detailing: '디테일링',
+  coating: '코팅',
+  tire: '타이어',
+  alignment: '얼라이먼트',
+  oil: '오일교환',
+  filter: '필터',
+  battery: '배터리',
+  dent: '덴트·복원',
+  glass: '유리복원',
+  tinting: '썬팅·랩핑',
+  audio: '블랙박스·카오디오',
+  repair: '정비',
+  inspection: '점검',
+}
+
+export interface Vehicle {
+  id: string
+  license_plate: string
+  brand?: string
+  model?: string
+  year?: number
+  color?: string
+  memo?: string
+}
+
+export interface VehicleRecord {
+  id: string
+  vehicle_id: string
+  store_id: string
+  service_type: string
+  mileage?: number
+  photos: string[]
+  memo?: string
+  next_service_date?: string
+  created_at: string
+}
+
+export type PaymentStatus = 'UNPAID' | 'PAID' | 'REFUNDED' | 'CANCELLED'
+
+export type PaymentMethod = 'ONSITE' | 'APP' | 'NONE'
 
 export type CustomerGrade = 'NORMAL' | 'SILVER' | 'GOLD' | 'VIP'
 
@@ -31,22 +97,27 @@ export interface Business {
 }
 
 export interface Booking {
-  id: number
+  id: string | number
   booking_number: string
   user: { id: number; name: string; phone: string }
   vehicle: { car_number: string; car_model: string }
   service_menu: { name: string; duration_minutes: number }
-  staff: { id: number; name: string } | null
+  staff: { id: string | number; name: string; color?: string } | null
+  bay: { id: string; name: string; number: number } | null
   booking_date: string
   booking_time: string
   price: number
   status: BookingStatus
+  payment_method?: PaymentMethod
+  payment_status?: PaymentStatus
+  paid_amount?: number
+  paid_at?: string | null
   memo: string
   customer_request: string
   created_at: string
 }
 
-export interface Vehicle {
+export interface CustomerCar {
   car_number: string
   car_model: string
 }
@@ -60,7 +131,7 @@ export interface Customer {
   total_spent: number
   last_visit_at: string
   next_recommended_visit: string
-  vehicles: Vehicle[]
+  vehicles: CustomerCar[]
   memo: string
 }
 
@@ -106,8 +177,19 @@ export interface Coupon {
 }
 
 export interface Staff {
-  id: number
+  id: string | number
   name: string
+  is_active: boolean
+  color?: string
+}
+
+export interface BusinessStaff {
+  id: string
+  name: string
+  phone: string
+  position: string
+  color: string
+  sort_order: number
   is_active: boolean
 }
 
@@ -123,6 +205,13 @@ export interface Holiday {
   id: number
   date: string
   reason: string
+}
+
+export interface BusinessBay {
+  id: string
+  name: string
+  sort_order: number
+  is_active: boolean
 }
 
 export interface Notification {
@@ -143,4 +232,86 @@ export interface DashboardSummary {
 export interface WeeklyBookingStat {
   label: string
   count: number
+}
+
+export interface PlatformSettings {
+  platformName: string
+  contactEmail: string
+  commissionRate: number
+  basicPlanPrice: number
+  proPlanPrice: number
+  premiumPlanPrice: number
+  freeTrialDays: number
+  maintenanceMode: boolean
+}
+
+export type HealthStatus = 'healthy' | 'degraded' | 'down'
+
+export interface SystemStatus {
+  apiStatus: HealthStatus
+  dbStatus: HealthStatus
+  uptime: number
+  version: string
+  lastDeployAt: string
+  activeConnections: number
+}
+
+export interface AdminLoginLog {
+  id: string
+  adminEmail: string
+  ip: string
+  userAgent: string
+  success: boolean
+  createdAt: string
+}
+
+export interface BlockedIp {
+  id: string
+  ip: string
+  reason: string
+  blockedAt: string
+  blockedBy: string
+}
+
+// 내 업무
+export interface WorkTodayStats {
+  pendingApproval: number
+  todayReservations: number
+  unansweredInquiries: number
+  newReviews: number
+  alertCount: number
+}
+
+export interface UrgentTask {
+  id: string
+  priority: 'critical' | 'high' | 'medium'
+  label: string
+  count: number
+  href: string
+}
+
+export interface TodaySchedule {
+  id: string
+  time: string
+  title: string
+}
+
+export interface RecentWorkLog {
+  id: string
+  action: string
+  target: string
+  createdAt: string
+}
+
+export interface SystemStatusItem {
+  name: string
+  status: HealthStatus
+}
+
+export interface TodayDashboardStats {
+  todayReservations: number
+  todaySignups: number
+  todayRevenue: number
+  todayCancels: number
+  todayReviews: number
 }

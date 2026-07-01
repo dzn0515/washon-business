@@ -1,6 +1,10 @@
 'use client'
+import Link from 'next/link'
 import { useState } from 'react'
 import Badge from '@/components/ui/Badge'
+import ReservationSubNav from '@/components/features/reservations/ReservationSubNav'
+import BookingStatusBadge from '@/components/BookingStatusBadge'
+import BookingStatusActions from '@/components/BookingStatusActions'
 import { useReservations } from '@/lib/hooks/useReservations'
 import {
   mockWeeklyRevenue,
@@ -8,40 +12,24 @@ import {
   mockMonthlyBookingTrend,
 } from '@/lib/mock/data'
 import { CARD, won } from '@/lib/dashboard-ui'
-import { BOOKING_STATUS_LABEL, BOOKING_STATUS_STYLE } from '@/constants'
-import type { BookingStatus } from '@/types'
+import { PAYMENT_STATUS_LABEL, PAYMENT_STATUS_STYLE } from '@/constants'
+import type { BookingStatus, PaymentStatus } from '@/types'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 
 type Tab = 'today' | 'week' | 'month'
 
-function StatusActions({ status }: { status: string }) {
-  if (status === 'COMPLETED' || status === 'CANCELLED' || status === 'NO_SHOW') {
-    return <span className="text-xs text-gray-400">처리 완료</span>
-  }
-  return (
-    <div className="flex gap-1.5 flex-wrap justify-end">
-      {(status === 'PENDING' || status === 'CONFIRMED') && (
-        <button type="button" className="text-xs px-2.5 py-1 rounded-lg border bg-blue-50 text-blue-700 border-blue-200">
-          예약확정
-        </button>
-      )}
-      {(status === 'CONFIRMED' || status === 'IN_PROGRESS') && (
-        <button type="button" className="text-xs px-2.5 py-1 rounded-lg border bg-green-50 text-green-700 border-green-200">
-          완료처리
-        </button>
-      )}
-      {status !== 'COMPLETED' && status !== 'CANCELLED' && (
-        <button type="button" className="text-xs px-2.5 py-1 rounded-lg border bg-red-50 text-red-700 border-red-200">
-          취소
-        </button>
-      )}
-    </div>
-  )
-}
-
 export default function ReservationsPage() {
   const [tab, setTab] = useState<Tab>('today')
-  const { bookings, todayKpi } = useReservations()
+  const {
+    bookings,
+    todayKpi,
+    selectedDate,
+    setSelectedDate,
+    updateStatus,
+    updatingId,
+    loading,
+    setBookings,
+  } = useReservations()
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'today', label: '오늘' },
@@ -51,6 +39,8 @@ export default function ReservationsPage() {
 
   return (
     <div className="space-y-4">
+      <ReservationSubNav />
+
       <div className="flex gap-2">
         {tabs.map((t) => (
           <button
@@ -68,6 +58,20 @@ export default function ReservationsPage() {
 
       {tab === 'today' && (
         <>
+          <div className="flex items-center gap-2">
+            <label htmlFor="booking-date" className="text-sm text-gray-500 shrink-0">
+              예약일
+            </label>
+            <input
+              id="booking-date"
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5"
+            />
+            {loading && <span className="text-xs text-gray-400">불러오는 중...</span>}
+          </div>
+
           <div className="grid grid-cols-3 gap-3">
             <div className={CARD}>
               <p className="text-[12px] text-gray-400 font-medium mb-2">오늘 예약</p>
@@ -85,21 +89,47 @@ export default function ReservationsPage() {
 
           <div className="space-y-2">
             {bookings.map((b) => (
-              <div key={b.id} className={CARD}>
+              <div key={String(b.id)} className={CARD}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex gap-3 min-w-0">
                     <span className="text-blue-600 font-semibold text-sm shrink-0">{b.time}</span>
                     <div className="min-w-0">
-                      <p className="font-medium text-gray-900">{b.customer_name}</p>
+                      <Link
+                        href={`/bookings/${b.id}?date=${selectedDate}`}
+                        className="font-medium text-gray-900 hover:text-blue-600"
+                      >
+                        {b.customer_name}
+                      </Link>
                       <p className="text-xs text-gray-400 truncate">{b.service_name} · {b.car_model}</p>
+                      {'vehicle' in b && b.vehicle ? (
+                        <span className="text-sm text-gray-500">
+                          🚗 {[b.vehicle.brand, b.vehicle.model].filter(Boolean).join(' ')}
+                          {b.vehicle.license_plate ? ` · ${b.vehicle.license_plate}` : ''}
+                        </span>
+                      ) : null}
                       <p className="text-sm font-medium mt-1">{won(b.price)}</p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
-                    <Badge className={BOOKING_STATUS_STYLE[b.status as BookingStatus]}>
-                      {BOOKING_STATUS_LABEL[b.status as BookingStatus]}
-                    </Badge>
-                    <StatusActions status={b.status} />
+                    {'payment_status' in b && b.payment_status ? (
+                      <Badge className={PAYMENT_STATUS_STYLE[b.payment_status as PaymentStatus]}>
+                        {PAYMENT_STATUS_LABEL[b.payment_status as PaymentStatus]}
+                      </Badge>
+                    ) : null}
+                    <BookingStatusBadge status={b.status as BookingStatus} />
+                    <BookingStatusActions
+                      bookingId={String(b.id)}
+                      status={b.status as BookingStatus}
+                      disabled={updatingId === String(b.id)}
+                      onStatusChange={(newStatus) => {
+                        void updateStatus(b.id, newStatus)
+                        setBookings((prev) =>
+                          (prev ?? []).map((row) =>
+                            row.id === b.id ? { ...row, status: newStatus } : row,
+                          ),
+                        )
+                      }}
+                    />
                   </div>
                 </div>
               </div>

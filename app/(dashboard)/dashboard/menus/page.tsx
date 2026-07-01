@@ -4,7 +4,9 @@ import { Plus, Pencil, Trash2, CloudRain } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import { useMenus, type MenuCard } from '@/lib/hooks/useMenus'
+import { fetchBusinessMe, getMenusGrouped, updateMenuCategory, type GroupedMenuItem } from '@/lib/api'
 import type { BusinessHours } from '@/types'
+import { CATEGORY_LABELS } from '@/types'
 import { CARD, BTN_PRIMARY, calcPriceGrid, won, type PriceGrid } from '@/lib/dashboard-ui'
 
 type Tab = 'menus' | 'hours' | 'holidays'
@@ -43,9 +45,35 @@ export default function MenusPage() {
   const [formBasePrice, setFormBasePrice] = useState(25000)
   const [formPrices, setFormPrices] = useState<PriceGrid>(calcPriceGrid(25000))
   const [formVisible, setFormVisible] = useState(true)
+  const [formCategory, setFormCategory] = useState('wash')
+  const [editMenuApiId, setEditMenuApiId] = useState<string | null>(null)
+  const [groupedMenus, setGroupedMenus] = useState<Record<string, GroupedMenuItem[]>>({})
+  const [groupedLoading, setGroupedLoading] = useState(false)
 
   useEffect(() => setMenus(apiMenus), [apiMenus])
   useEffect(() => setHours(apiHours), [apiHours])
+
+  useEffect(() => {
+    let cancelled = false
+    setGroupedLoading(true)
+    fetchBusinessMe()
+      .then((me) => getMenusGrouped(me.id))
+      .then((grouped) => {
+        if (!cancelled) setGroupedMenus(grouped)
+      })
+      .catch(() => {
+        if (!cancelled) setGroupedMenus({})
+      })
+      .finally(() => {
+        if (!cancelled) setGroupedLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const groupedCategories = Object.keys(groupedMenus).filter((k) => groupedMenus[k]?.length)
+  const useGrouped = groupedCategories.length > 0
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'menus', label: '세차 메뉴' },
@@ -55,11 +83,25 @@ export default function MenusPage() {
 
   function openAdd() {
     setEditId(null)
+    setEditMenuApiId(null)
     setFormName('')
     setFormDuration(40)
     setFormBasePrice(25000)
     setFormPrices(calcPriceGrid(25000))
     setFormVisible(true)
+    setFormCategory('wash')
+    setModalOpen(true)
+  }
+
+  function openEditGrouped(item: GroupedMenuItem) {
+    setEditId(null)
+    setEditMenuApiId(item.id)
+    setFormName(item.name)
+    setFormDuration(item.duration_minutes)
+    setFormBasePrice(item.price)
+    setFormPrices(calcPriceGrid(item.price))
+    setFormVisible(item.is_active)
+    setFormCategory(item.category ?? 'wash')
     setModalOpen(true)
   }
 
@@ -109,39 +151,83 @@ export default function MenusPage() {
       </div>
 
       {tab === 'menus' && (
-        <div className="space-y-3">
-          {menus.map((m) => (
-            <div key={m.id} className={`${CARD} ${!m.is_active ? 'opacity-50' : ''}`}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium text-gray-900">{m.name}</span>
-                    {m.is_popular && <Badge className="bg-orange-100 text-orange-700">인기</Badge>}
-                    <Badge className={m.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
-                      {m.is_active ? '노출중' : '비활성'}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">소요 {m.duration_minutes}분 · 이번달 예약 {m.monthly_bookings}건</p>
-                  <PriceGridView grid={m.price_grid} />
-                </div>
-                <div className="flex flex-col gap-1.5 shrink-0">
-                  <button type="button" onClick={() => openEdit(m.id)} className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
-                    <Pencil size={14} />
-                  </button>
-                  <button type="button" className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
-                    <Trash2 size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggleMenu(m.id)}
-                    className={`text-[10px] px-2 py-1 rounded-lg border ${m.is_active ? 'border-gray-200 text-gray-500' : 'border-blue-200 text-blue-600 bg-blue-50'}`}
-                  >
-                    {m.is_active ? 'OFF' : 'ON'}
-                  </button>
+        <div className="space-y-4">
+          {groupedLoading && !useGrouped ? (
+            <p className="text-sm text-gray-400 py-6 text-center">메뉴 불러오는 중...</p>
+          ) : useGrouped ? (
+            groupedCategories.map((category) => (
+              <div key={category}>
+                <h3 className="text-sm font-bold text-blue-600 mb-2">
+                  [{CATEGORY_LABELS[category] ?? category}]
+                </h3>
+                <div className="space-y-2">
+                  {groupedMenus[category].map((item) => (
+                    <div
+                      key={item.id}
+                      className={`${CARD} flex items-center justify-between gap-3 ${!item.is_active ? 'opacity-50' : ''}`}
+                    >
+                      <div>
+                        <p className="font-medium text-gray-900">{item.name}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {item.duration_minutes}분 · {won(item.price)}
+                        </p>
+                      </div>
+                      <div className="flex gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => openEditGrouped(item)}
+                          className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
+            ))
+          ) : (
+            <div className="space-y-3">
+              {menus.map((m) => (
+                <div key={m.id} className={`${CARD} ${!m.is_active ? 'opacity-50' : ''}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-gray-900">{m.name}</span>
+                        {m.is_popular && <Badge className="bg-orange-100 text-orange-700">인기</Badge>}
+                        <Badge className={m.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
+                          {m.is_active ? '노출중' : '비활성'}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">소요 {m.duration_minutes}분 · 이번달 예약 {m.monthly_bookings}건</p>
+                      <PriceGridView grid={m.price_grid} />
+                    </div>
+                    <div className="flex flex-col gap-1.5 shrink-0">
+                      <button type="button" onClick={() => openEdit(m.id)} className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
+                        <Pencil size={14} />
+                      </button>
+                      <button type="button" className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
+                        <Trash2 size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleMenu(m.id)}
+                        className={`text-[10px] px-2 py-1 rounded-lg border ${m.is_active ? 'border-gray-200 text-gray-500' : 'border-blue-200 text-blue-600 bg-blue-50'}`}
+                      >
+                        {m.is_active ? 'OFF' : 'ON'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       )}
 
@@ -217,6 +303,21 @@ export default function MenusPage() {
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editId ? '메뉴 수정' : '메뉴 추가'} size="lg">
         <div className="space-y-4">
           <div>
+            <label className="text-[12px] text-gray-400 font-medium mb-2 block">카테고리</label>
+            <select
+              name="category"
+              value={formCategory}
+              onChange={(e) => setFormCategory(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+            >
+              {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="text-[12px] text-gray-400 font-medium mb-2 block">메뉴 이름</label>
             <input
               value={formName}
@@ -268,7 +369,24 @@ export default function MenusPage() {
             <button type="button" onClick={() => setModalOpen(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600">
               취소
             </button>
-            <button type="button" onClick={() => setModalOpen(false)} className={`flex-1 py-2.5 text-sm ${BTN_PRIMARY}`}>
+            <button
+              type="button"
+              onClick={async () => {
+                if (editMenuApiId) {
+                  try {
+                    await updateMenuCategory(editMenuApiId, formCategory)
+                    const me = await fetchBusinessMe()
+                    const grouped = await getMenusGrouped(me.id)
+                    setGroupedMenus(grouped)
+                  } catch {
+                    alert('카테고리 저장에 실패했습니다.')
+                    return
+                  }
+                }
+                setModalOpen(false)
+              }}
+              className={`flex-1 py-2.5 text-sm ${BTN_PRIMARY}`}
+            >
               저장하기
             </button>
           </div>

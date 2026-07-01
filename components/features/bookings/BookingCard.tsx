@@ -9,11 +9,11 @@ import { formatMoney } from '@/lib/utils'
 
 interface BookingCardProps {
   booking: Booking
-  onStatusChange?: (id: number, status: BookingStatus) => void
+  onStatusChange?: (id: string | number, status: BookingStatus) => void
 }
 
 export const BookingCard = memo(function BookingCard({ booking, onStatusChange }: BookingCardProps) {
-  const handleConfirm = useCallback(() => onStatusChange?.(booking.id, 'CONFIRMED'), [booking.id, onStatusChange])
+  const handleConfirm = useCallback(() => onStatusChange?.(booking.id, 'confirmed'), [booking.id, onStatusChange])
 
   return (
     <div className="bg-white border border-gray-100 rounded-card p-4">
@@ -31,7 +31,7 @@ export const BookingCard = memo(function BookingCard({ booking, onStatusChange }
       <div className="text-xs text-gray-500 mb-3">
         {booking.service_menu.name} · {formatMoney(booking.price)}
       </div>
-      {booking.status === 'PENDING' && onStatusChange && (
+      {booking.status === 'pending' && onStatusChange && (
         <div className="flex gap-2">
           <Button size="sm" onClick={handleConfirm}>확정</Button>
           <Link href={`/bookings/${booking.id}`}>

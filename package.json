@@ -1,19 +1,39 @@
 {
   "name": "washon-business",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
+  "main": ".electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "cap:sync": "npx cap sync",
+    "cap:ios": "npx cap open ios",
+    "cap:android": "npx cap open android",
+    "cap:copy": "npx cap copy",
+    "build:app": "npx cap sync",
+    "electron:compile": "tsc --project tsconfig.electron.json",
+    "electron:prepare": "node scripts/prepare-electron-standalone.js",
+    "electron:icon": "node scripts/create-placeholder-icon.js",
+    "electron:dev": "concurrently -k \"cross-env PORT=3010 next dev -p 3010\" \"wait-on http://127.0.0.1:3010 && npm run electron:compile && cross-env NODE_ENV=development ELECTRON_DEV_URL=http://127.0.0.1:3010 electron .electron/main.js\"",
+    "electron:build": "npm run electron:compile && electron-builder --win"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1",
+    "@capacitor/push-notifications": "^8.1.1",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
     "@hookform/resolvers": "^5.4.0",
     "@tanstack/react-virtual": "^3.14.3",
     "axios": "^1.18.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
+    "electron-log": "^5.4.4",
+    "electron-updater": "^6.8.9",
     "lucide-react": "^1.21.0",
     "next": "14.2.35",
     "qrcode.react": "^4.2.0",
@@ -31,10 +51,15 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "concurrently": "^10.0.3",
+    "cross-env": "^10.1.0",
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wait-on": "^9.0.10"
   }
 }

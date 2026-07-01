@@ -26,3 +26,16 @@ api.interceptors.response.use(
 export default api
 
 export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK !== 'false'
+
+export {
+  updateBookingStatus,
+  getStoreVehicles,
+  getVehicleRecords,
+  createVehicleRecord,
+  getMenusGrouped,
+  updateMenuCategory,
+  fetchBusinessMe,
+} from '@/lib/store-api'
+
+export type { GroupedMenuItem, VehicleRecordCreatePayload, BusinessMe } from '@/lib/store-api'
+

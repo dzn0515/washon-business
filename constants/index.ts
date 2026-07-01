@@ -1,21 +1,41 @@
-import type { BookingStatus, CustomerGrade, ServiceTypeCode } from '@/types'
+import type { BookingStatus, CustomerGrade, PaymentMethod, PaymentStatus, ServiceTypeCode } from '@/types'
+import { BOOKING_STATUS_MAP } from '@/types'
 
-export const BOOKING_STATUS_LABEL: Record<BookingStatus, string> = {
-  PENDING: '대기',
-  CONFIRMED: '확정',
-  IN_PROGRESS: '진행중',
-  COMPLETED: '완료',
-  CANCELLED: '취소',
-  NO_SHOW: '노쇼',
-}
+export const BOOKING_STATUS_LABEL: Record<BookingStatus, string> = Object.fromEntries(
+  Object.entries(BOOKING_STATUS_MAP).map(([k, v]) => [k, v.label]),
+) as Record<BookingStatus, string>
 
 export const BOOKING_STATUS_STYLE: Record<BookingStatus, string> = {
-  PENDING: 'bg-yellow-100 text-yellow-800',
-  CONFIRMED: 'bg-blue-100 text-blue-800',
-  IN_PROGRESS: 'bg-green-100 text-green-800',
-  COMPLETED: 'bg-gray-100 text-gray-800',
-  CANCELLED: 'bg-red-100 text-red-800',
-  NO_SHOW: 'bg-red-900 text-white',
+  pending: 'bg-gray-100 text-gray-700',
+  waiting: 'bg-amber-100 text-amber-800',
+  confirmed: 'bg-blue-100 text-blue-800',
+  arrived: 'bg-purple-100 text-purple-800',
+  in_progress: 'bg-orange-100 text-orange-800',
+  completed: 'bg-emerald-100 text-emerald-800',
+  paid: 'bg-green-100 text-green-800',
+  reviewed: 'bg-gray-100 text-gray-600',
+  cancelled: 'bg-red-100 text-red-800',
+  noshow: 'bg-red-900 text-white',
+}
+
+export const PAYMENT_STATUS_LABEL: Record<PaymentStatus, string> = {
+  UNPAID: '미결제',
+  PAID: '결제완료',
+  REFUNDED: '환불',
+  CANCELLED: '결제취소',
+}
+
+export const PAYMENT_STATUS_STYLE: Record<PaymentStatus, string> = {
+  UNPAID: 'bg-amber-100 text-amber-800',
+  PAID: 'bg-green-100 text-green-800',
+  REFUNDED: 'bg-red-100 text-red-700',
+  CANCELLED: 'bg-gray-100 text-gray-600',
+}
+
+export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
+  ONSITE: '현장결제',
+  APP: '앱결제',
+  NONE: '-',
 }
 
 export const CUSTOMER_GRADE_LABEL: Record<CustomerGrade, string> = {
@@ -30,6 +50,20 @@ export const CUSTOMER_GRADE_STYLE: Record<CustomerGrade, string> = {
   SILVER: 'bg-gray-200 text-gray-700',
   GOLD: 'bg-yellow-100 text-yellow-800',
   VIP: 'bg-purple-100 text-purple-800',
+}
+
+export const CUSTOMER_COUPON_STATUS_LABEL: Record<string, string> = {
+  issued: '사용 가능',
+  used: '사용됨',
+  expired: '만료',
+  cancelled: '취소',
+}
+
+export const CUSTOMER_COUPON_STATUS_STYLE: Record<string, string> = {
+  issued: 'bg-green-100 text-green-700',
+  used: 'bg-gray-100 text-gray-600',
+  expired: 'bg-red-100 text-red-700',
+  cancelled: 'bg-gray-100 text-gray-500',
 }
 
 export const SERVICE_TYPE_LABEL: Record<ServiceTypeCode, string> = {
@@ -62,8 +96,12 @@ export const NAV_ITEMS = [
   { href: '/dashboard/reservations', label: '예약 관리', icon: 'Calendar' as const },
   { href: '/dashboard/menus', label: '메뉴/요금', icon: 'List' as const },
   { href: '/dashboard/customers', label: '고객 관리', icon: 'Users' as const },
-  { href: '/dashboard/revenue', label: '매출 현황', icon: 'Wallet' as const },
+  { href: '/dashboard/vehicles', label: '차량 관리', icon: 'Car' as const },
+  { href: '/dashboard/revenue', label: '매출관리', icon: 'Wallet' as const },
   { href: '/dashboard/ads', label: '앱 노출', icon: 'Megaphone' as const },
+  { href: '/dashboard/marketing/coupons', label: '쿠폰 관리', icon: 'Ticket' as const },
+  { href: '/dashboard/store-app', label: '매장앱 관리', icon: 'Smartphone' as const },
+  { href: '/dashboard/operations/bays', label: '운영관리', icon: 'Wrench' as const },
   { href: '/dashboard/admin', label: '업체 승인', icon: 'ShieldCheck' as const },
   { href: '/dashboard/settings', label: '설정', icon: 'Settings' as const },
 ]

@@ -1,20 +1,46 @@
 'use client'
-import { useParams } from 'next/navigation'
-import useSWR from 'swr'
+
+import { useParams, useSearchParams } from 'next/navigation'
 import Card from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
-import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import { mockApi } from '@/lib/mock/data'
+import Button from '@/components/ui/Button'
+import BookingStatusActions from '@/components/features/bookings/BookingStatusActions'
+import { useBookingDetail } from '@/lib/hooks/useBookingDetail'
+import { useBays } from '@/lib/hooks/useBays'
+import { useStaff } from '@/lib/hooks/useStaff'
 import { formatMoney, formatPhone } from '@/lib/utils'
-import { BOOKING_STATUS_LABEL, BOOKING_STATUS_STYLE } from '@/constants'
+import { BOOKING_STATUS_LABEL, BOOKING_STATUS_STYLE, PAYMENT_METHOD_LABEL, PAYMENT_STATUS_LABEL, PAYMENT_STATUS_STYLE } from '@/constants'
 
 export default function BookingDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { data: booking } = useSWR(['booking', id], () => mockApi.getBooking(Number(id)))
-  const { data: staff } = useSWR('staff', () => mockApi.getStaff())
+  const searchParams = useSearchParams()
+  const bookingDate = searchParams.get('date') ?? undefined
+  const {
+    booking,
+    loading,
+    updating,
+    assigningStaff,
+    assigningBay,
+    bayError,
+    staffError,
+    statusError,
+    updateStatus,
+    updateStaff,
+    updateBay,
+    updatePayment,
+    updatingPayment,
+    paymentError,
+    isLive,
+  } = useBookingDetail(id, bookingDate)
+  const { bays } = useBays()
+  const { staff } = useStaff()
 
-  if (!booking) return <div className="text-sm text-gray-400">로딩 중...</div>
+  if (loading) return <div className="text-sm text-gray-400">로딩 중...</div>
+  if (!booking) return <div className="text-sm text-gray-400">예약을 찾을 수 없습니다.</div>
+
+  const bayOptions = bays.filter((b) => b.is_active || b.id === booking.bay?.id)
+  const staffOptions = staff.filter((s) => s.is_active || s.id === booking.staff?.id)
 
   return (
     <div className="space-y-4">
@@ -42,13 +68,117 @@ export default function BookingDetailPage() {
         </div>
       </Card>
 
-      <Card title="직원 배정">
-        <select className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm" defaultValue={booking.staff?.id ?? ''}>
-          <option value="">미배정</option>
-          {staff?.filter((s) => s.is_active).map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
+      <Card title="결제">
+        <div className="text-sm space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-gray-500">결제상태</span>
+            {booking.payment_status ? (
+              <Badge className={PAYMENT_STATUS_STYLE[booking.payment_status]}>
+                {PAYMENT_STATUS_LABEL[booking.payment_status]}
+              </Badge>
+            ) : null}
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">결제방법</span>
+            <span>{booking.payment_method ? PAYMENT_METHOD_LABEL[booking.payment_method] : '-'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">결제금액</span>
+            <span className="font-semibold">{formatMoney(booking.paid_amount ?? 0)}</span>
+          </div>
+          {booking.paid_at ? (
+            <p className="text-xs text-gray-400">결제일시: {new Date(booking.paid_at).toLocaleString('ko-KR')}</p>
+          ) : null}
+        </div>
+        <div className="flex gap-2 mt-3">
+          <Button
+            className="flex-1"
+            size="sm"
+            disabled={updatingPayment || !isLive || booking.status === 'cancelled' || booking.payment_status === 'PAID'}
+            onClick={() =>
+              void updatePayment({
+                payment_method: 'onsite',
+                payment_status: 'paid',
+                paid_amount: booking.price,
+              })
+            }
+          >
+            현장결제 완료
+          </Button>
+          <Button
+            className="flex-1"
+            size="sm"
+            variant="secondary"
+            disabled={updatingPayment || !isLive || booking.payment_status !== 'PAID'}
+            onClick={() =>
+              void updatePayment({
+                payment_status: 'refunded',
+                paid_amount: booking.paid_amount ?? booking.price,
+              })
+            }
+          >
+            환불 처리
+          </Button>
+        </div>
+        {updatingPayment ? <p className="text-xs text-gray-400 mt-2">처리 중...</p> : null}
+        {paymentError ? <p className="text-xs text-red-600 mt-2">{paymentError}</p> : null}
+      </Card>
+
+      <Card title="배정 베이">
+        <select
+          className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm disabled:opacity-50"
+          value={booking.bay?.id ?? ''}
+          disabled={assigningBay || !isLive}
+          onChange={(e) => {
+            const value = e.target.value
+            if (value) void updateBay(value)
+          }}
+        >
+          <option value="" disabled>베이 선택</option>
+          {bayOptions.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}{!b.is_active ? ' · 비활성' : ''}
+            </option>
           ))}
         </select>
+        {booking.bay ? (
+          <p className="text-xs text-gray-400 mt-2">현재: {booking.bay.name} (베이 {booking.bay.number})</p>
+        ) : null}
+        {assigningBay ? <p className="text-xs text-gray-400 mt-2">저장 중...</p> : null}
+        {bayError === 'bay_conflict' ? (
+          <p className="text-xs text-red-600 mt-2">해당 시간에 이미 사용 중인 베이입니다.</p>
+        ) : null}
+      </Card>
+
+      <Card title="담당 직원">
+        <div className="flex items-center gap-2">
+          {booking.staff?.color ? (
+            <span
+              className="w-1 h-8 rounded-full shrink-0"
+              style={{ backgroundColor: booking.staff.color }}
+            />
+          ) : null}
+          <select
+            className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm disabled:opacity-50"
+            value={String(booking.staff?.id ?? '')}
+            disabled={assigningStaff || !isLive}
+            onChange={(e) => {
+              const value = e.target.value
+              void updateStaff(value ? value : null)
+            }}
+          >
+            <option value="">미배정</option>
+            {staffOptions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}{s.position ? ` (${s.position})` : ''}{!s.is_active ? ' · 비활성' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        {assigningStaff ? <p className="text-xs text-gray-400 mt-2">저장 중...</p> : null}
+        {staffError === 'staff_conflict' ? (
+          <p className="text-xs text-red-600 mt-2">해당 시간에 이미 배정된 직원입니다.</p>
+        ) : null}
       </Card>
 
       <Card title="메모">
@@ -56,11 +186,17 @@ export default function BookingDetailPage() {
         <Button className="mt-2 w-full" size="sm">메모 저장</Button>
       </Card>
 
-      <div className="flex gap-2">
-        <Button className="flex-1">완료 처리</Button>
-        <Button className="flex-1" variant="danger">노쇼</Button>
-        <Button className="flex-1" variant="secondary">취소</Button>
-      </div>
+      <Card title="상태 변경">
+        <BookingStatusActions
+          status={booking.status}
+          disabled={updating || !isLive}
+          onAction={(s) => void updateStatus(s)}
+        />
+        {updating ? <p className="text-xs text-gray-400 mt-2">저장 중...</p> : null}
+        {statusError ? (
+          <p className="text-xs text-red-600 mt-2">변경할 수 없는 상태입니다.</p>
+        ) : null}
+      </Card>
     </div>
   )
 }

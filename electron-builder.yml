@@ -1,0 +1,37 @@
+appId: kr.autoon.business
+productName: AUTOON
+copyright: Copyright © 2025 Sellem Inc.
+
+directories:
+  output: dist-electron
+
+files:
+  - .electron/**/*
+  - resources/**/*
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: resources/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
+  installerHeaderIcon: resources/icon.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: AUTOON
+
+publish:
+  # TODO: GitHub Releases 사용 시 아래 활성화
+  # provider: github
+  # owner: dzn0515
+  # repo: washon-business
+  # token: $GH_TOKEN
+  provider: generic
+  url: https://autoon.kr/releases/

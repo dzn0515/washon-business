@@ -1,153 +1,235 @@
 'use client'
 
-import { useState } from 'react'
-import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
-import Card from '@/components/ui/Card'
-import { mockSystemSettings, mockSystemStatus } from '@/lib/mock/admin-data'
-import { formatMoney } from '@/lib/utils'
-
-const STATUS_DOT = {
-  ok: '🟢',
-  warn: '🟡',
-  error: '🔴',
-} as const
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
+import AdminBadge from '@/components/admin/AdminBadge'
+import { useToast } from '@/components/admin/AdminToast'
+import { fetchPlatformSettings, savePlatformSettings } from '@/lib/admin-api'
+import { roundCommissionRate } from '@/lib/admin-ui'
+import type { PlatformSettings } from '@/types'
 
 export default function AdminSettingsPage() {
-  const [settings, setSettings] = useState(mockSystemSettings)
-  const [saved, setSaved] = useState(false)
+  const { showToast, ToastComponent } = useToast()
+  const [settings, setSettings] = useState<PlatformSettings | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(false)
 
-  const save = () => {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(false)
+    try {
+      const data = await fetchPlatformSettings()
+      setSettings(data)
+    } catch {
+      setError(true)
+      setSettings(null)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const handleSave = async () => {
+    if (!settings) return
+    if (settings.commissionRate < 0) {
+      showToast('수수료율은 0% 이상이어야 합니다.', 'error')
+      return
+    }
+    if (settings.commissionRate > 10) {
+      showToast('수수료율은 10% 이하이어야 합니다.', 'error')
+      return
+    }
+    setSaving(true)
+    try {
+      await savePlatformSettings(settings)
+      showToast('설정이 저장되었습니다.', 'success')
+    } catch {
+      showToast('설정 저장에 실패했습니다.', 'error')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const updateNum = (key: keyof typeof settings, value: number) => {
-    setSettings((s) => ({ ...s, [key]: value }))
+  if (loading) {
+    return <div className="text-sm text-gray-400 py-12 text-center">불러오는 중...</div>
   }
 
-  const updateAdPrice = (key: keyof typeof settings.adPrices, value: number) => {
-    setSettings((s) => ({
-      ...s,
-      adPrices: { ...s.adPrices, [key]: value },
-    }))
+  if (error || !settings) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
+        <p className="text-sm text-gray-500 mb-4">운영설정을 불러오지 못했습니다.</p>
+        <button
+          type="button"
+          onClick={load}
+          className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+        >
+          다시 시도
+        </button>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
-      <Card title="서비스 설정">
-        <div className="space-y-4">
-          <SettingRow
-            label="앱 노출 유지비"
-            suffix="원/월"
-            value={settings.maintenanceFee}
-            onChange={(v) => updateNum('maintenanceFee', v)}
-          />
-          <SettingRow
-            label="무료 체험 기간"
-            suffix="일"
-            value={settings.freeTrialDays}
-            onChange={(v) => updateNum('freeTrialDays', v)}
-          />
-          <SettingRow
-            label="예약 수수료율"
-            suffix="%"
-            value={settings.bookingFeeRate}
-            onChange={(v) => updateNum('bookingFeeRate', v)}
-            hint="Phase 3 예정"
-          />
-          <SettingRow
-            label="노쇼 예약금 (기본값)"
-            suffix="원"
-            value={settings.noShowDeposit}
-            onChange={(v) => updateNum('noShowDeposit', v)}
-          />
-          <Button className="bg-[#1A6DFF]" onClick={save}>
-            저장하기
-          </Button>
-          {saved && <p className="text-sm text-green-600">설정이 저장됐습니다. (mock)</p>}
-        </div>
-      </Card>
+      {ToastComponent}
+      <AdminPageHeader
+        title="운영설정"
+        description="플랫폼 기본 설정 및 플랜 가격 관리"
+        actions={
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+          >
+            {saving ? '저장 중...' : '저장'}
+          </button>
+        }
+      />
 
-      <Card title="광고 상품 가격">
-        <div className="space-y-4">
-          <SettingRow
-            label="검색 상단 고정"
-            suffix="원/월"
-            value={settings.adPrices.searchTop}
-            onChange={(v) => updateAdPrice('searchTop', v)}
+      <Section title="플랫폼 기본">
+        <Field label="플랫폼명">
+          <input
+            type="text"
+            value={settings.platformName}
+            onChange={(e) => setSettings((s) => s && { ...s, platformName: e.target.value })}
+            className="w-full max-w-md border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <SettingRow
-            label="홈 추천 매장"
-            suffix="원/월"
-            value={settings.adPrices.homeFeatured}
-            onChange={(v) => updateAdPrice('homeFeatured', v)}
+        </Field>
+        <Field label="문의 이메일">
+          <input
+            type="email"
+            value={settings.contactEmail}
+            onChange={(e) => setSettings((s) => s && { ...s, contactEmail: e.target.value })}
+            className="w-full max-w-md border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <SettingRow
-            label="신규 부스팅"
-            suffix="원/월"
-            value={settings.adPrices.newBoost}
-            onChange={(v) => updateAdPrice('newBoost', v)}
-          />
-          <SettingRow
-            label="브랜드 키워드"
-            suffix="원/월"
-            value={settings.adPrices.brandKeyword}
-            onChange={(v) => updateAdPrice('brandKeyword', v)}
-          />
-          <p className="text-xs text-gray-400">
-            기본 노출 앱 노출 유지비: {formatMoney(settings.maintenanceFee)}/월
-          </p>
-        </div>
-      </Card>
+        </Field>
+        <Field label="점검 모드">
+          <div className="space-y-2">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.maintenanceMode}
+                onChange={(e) =>
+                  setSettings((s) => s && { ...s, maintenanceMode: e.target.checked })
+                }
+                className="w-4 h-4 accent-blue-600"
+              />
+              <span className="text-sm text-gray-700">점검 모드 활성화</span>
+            </label>
+            {settings.maintenanceMode && (
+              <AdminBadge
+                label="저장 시 UI에만 반영됩니다. 실제 서비스 차단은 별도 적용 필요"
+                variant="warning"
+              />
+            )}
+          </div>
+        </Field>
+      </Section>
 
-      <Card title="시스템 상태">
-        <div className="grid sm:grid-cols-2 gap-3">
-          {mockSystemStatus.map((s) => (
-            <div
-              key={s.name}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-xl text-sm"
-            >
-              <span className="text-gray-700 font-medium">{s.name}</span>
-              <span className="text-gray-600">
-                {STATUS_DOT[s.status]} {s.detail}
-              </span>
-            </div>
-          ))}
-        </div>
-      </Card>
+      <Section title="수수료 설정">
+        <Field label="예약 수수료율">
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={0}
+              max={10}
+              step={0.1}
+              value={settings.commissionRate}
+              onChange={(e) => {
+                const raw = parseFloat(e.target.value)
+                const val = Number.isNaN(raw) ? 0 : roundCommissionRate(raw)
+                setSettings((s) => s && { ...s, commissionRate: val })
+              }}
+              className="w-32 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-500">% (0.0 ~ 10.0)</span>
+          </div>
+        </Field>
+        <p className="text-sm text-gray-600">
+          현재 수수료: <strong>{settings.commissionRate}%</strong>
+        </p>
+      </Section>
+
+      <Section title="구독 플랜 가격">
+        <p className="text-xs text-gray-400 mb-4">앱 노출 유지비 기준 플랜 가격</p>
+        <PlanRow
+          label="BASIC"
+          value={settings.basicPlanPrice}
+          onChange={(v) => setSettings((s) => s && { ...s, basicPlanPrice: v })}
+        />
+        <PlanRow
+          label="PRO"
+          value={settings.proPlanPrice}
+          onChange={(v) => setSettings((s) => s && { ...s, proPlanPrice: v })}
+        />
+        <PlanRow
+          label="PREMIUM"
+          value={settings.premiumPlanPrice}
+          onChange={(v) => setSettings((s) => s && { ...s, premiumPlanPrice: v })}
+        />
+        <Field label="무료체험">
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={0}
+              value={settings.freeTrialDays}
+              onChange={(e) =>
+                setSettings((s) => s && { ...s, freeTrialDays: Number(e.target.value) || 0 })
+              }
+              className="w-24 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-500">일</span>
+          </div>
+        </Field>
+      </Section>
     </div>
   )
 }
 
-function SettingRow({
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 space-y-4">
+      <h3 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-3">{title}</h3>
+      {children}
+    </div>
+  )
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid sm:grid-cols-[140px_1fr] gap-2 items-start">
+      <span className="text-sm text-gray-600 pt-2">{label}</span>
+      <div>{children}</div>
+    </div>
+  )
+}
+
+function PlanRow({
   label,
-  suffix,
   value,
   onChange,
-  hint,
 }: {
   label: string
-  suffix: string
   value: number
   onChange: (v: number) => void
-  hint?: string
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-      <div className="sm:w-40 shrink-0">
-        <span className="text-sm text-gray-700">{label}</span>
-        {hint && <p className="text-[10px] text-gray-400">{hint}</p>}
-      </div>
-      <div className="flex items-center gap-2 flex-1">
-        <Input
+    <Field label={label}>
+      <div className="flex items-center gap-3">
+        <input
           type="number"
+          min={0}
           value={value}
           onChange={(e) => onChange(Number(e.target.value) || 0)}
-          className="max-w-[160px]"
+          className="w-40 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <span className="text-sm text-gray-500">{suffix}</span>
+        <span className="text-sm text-gray-500">{value.toLocaleString()}원 / 월</span>
       </div>
-    </div>
+    </Field>
   )
 }

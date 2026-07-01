@@ -1,0 +1,67 @@
+# washon-business — Cloud Build (build + push only)
+#
+# Usage (manual, when ready):
+#   gcloud builds submit --config=cloudbuild.yaml \
+#     --substitutions=_REGION=asia-northeast3,_REPOSITORY=washon-business,_IMAGE=washon-business
+#
+# Cloud Run deploy is intentionally separated — see scripts/deploy-cloudrun.sh
+
+substitutions:
+  _REGION: asia-northeast3
+  _REPOSITORY: washon-business
+  _IMAGE: washon-business
+  _NEXT_PUBLIC_API_URL: https://api.autoon.kr/api/v1
+  _NEXT_PUBLIC_USE_MOCK: "false"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  - id: build-image
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$SHORT_SHA
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:latest
+      - --build-arg
+      - NEXT_PUBLIC_API_URL=${_NEXT_PUBLIC_API_URL}
+      - --build-arg
+      - NEXT_PUBLIC_USE_MOCK=${_NEXT_PUBLIC_USE_MOCK}
+      - .
+
+  - id: push-sha
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$SHORT_SHA
+
+  - id: push-latest
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:latest
+
+  # ── Cloud Run deploy (Phase 2 — uncomment when ready) ──────────────
+  # - id: deploy-cloud-run
+  #   name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  #   entrypoint: gcloud
+  #   args:
+  #     - run
+  #     - deploy
+  #     - washon-business
+  #     - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$SHORT_SHA
+  #     - --region=${_REGION}
+  #     - --platform=managed
+  #     - --port=8080
+  #     - --memory=1Gi
+  #     - --cpu=1
+  #     - --min-instances=0
+  #     - --max-instances=5
+  #     - --allow-unauthenticated
+  #     - --set-env-vars=NEXT_PUBLIC_API_URL=${_NEXT_PUBLIC_API_URL},NEXT_PUBLIC_USE_MOCK=${_NEXT_PUBLIC_USE_MOCK}
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$SHORT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:latest
