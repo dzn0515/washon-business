@@ -3,8 +3,6 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
-const BUSINESS_URL = 'https://business.autoon.kr'
-
 const NAV_LINKS = [
   { href: '/', label: '홈' },
   { href: '/join', label: '입점 안내' },
@@ -47,14 +45,12 @@ export default function LandingNav() {
           >
             입점 문의
           </Link>
-          <a
-            href={BUSINESS_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/login"
             className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-colors"
           >
             사장님 로그인
-          </a>
+          </Link>
         </nav>
 
         <button
@@ -86,14 +82,13 @@ export default function LandingNav() {
           >
             입점 문의
           </Link>
-          <a
-            href={BUSINESS_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/login"
             className="block text-center text-sm bg-blue-600 text-white px-4 py-2 rounded-xl"
+            onClick={() => setOpen(false)}
           >
             사장님 로그인
-          </a>
+          </Link>
         </div>
       ) : null}
     </header>

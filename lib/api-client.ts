@@ -1,8 +1,20 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 const TOKEN_KEY = 'washon_access_token'
 const USER_EMAIL_KEY = 'washon_user_email'
+const ROLE_KEY = 'washon_mock_role'
+const ADMIN_USER_KEY = 'washon_admin_user'
+const LEGACY_TOKEN_KEY = 'access_token'
 
 let accessToken: string | null = null
+
+export class AuthRequiredError extends Error {
+  status = 401
+
+  constructor() {
+    super('로그인이 필요합니다.')
+    this.name = 'AuthRequiredError'
+  }
+}
 
 export function restoreTokenFromSession(): void {
   if (typeof window === 'undefined') return
@@ -53,6 +65,27 @@ export async function login(email: string, password: string) {
   setAccessToken(data.access_token)
   setUserEmail(email)
   return data
+}
+
+export type AuthMe = {
+  id: string | number
+  role: string
+  email: string
+  name?: string | null
+}
+
+export async function fetchAuthMe(): Promise<AuthMe> {
+  return apiFetch<AuthMe>('/auth/me')
+}
+
+export function clearAuthSession(): void {
+  accessToken = null
+  if (typeof window === 'undefined') return
+  sessionStorage.removeItem(TOKEN_KEY)
+  sessionStorage.removeItem(USER_EMAIL_KEY)
+  sessionStorage.removeItem(ROLE_KEY)
+  sessionStorage.removeItem(ADMIN_USER_KEY)
+  localStorage.removeItem(LEGACY_TOKEN_KEY)
 }
 
 export type RegisterPayload = {
@@ -120,13 +153,12 @@ export async function rejectBusiness(id: string, reason: string) {
   })
 }
 
-export async function ensureLoggedIn(): Promise<void> {
-  if (getAccessToken()) return
-  await login('owner@washon.kr', 'washon1234')
+export function ensureLoggedIn(): boolean {
+  return !!getAccessToken()
 }
 
 export async function apiFetch<T = unknown>(path: string, options?: RequestInit): Promise<T> {
-  if (!getAccessToken()) await ensureLoggedIn()
+  if (!ensureLoggedIn()) throw new AuthRequiredError()
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -138,9 +170,8 @@ export async function apiFetch<T = unknown>(path: string, options?: RequestInit)
   })
 
   if (res.status === 401) {
-    setAccessToken(null)
-    await ensureLoggedIn()
-    return apiFetch<T>(path, options)
+    clearAuthSession()
+    throw new AuthRequiredError()
   }
 
   if (!res.ok) {

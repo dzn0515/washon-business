@@ -1,7 +1,5 @@
 import Link from 'next/link'
 
-const BUSINESS_URL = 'https://business.autoon.kr'
-
 const STATS = [
   { value: '20,000+', label: '국내 세차장 수' },
   { value: '5% 미만', label: '온라인 전환율' },
@@ -29,14 +27,12 @@ export default function Hero() {
             >
               입점 문의하기
             </Link>
-            <a
-              href={BUSINESS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/login"
               className="inline-flex justify-center border border-gray-300 text-gray-700 px-8 py-4 rounded-xl font-semibold text-lg hover:border-gray-400 transition-colors"
             >
               사장님 로그인
-            </a>
+            </Link>
           </div>
         </div>
 

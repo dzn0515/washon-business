@@ -2,9 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { login, setAccessToken } from '@/lib/api-client'
-import { setToken, clearToken } from '@/lib/auth'
-import { isAdminRole, setMockRole, persistAdminUser } from '@/lib/admin-auth'
+import { clearAuthSession, fetchAuthMe, login } from '@/lib/api-client'
+import { setMockRole, persistAdminUser } from '@/lib/admin-auth'
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -19,24 +18,22 @@ export default function AdminLoginPage() {
     setLoading(true)
 
     try {
-      const data = await login(email, password)
-      const role = data.user?.role ?? data.role ?? ''
-      const userId = data.user?.id ?? data.user_id ?? ''
+      await login(email, password)
+      const me = await fetchAuthMe()
+      const role = me.role.toLowerCase()
 
-      if (!isAdminRole(email, role)) {
-        setAccessToken(null)
-        clearToken()
+      if (role !== 'admin') {
+        clearAuthSession()
         setError('관리자 권한이 없습니다.')
         return
       }
 
-      setToken(data.access_token)
       setMockRole('admin')
       persistAdminUser({
-        id: String(userId),
-        email,
-        name: data.user?.name,
-        role: role || 'admin',
+        id: String(me.id),
+        email: me.email,
+        name: me.name ?? undefined,
+        role,
       })
 
       router.push('/admin/dashboard')

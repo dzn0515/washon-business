@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Business } from '@/types'
-import { setToken, clearToken } from '@/lib/auth'
+import { setToken } from '@/lib/auth'
+import { clearAuthSession } from '@/lib/api-client'
 import { toBusinessEntity } from '@/lib/mock/data'
 
 interface AuthState {
@@ -29,7 +30,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
-    clearToken()
+    clearAuthSession()
     set({ user: null, business: null })
   },
 
