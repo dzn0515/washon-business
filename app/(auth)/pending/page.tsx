@@ -3,14 +3,13 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Button from '@/components/ui/Button'
-import { setAccessToken, setUserEmail } from '@/lib/api-client'
+import { clearAuthSession } from '@/lib/api-client'
 
 export default function PendingPage() {
   const router = useRouter()
 
   const logout = () => {
-    setAccessToken(null)
-    setUserEmail(null)
+    clearAuthSession()
     router.push('/login')
   }
 

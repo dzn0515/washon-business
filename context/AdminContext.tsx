@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
-import { getUserEmail } from '@/lib/api-client'
+import { getAccessToken, getUserEmail, restoreTokenFromSession } from '@/lib/api-client'
 import {
   type AdminUser,
   loadAdminUser,
@@ -27,9 +27,8 @@ const AdminContext = createContext<AdminContextType | null>(null)
 
 function hasAuthToken(): boolean {
   if (typeof window === 'undefined') return false
-  return !!(
-    sessionStorage.getItem('washon_access_token') ?? localStorage.getItem('access_token')
-  )
+  restoreTokenFromSession()
+  return !!getAccessToken()
 }
 
 export function AdminProvider({ children }: { children: ReactNode }) {

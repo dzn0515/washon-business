@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { mockStats } from '@/lib/mock/admin-data'
-import { setAccessToken, setUserEmail } from '@/lib/api-client'
+import { clearAuthSession } from '@/lib/api-client'
 
 const NAV = [
   { href: '/admin', label: '대시보드', icon: LayoutDashboard, exact: true },
@@ -36,10 +36,8 @@ export function AdminSidebarContent({ onNavigate }: { onNavigate?: () => void })
   const router = useRouter()
 
   const logout = () => {
-    setAccessToken(null)
-    setUserEmail(null)
-    if (typeof window !== 'undefined') sessionStorage.removeItem('washon_mock_role')
-    router.push('/login')
+    clearAuthSession()
+    router.push('/admin/login')
     onNavigate?.()
   }
 

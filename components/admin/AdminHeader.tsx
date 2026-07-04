@@ -3,19 +3,14 @@
 import { useRouter } from 'next/navigation'
 import AdminBreadcrumb from './AdminBreadcrumb'
 import { useAdmin } from '@/context/AdminContext'
-import { setAccessToken } from '@/lib/api-client'
-import { clearAdminUser } from '@/lib/admin-auth'
+import { clearAuthSession } from '@/lib/api-client'
 
 export default function AdminHeader() {
   const router = useRouter()
   const { theme, toggleTheme, adminUser, setAdminUser } = useAdmin()
 
   const handleLogout = () => {
-    sessionStorage.removeItem('washon_access_token')
-    sessionStorage.removeItem('washon_user_email')
-    localStorage.removeItem('access_token')
-    setAccessToken(null)
-    clearAdminUser()
+    clearAuthSession()
     setAdminUser(null)
     router.push('/admin/login')
   }

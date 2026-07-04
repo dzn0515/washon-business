@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { AdminProvider } from '@/context/AdminContext'
 import AdminShell from '@/components/admin/AdminShell'
+import { getAccessToken, restoreTokenFromSession } from '@/lib/api-client'
 
 const PUBLIC_PATHS = ['/admin/login']
 
@@ -18,8 +19,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return
     }
 
-    const token =
-      sessionStorage.getItem('washon_access_token') ?? localStorage.getItem('access_token')
+    restoreTokenFromSession()
+    const token = getAccessToken()
 
     if (!token) {
       router.replace('/admin/login')

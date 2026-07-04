@@ -1,5 +1,6 @@
 import axios from 'axios'
-import { getToken, clearToken } from '@/lib/auth'
+import { getToken } from '@/lib/auth'
+import { clearAuthSession } from '@/lib/api-client'
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
@@ -16,7 +17,7 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
-      clearToken()
+      clearAuthSession()
       window.location.href = '/login'
     }
     return Promise.reject(err)
