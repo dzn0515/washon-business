@@ -99,6 +99,7 @@ export const NAV_ITEMS = [
   { href: '/dashboard/vehicles', label: '차량 관리', icon: 'Car' as const },
   { href: '/dashboard/revenue', label: '매출관리', icon: 'Wallet' as const },
   { href: '/dashboard/ads', label: '앱 노출', icon: 'Megaphone' as const },
+  { href: '/dashboard/qr', label: '매장 QR', icon: 'QrCode' as const },
   { href: '/dashboard/marketing/coupons', label: '쿠폰 관리', icon: 'Ticket' as const },
   { href: '/dashboard/store-app', label: '매장앱 관리', icon: 'Smartphone' as const },
   { href: '/dashboard/operations/bays', label: '운영관리', icon: 'Wrench' as const },
