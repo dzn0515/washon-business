@@ -39,6 +39,10 @@ function parseVehicleFromModel(model: string | null): ReservationVehicle | null 
   return { license_plate: model.trim() }
 }
 
+function fallbackMenuName(menuId: string): string {
+  return `메뉴 #${menuId}`
+}
+
 function mapBookingRow(b: ApiBooking, menuMap: Record<string, ApiMenu>): ReservationRow {
   const vehicle = parseVehicleFromModel(b.vehicle_model)
   return {
@@ -46,7 +50,7 @@ function mapBookingRow(b: ApiBooking, menuMap: Record<string, ApiMenu>): Reserva
     booking_number: b.booking_number,
     time: b.start_time.slice(0, 5),
     customer_name: b.customer_name,
-    service_name: menuMap[b.menu_id]?.name ?? '세차',
+    service_name: menuMap[b.menu_id]?.name ?? fallbackMenuName(b.menu_id),
     car_number: vehicle?.license_plate ?? '',
     car_model: b.vehicle_model ?? '',
     staff_name: '',
@@ -68,12 +72,14 @@ export function useReservations(initialDate?: string) {
     setLoading(true)
     setError(null)
     try {
-      const [rawBookings, menus] = await Promise.all([
-        fetchBusinessBookings(date),
-        apiFetch<ApiMenu[]>('/business/menus/'),
-      ])
+      const rawBookings = await fetchBusinessBookings(date)
+      const menusResult = await Promise.allSettled([apiFetch<ApiMenu[]>('/business/menus/')])
+      const menus = menusResult[0].status === 'fulfilled' ? menusResult[0].value : []
       const menuMap = Object.fromEntries(menus.map((m) => [m.id, m]))
       setBookings(rawBookings.map((b) => mapBookingRow(b, menuMap)))
+      if (menusResult[0].status === 'rejected') {
+        setError('menus API failed; bookings are live')
+      }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
       console.log('[useReservations] API failed, using mock fallback', message)

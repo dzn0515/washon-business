@@ -32,6 +32,10 @@ function mapBay(row: ApiBay): BusinessBay {
   }
 }
 
+function fallbackMenuName(menuId: string): string {
+  return `메뉴 #${menuId}`
+}
+
 function mapApiBooking(
   b: ApiBooking,
   menuMap: Record<string, ApiMenu>,
@@ -39,7 +43,7 @@ function mapApiBooking(
   return {
     id: b.id,
     customer_name: b.customer_name,
-    service_name: menuMap[b.menu_id]?.name ?? '세차',
+    service_name: menuMap[b.menu_id]?.name ?? fallbackMenuName(b.menu_id),
     car_model: b.vehicle_model ?? '',
     status: mapBookingStatus(b.status),
     payment_status: mapPaymentStatus(b.payment_status ?? 'unpaid'),
@@ -99,6 +103,23 @@ function mockCalendarBookings(): CalendarBooking[] {
   return rows
 }
 
+function buildTemporaryBays(bookings: ApiBooking[]): BusinessBay[] {
+  const bayNumbers = Array.from(
+    new Set(
+      bookings
+        .map((b) => b.bay_number)
+        .filter((n): n is number => typeof n === 'number' && Number.isFinite(n) && n > 0),
+    ),
+  ).sort((a, b) => a - b)
+
+  return bayNumbers.map((bayNumber) => ({
+    id: `bay-${bayNumber}`,
+    name: `베이 ${bayNumber}`,
+    sort_order: bayNumber,
+    is_active: true,
+  }))
+}
+
 export function useBayCalendar(initialDate?: string) {
   const [selectedDate, setSelectedDate] = useState(initialDate ?? todayIso())
   const [bookings, setBookings] = useState<CalendarBooking[] | null>(null)
@@ -110,14 +131,24 @@ export function useBayCalendar(initialDate?: string) {
     setLoading(true)
     setError(null)
     try {
-      const [rawBookings, menus, rawBays] = await Promise.all([
-        fetchBusinessBookings(date),
+      const rawBookings = await fetchBusinessBookings(date)
+      const [menusResult, baysResult] = await Promise.allSettled([
         apiFetch<ApiMenu[]>('/business/menus/'),
         apiFetch<ApiBay[]>('/business/bays/'),
       ])
+      const menus = menusResult.status === 'fulfilled' ? menusResult.value : []
+      const rawBays = baysResult.status === 'fulfilled' ? baysResult.value : null
       const menuMap = Object.fromEntries(menus.map((m) => [m.id, m]))
       setBookings(rawBookings.map((b) => mapApiBooking(b, menuMap)))
-      setBays(rawBays.map(mapBay))
+      setBays(rawBays ? rawBays.map(mapBay) : buildTemporaryBays(rawBookings))
+
+      const fallbackReasons = [
+        menusResult.status === 'rejected' ? 'menus' : null,
+        baysResult.status === 'rejected' ? 'bays' : null,
+      ].filter(Boolean)
+      if (fallbackReasons.length > 0) {
+        setError(`${fallbackReasons.join(', ')} API failed; bookings are live`)
+      }
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e)
       console.log('[useBayCalendar] API failed, using mock fallback', message)

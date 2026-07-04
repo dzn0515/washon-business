@@ -1,4 +1,5 @@
 import { apiFetch } from '@/lib/api-client'
+import { mapBookingStatusToApi } from '@/lib/api-mappers'
 import type { BookingStatus, Vehicle, VehicleRecord } from '@/types'
 
 export type GroupedMenuItem = {
@@ -24,9 +25,9 @@ export async function updateBookingStatus(
   bookingId: string,
   status: BookingStatus,
 ): Promise<unknown> {
-  return apiFetch(`/reservations/${bookingId}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
+  return apiFetch(`/business/bookings/${bookingId}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status: mapBookingStatusToApi(status) }),
   })
 }
 
