@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { BUSINESS_TYPES } from '@/lib/business-types'
 import { submitInquiry, type InquiryData } from '@/lib/submitInquiry'
 
 type FormStatus = 'idle' | 'loading' | 'success' | 'error'
@@ -147,15 +148,11 @@ export default function InquiryForm() {
           className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-600 bg-white"
         >
           <option value="">매장 유형 선택</option>
-          <option value="wash">세차 (손세차·자동세차·셀프세차)</option>
-          <option value="dent">덴트·복원</option>
-          <option value="tire">타이어</option>
-          <option value="detailing">디테일링·광택·유리막</option>
-          <option value="battery">배터리 교체</option>
-          <option value="glass">유리복원·썬팅·랩핑</option>
-          <option value="electronics">블랙박스·네비·카오디오</option>
-          <option value="oil">오일교환·경정비·카센터</option>
-          <option value="etc">기타</option>
+          {BUSINESS_TYPES.map((item) => (
+            <option key={item.code} value={item.code}>
+              {item.label}
+            </option>
+          ))}
         </select>
       </div>
 

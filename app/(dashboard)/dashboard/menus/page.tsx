@@ -7,6 +7,7 @@ import { useMenus, type MenuCard } from '@/lib/hooks/useMenus'
 import { fetchBusinessMe, getMenusGrouped, updateMenuCategory, type GroupedMenuItem } from '@/lib/api'
 import type { BusinessHours } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
+import { getMenuNamePlaceholder } from '@/lib/business-types'
 import { CARD, BTN_PRIMARY, calcPriceGrid, won, type PriceGrid } from '@/lib/dashboard-ui'
 
 type Tab = 'menus' | 'hours' | 'holidays'
@@ -49,6 +50,7 @@ export default function MenusPage() {
   const [editMenuApiId, setEditMenuApiId] = useState<string | null>(null)
   const [groupedMenus, setGroupedMenus] = useState<Record<string, GroupedMenuItem[]>>({})
   const [groupedLoading, setGroupedLoading] = useState(false)
+  const [businessType, setBusinessType] = useState<string>('wash')
 
   useEffect(() => setMenus(apiMenus), [apiMenus])
   useEffect(() => setHours(apiHours), [apiHours])
@@ -57,7 +59,10 @@ export default function MenusPage() {
     let cancelled = false
     setGroupedLoading(true)
     fetchBusinessMe()
-      .then((me) => getMenusGrouped(me.id))
+      .then((me) => {
+        if (!cancelled && me.biz_type) setBusinessType(me.biz_type)
+        return getMenusGrouped(me.id)
+      })
       .then((grouped) => {
         if (!cancelled) setGroupedMenus(grouped)
       })
@@ -76,7 +81,7 @@ export default function MenusPage() {
   const useGrouped = groupedCategories.length > 0
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'menus', label: '세차 메뉴' },
+    { key: 'menus', label: '메뉴' },
     { key: 'hours', label: '영업시간' },
     { key: 'holidays', label: '휴무 관리' },
   ]
@@ -167,7 +172,12 @@ export default function MenusPage() {
                       className={`${CARD} flex items-center justify-between gap-3 ${!item.is_active ? 'opacity-50' : ''}`}
                     >
                       <div>
-                        <p className="font-medium text-gray-900">{item.name}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-gray-900">{item.name}</p>
+                          {!item.is_active && (
+                            <Badge className="bg-gray-100 text-gray-500">비활성/견본</Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-400 mt-1">
                           {item.duration_minutes}분 · {won(item.price)}
                         </p>
@@ -323,7 +333,7 @@ export default function MenusPage() {
               value={formName}
               onChange={(e) => setFormName(e.target.value)}
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
-              placeholder="예: 소형 실내외 세차"
+              placeholder={getMenuNamePlaceholder(businessType)}
             />
           </div>
           <div>

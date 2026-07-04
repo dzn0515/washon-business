@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { BUSINESS_TYPES, getBusinessTypeLabel, type BusinessTypeCode } from '@/lib/business-types'
 import { register, type RegisterPayload } from '@/lib/api-client'
 
-const STEPS = ['계정 정보', '매장 정보', '사업자 정보', '완료']
-const CATEGORIES = ['손세차', '자동세차', '디테일링', '기타']
+const STEPS = ['계정 정보', '매장 정보', '사업자 정보']
 
 function formatBusinessNumber(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 10)
@@ -35,7 +35,7 @@ export default function RegisterPage() {
   const [bayCount, setBayCount] = useState(1)
 
   const [businessNumber, setBusinessNumber] = useState('')
-  const [category, setCategory] = useState(CATEGORIES[0])
+  const [bizType, setBizType] = useState<BusinessTypeCode>(BUSINESS_TYPES[0].code)
   const [phone, setPhone] = useState('')
 
   const next = async () => {
@@ -73,14 +73,15 @@ export default function RegisterPage() {
           name,
           phone,
           business_name: businessName,
+          biz_type: bizType,
           business_number: businessNumber,
           address,
           phone_business: phoneBusiness,
           bay_count: bayCount,
-          business_category: category,
+          business_category: getBusinessTypeLabel(bizType),
         }
         await register(payload)
-        setStep(3)
+        router.push('/pending')
       } catch (e) {
         setError(e instanceof Error ? e.message : '가입에 실패했습니다.')
       } finally {
@@ -89,7 +90,7 @@ export default function RegisterPage() {
     }
   }
 
-  const prev = () => step > 0 && step < 3 && setStep(step - 1)
+  const prev = () => step > 0 && setStep(step - 1)
 
   return (
     <div className="min-h-[100dvh] bg-gray-50">
@@ -100,18 +101,16 @@ export default function RegisterPage() {
           <p className="text-sm text-gray-500 mt-1">세차장 사장님 가입</p>
         </div>
 
-        {step < 3 && (
-          <div className="flex gap-1 mb-6">
-            {STEPS.slice(0, 3).map((label, i) => (
-              <div key={label} className="flex-1">
-                <div className={`h-1 rounded-full ${i <= step ? 'bg-[#1A6DFF]' : 'bg-gray-200'}`} />
-                <p className={`text-[10px] mt-1 text-center ${i === step ? 'text-[#1A6DFF] font-medium' : 'text-gray-400'}`}>
-                  {label}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="flex gap-1 mb-6">
+          {STEPS.map((label, i) => (
+            <div key={label} className="flex-1">
+              <div className={`h-1 rounded-full ${i <= step ? 'bg-[#1A6DFF]' : 'bg-gray-200'}`} />
+              <p className={`text-[10px] mt-1 text-center ${i === step ? 'text-[#1A6DFF] font-medium' : 'text-gray-400'}`}>
+                {label}
+              </p>
+            </div>
+          ))}
+        </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
           {step === 0 && (
@@ -177,12 +176,12 @@ export default function RegisterPage() {
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">업종</label>
                 <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  value={bizType}
+                  onChange={(e) => setBizType(e.target.value as BusinessTypeCode)}
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm"
                 >
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                  {BUSINESS_TYPES.map((item) => (
+                    <option key={item.code} value={item.code}>{item.label}</option>
                   ))}
                 </select>
               </div>
@@ -193,40 +192,24 @@ export default function RegisterPage() {
             </>
           )}
 
-          {step === 3 && (
-            <div className="text-center py-4 space-y-3">
-              <div className="text-4xl">✅</div>
-              <h2 className="text-lg font-semibold">가입 신청이 완료됐습니다!</h2>
-              <p className="text-sm text-gray-500">관리자 검토 후 1~2 영업일 내 승인됩니다.</p>
-              <p className="text-sm text-gray-500">승인 완료 시 알림톡으로 안내드립니다.</p>
-              <Button className="w-full mt-4" onClick={() => router.push('/login')}>
-                로그인 화면으로
-              </Button>
-            </div>
-          )}
-
           {error && <p className="text-sm text-red-600">{error}</p>}
 
-          {step < 3 && (
-            <div className="flex gap-2 pt-2">
-              {step > 0 && (
-                <Button variant="secondary" className="flex-1" onClick={prev}>
-                  <ChevronLeft size={16} className="mr-1" /> 이전
-                </Button>
-              )}
-              <Button className="flex-[2]" onClick={next} disabled={loading}>
-                {loading ? '신청 중...' : step === 2 ? '가입 신청' : '다음'}
+          <div className="flex gap-2 pt-2">
+            {step > 0 && (
+              <Button variant="secondary" className="flex-1" onClick={prev}>
+                <ChevronLeft size={16} className="mr-1" /> 이전
               </Button>
-            </div>
-          )}
+            )}
+            <Button className="flex-[2]" onClick={next} disabled={loading}>
+              {loading ? '신청 중...' : step === 2 ? '가입 신청' : '다음'}
+            </Button>
+          </div>
         </div>
 
-        {step < 3 && (
-          <p className="text-center text-sm text-gray-500 mt-6">
-            이미 계정이 있으신가요?{' '}
-            <Link href="/login" className="text-[#1A6DFF] font-medium">로그인</Link>
-          </p>
-        )}
+        <p className="text-center text-sm text-gray-500 mt-6">
+          이미 계정이 있으신가요?{' '}
+          <Link href="/login" className="text-[#1A6DFF] font-medium">로그인</Link>
+        </p>
       </div>
     </div>
   )

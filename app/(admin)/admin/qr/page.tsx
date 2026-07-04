@@ -9,7 +9,7 @@ import AdminModal from '@/components/admin/AdminModal'
 import { useToast } from '@/components/admin/AdminToast'
 import { fetchAdminAllBusinesses, type AdminBusinessListItem } from '@/lib/admin-api'
 import { downloadQR, getStoreUrl } from '@/lib/admin-qr'
-import { CATEGORY_LABELS } from '@/types'
+import { BUSINESS_TYPE_LABELS } from '@/lib/business-types'
 
 export default function AdminQRPage() {
   const { showToast, ToastComponent } = useToast()
@@ -88,7 +88,7 @@ export default function AdminQRPage() {
             ]}
             data={businesses.map((b) => ({
               name: b.name,
-              bizType: CATEGORY_LABELS[b.bizType] ?? b.bizType,
+              bizType: BUSINESS_TYPE_LABELS[b.bizType] ?? b.bizType,
               slug: b.slug ?? '-',
               storeUrl: b.slug ? getStoreUrl(b.slug) : '-',
               qrStatus: b.slug ? (

@@ -11,6 +11,7 @@ import {
   fetchRecentBusinesses,
   type AdminBusinessListItem,
 } from '@/lib/admin-api'
+import { BUSINESS_TYPE_LABELS } from '@/lib/business-types'
 
 const BOOKING_STATUS_VARIANT: Record<
   string,
@@ -35,19 +36,6 @@ const BOOKING_STATUS_LABEL: Record<string, string> = {
   paid: '결제완료',
   cancelled: '취소',
   noshow: '노쇼',
-}
-
-const BIZ_TYPE_LABEL: Record<string, string> = {
-  wash: '세차',
-  detailing: '디테일링',
-  tire: '타이어',
-  oil: '오일교환',
-  battery: '배터리',
-  dent: '덴트',
-  glass: '유리복원',
-  tinting: '썬팅',
-  audio: '블박/카오디오',
-  repair: '정비',
 }
 
 export default function AdminDashboardPage() {
@@ -167,7 +155,7 @@ export default function AdminDashboardPage() {
             ]}
             data={businesses.map((b) => ({
               ...b,
-              bizType: BIZ_TYPE_LABEL[b.bizType] ?? b.bizType,
+              bizType: BUSINESS_TYPE_LABELS[b.bizType] ?? b.bizType,
               status: (
                 <AdminBadge
                   label={

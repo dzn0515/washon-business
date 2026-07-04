@@ -43,7 +43,7 @@ export function useMenus() {
 
   useEffect(() => {
     Promise.all([
-      apiFetch<ApiMenu[]>('/business/menus/'),
+      apiFetch<ApiMenu[]>('/business/menus/?include_inactive=true'),
       apiFetch<ApiHours[]>('/business/hours'),
       apiFetch<ApiHoliday[]>('/business/holidays'),
     ])

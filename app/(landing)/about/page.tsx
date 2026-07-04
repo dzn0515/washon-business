@@ -9,9 +9,9 @@ const CURRENT_SERVICES = [
   { icon: '🔧', name: '타이어' },
   { icon: '✨', name: '디테일링' },
   { icon: '🔋', name: '배터리' },
-  { icon: '🪟', name: '유리복원·썬팅' },
-  { icon: '📱', name: '블랙박스·네비' },
-  { icon: '🛢️', name: '오일교환' },
+  { icon: '🪟', name: '유리·선팅' },
+  { icon: '📱', name: '블박·네비' },
+  { icon: '🛢️', name: '오일·정비' },
 ]
 
 const ROADMAP = [

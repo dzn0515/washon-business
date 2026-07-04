@@ -15,6 +15,7 @@ export type BusinessMe = {
   id: string
   name: string
   slug: string
+  biz_type?: string
 }
 
 export async function fetchBusinessMe(): Promise<BusinessMe> {

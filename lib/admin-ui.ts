@@ -1,4 +1,5 @@
 import { BOOKING_STATUS_MAP, type BookingStatus } from '@/types'
+import { BUSINESS_TYPES, BUSINESS_TYPE_LABELS } from '@/lib/business-types'
 
 const CANDIDATE_TIMELINE: BookingStatus[] = [
   'pending',
@@ -84,34 +85,12 @@ export function roundCommissionRate(value: number): number {
 
 /** Admin 업체관리 — 업종 코드 → 한글 라벨 */
 export const ADMIN_BIZ_TYPE_LABEL: Record<string, string> = {
-  wash: '세차',
-  detailing: '디테일링',
-  polish: '광택',
-  coating: '유리막',
-  tire: '타이어',
-  oil: '엔진오일',
-  repair: '정비',
-  audio: '블랙박스/카오디오',
-  tinting: '썬팅',
-  dent: '덴트',
-  glass: '유리복원',
-  other: '기타',
+  ...BUSINESS_TYPE_LABELS,
 }
 
 export const ADMIN_BIZ_TYPE_FILTERS = [
   { key: 'all', label: '전체 업종' },
-  { key: 'wash', label: '세차' },
-  { key: 'detailing', label: '디테일링' },
-  { key: 'polish', label: '광택' },
-  { key: 'coating', label: '유리막' },
-  { key: 'tire', label: '타이어' },
-  { key: 'oil', label: '엔진오일' },
-  { key: 'repair', label: '정비' },
-  { key: 'audio', label: '블랙박스/카오디오' },
-  { key: 'tinting', label: '썬팅' },
-  { key: 'dent', label: '덴트' },
-  { key: 'glass', label: '유리복원' },
-  { key: 'other', label: '기타' },
+  ...BUSINESS_TYPES.map(({ code, label }) => ({ key: code, label })),
 ] as const
 
 export type AdminBizTypeFilterKey = (typeof ADMIN_BIZ_TYPE_FILTERS)[number]['key']

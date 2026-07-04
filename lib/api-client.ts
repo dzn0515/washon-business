@@ -94,6 +94,7 @@ export type RegisterPayload = {
   name: string
   phone: string
   business_name: string
+  biz_type: string
   business_number: string
   address: string
   phone_business: string

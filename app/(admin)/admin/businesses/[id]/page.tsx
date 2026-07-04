@@ -16,7 +16,7 @@ import {
   type AdminBusinessDetail,
 } from '@/lib/admin-api'
 import { BUSINESS_STATUS_LABEL, BUSINESS_STATUS_VARIANT } from '@/lib/admin-ui'
-import { CATEGORY_LABELS } from '@/types'
+import { BUSINESS_TYPE_LABELS } from '@/lib/business-types'
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_STYLE } from '@/constants'
 import type { BookingStatus } from '@/types'
 import Badge from '@/components/ui/Badge'
@@ -162,7 +162,7 @@ export default function AdminBusinessDetailPage() {
         <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
           <div className="grid sm:grid-cols-2 gap-4 text-sm">
             <InfoRow label="업체명" value={business.name} />
-            <InfoRow label="업종" value={CATEGORY_LABELS[business.bizType] ?? business.bizType} />
+            <InfoRow label="업종" value={BUSINESS_TYPE_LABELS[business.bizType] ?? business.bizType} />
             <InfoRow label="대표자" value={business.ownerName} />
             <InfoRow label="연락처" value={business.phone} />
             <InfoRow label="이메일" value={business.email || '-'} />
