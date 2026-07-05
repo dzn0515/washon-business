@@ -1,6 +1,6 @@
 {
   "name": "washon-business",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "main": ".electron/main.js",
   "scripts": {
@@ -16,7 +16,7 @@
     "electron:compile": "tsc --project tsconfig.electron.json",
     "electron:prepare": "node scripts/prepare-electron-standalone.js",
     "electron:icon": "node scripts/create-placeholder-icon.js",
-    "electron:dev": "concurrently -k \"cross-env PORT=3010 next dev -p 3010\" \"wait-on http://127.0.0.1:3010 && npm run electron:compile && cross-env NODE_ENV=development ELECTRON_DEV_URL=http://127.0.0.1:3010 electron .electron/main.js\"",
+    "electron:dev": "concurrently -k \"cross-env PORT=3010 next dev -p 3010\" \"wait-on http://127.0.0.1:3010 && npm run electron:compile && cross-env NODE_ENV=development ELECTRON_DEV_URL=http://127.0.0.1:3010/dashboard electron .electron/main.js\"",
     "electron:build": "npm run electron:compile && electron-builder --win"
   },
   "dependencies": {

@@ -10,7 +10,7 @@ const electron_log_1 = __importDefault(require("electron-log"));
 electron_log_1.default.transports.file.level = 'info';
 let mainWindow = null;
 const isDev = process.env.NODE_ENV === 'development';
-const DEV_URL = process.env.ELECTRON_DEV_URL || 'http://127.0.0.1:3010';
+const DEV_URL = process.env.ELECTRON_DEV_URL || 'http://127.0.0.1:3010/dashboard';
 const PROD_URL = 'https://business.autoon.kr/dashboard';
 function createWindow() {
     mainWindow = new electron_1.BrowserWindow({
