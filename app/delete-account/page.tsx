@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: '계정 및 데이터 삭제 안내 | WashOn',
-  description: 'WashOn(워시온) 계정 및 개인정보 삭제 요청 방법을 안내합니다.',
+  title: '계정 및 데이터 삭제 안내 | AUTOON',
+  description: 'AUTOON(오토온) 계정 및 개인정보 삭제 요청 방법을 안내합니다.',
 }
 
 const container: React.CSSProperties = {
@@ -44,10 +44,10 @@ const li: React.CSSProperties = {
 export default function DeleteAccountPage() {
   return (
     <main style={container}>
-      <h1 style={h1}>WashOn 계정 및 데이터 삭제 요청 안내</h1>
+      <h1 style={h1}>AUTOON 계정 및 데이터 삭제 요청 안내</h1>
 
       <p style={p}>
-        WashOn(워시온)을 이용해 주셔서 감사합니다. 이용자는 언제든지 WashOn 계정 또는 저장된
+        AUTOON(오토온)을 이용해 주셔서 감사합니다. 이용자는 언제든지 AUTOON 계정 또는 저장된
         개인정보의 삭제를 요청할 수 있습니다. 본 페이지는 Google Play 정책 및 개인정보 보호
         관련 요구사항에 따라 계정·데이터 삭제 절차를 안내합니다.
       </p>
@@ -62,7 +62,7 @@ export default function DeleteAccountPage() {
       </p>
       <p style={p}>메일에 다음 정보를 포함해 주시면 신속히 처리할 수 있습니다.</p>
       <ul style={ul}>
-        <li style={li}>앱 이름: WashOn</li>
+        <li style={li}>앱 이름: AUTOON</li>
         <li style={li}>가입 시 사용한 이메일 주소 또는 전화번호</li>
         <li style={li}>요청 유형: 계정 삭제 또는 일부 데이터 삭제</li>
         <li style={li}>삭제를 원하는 항목(일부 삭제 요청 시)</li>

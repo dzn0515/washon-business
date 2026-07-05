@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">WashOn 사장님</string>
-    <string name="title_activity_main">WashOn 사장님</string>
+    <string name="app_name">AUTOON 사장님</string>
+    <string name="title_activity_main">AUTOON 사장님</string>
     <string name="package_name">kr.autoon.washon.business</string>
     <string name="custom_url_scheme">kr.autoon.washon.business</string>
 </resources>

@@ -28,7 +28,7 @@ function getTitle(pathname: string) {
   if (pathname.startsWith('/menus/')) return '메뉴 상세'
   if (pathname.startsWith('/settings/')) return '영업 설정'
   if (pathname.startsWith('/onboarding')) return '업체 등록'
-  return TITLES[pathname] ?? 'WashOn Business'
+  return TITLES[pathname] ?? 'AUTOON Business'
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

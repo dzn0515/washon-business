@@ -17,7 +17,7 @@ export default function PendingPage() {
     <div className="min-h-[100dvh] flex items-center justify-center p-6 bg-gray-50">
       <div className="max-w-md mx-auto w-full text-center space-y-6">
         <div className="text-3xl">💧</div>
-        <h1 className="text-xl font-bold text-gray-900">WashOn</h1>
+        <h1 className="text-xl font-bold text-gray-900">AUTOON</h1>
 
         <div className="bg-white border rounded-2xl p-6 shadow-sm space-y-4">
           <div className="text-4xl">⏳</div>

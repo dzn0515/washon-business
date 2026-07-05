@@ -44,7 +44,7 @@ export function AdminSidebarContent({ onNavigate }: { onNavigate?: () => void })
   return (
     <>
       <div className="px-4 py-4 border-b border-gray-100">
-        <span className="text-[15px] font-bold text-[#1A6DFF]">💧 WashOn Admin</span>
+        <span className="text-[15px] font-bold text-[#1A6DFF]">💧 AUTOON Admin</span>
       </div>
       <div className="px-4 py-3 border-b border-gray-100">
         <div className="text-sm font-medium text-gray-900">관리자: 슈퍼어드민</div>

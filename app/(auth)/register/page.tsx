@@ -97,7 +97,7 @@ export default function RegisterPage() {
       <div className="max-w-md mx-auto p-4 pb-8">
         <div className="text-center pt-6 mb-6">
           <div className="text-3xl mb-2">💧</div>
-          <h1 className="text-xl font-bold text-gray-900">WashOn</h1>
+          <h1 className="text-xl font-bold text-gray-900">AUTOON</h1>
           <p className="text-sm text-gray-500 mt-1">세차장 사장님 가입</p>
         </div>
 

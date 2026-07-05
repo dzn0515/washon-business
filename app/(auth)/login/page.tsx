@@ -52,7 +52,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="text-3xl mb-2">💧</div>
-          <h1 className="text-xl font-bold text-washon">WashOn Business</h1>
+          <h1 className="text-xl font-bold text-washon">AUTOON Business</h1>
           <p className="text-sm text-gray-500 mt-1">세차장 사장님 관리자</p>
         </div>
 

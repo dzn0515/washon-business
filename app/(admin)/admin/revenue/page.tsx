@@ -19,7 +19,7 @@ export default function AdminRevenuePage() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Kpi label="이번달 총 거래액" value={formatMoney(mockStats.monthlyRevenue)} />
-        <Kpi label="WashOn 수익 (유지비)" value={formatMoney(mockStats.maintenanceFeeRevenue)} />
+        <Kpi label="AUTOON 수익 (유지비)" value={formatMoney(mockStats.maintenanceFeeRevenue)} />
         <Kpi label="예약 수수료 수익" value={`${formatMoney(mockStats.bookingFeeRevenue)} (Phase 3)`} muted />
         <Kpi label="광고 수익" value={formatMoney(mockStats.adRevenue)} />
       </div>

@@ -5,7 +5,7 @@ const SERVER_URL = 'https://washon-business.vercel.app'
 
 const config: CapacitorConfig = {
   appId: 'kr.autoon.washon.business',
-  appName: 'WashOn 사장님',
+  appName: 'AUTOON 사장님',
   webDir: 'public',
   server: {
     url: SERVER_URL,

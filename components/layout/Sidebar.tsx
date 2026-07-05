@@ -23,7 +23,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <aside className="w-[220px] bg-white border-r border-gray-100 flex flex-col h-full shrink-0">
       <div className="px-4 py-4 border-b border-gray-100">
-        <span className="text-[15px] font-bold text-washon">💧 WashOn Business</span>
+        <span className="text-[15px] font-bold text-washon">💧 AUTOON Business</span>
       </div>
       <div className="px-4 py-3 border-b border-gray-100">
         <div className="text-sm font-medium text-gray-900">{mockBusiness.name}</div>

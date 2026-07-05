@@ -8,7 +8,7 @@ type Step = 'popup' | 'installing' | 'homescreen'
 
 const HOME_APPS = [
   { id: 'kakao', label: '카카오톡', bg: 'bg-[#FEE500]', icon: MessageCircle, iconClass: 'text-gray-900' },
-  { id: 'washon', label: 'WashOn', bg: 'bg-[#1A6DFF]', emoji: '💧' },
+  { id: 'washon', label: 'AUTOON', bg: 'bg-[#1A6DFF]', emoji: '💧' },
   { id: 'naver', label: '네이버지도', bg: 'bg-[#03C75A]', icon: MapPin, iconClass: 'text-white' },
   { id: 'camera', label: '카메라', bg: 'bg-gray-200', icon: Camera, iconClass: 'text-gray-700' },
 ] as const
@@ -71,7 +71,7 @@ export default function InstallPage() {
               <div className="flex items-center gap-3">
                 <WashOnIcon />
                 <div>
-                  <p className="font-bold text-gray-900">WashOn</p>
+                  <p className="font-bold text-gray-900">AUTOON</p>
                   <p className="text-sm text-gray-500">세차 예약을 더 빠르게</p>
                 </div>
               </div>
@@ -104,7 +104,7 @@ export default function InstallPage() {
                 <p className="text-lg font-semibold text-gray-900">
                   {installDone ? '설치 완료!' : '설치 중...'}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">WashOn</p>
+                <p className="text-sm text-gray-500 mt-1">AUTOON</p>
               </div>
               <div className="space-y-2">
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -158,14 +158,14 @@ export default function InstallPage() {
 
             <div className="bg-white rounded-t-3xl border-t shadow-xl p-6 space-y-4">
               <p className="text-center font-semibold text-gray-900">
-                바탕화면에 WashOn 아이콘이 추가됐어요!
+                바탕화면에 AUTOON 아이콘이 추가됐어요!
               </p>
               <button
                 type="button"
                 onClick={() => router.push('/sparkling')}
                 className="w-full flex items-center justify-center gap-1 py-3.5 rounded-xl bg-[#1A6DFF] text-white font-semibold"
               >
-                WashOn 아이콘 탭하기
+                AUTOON 아이콘 탭하기
                 <ChevronRight size={18} />
               </button>
             </div>
