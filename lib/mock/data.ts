@@ -653,7 +653,23 @@ export const mockAds = {
   radius_km: 5,
   conversion_rate: 1.3,
   app_maintenance_fee: 28000,
+  exposure_status: '기본 반경 5km',
+  ad_status: '미이용',
+  automation_status: '미이용',
 }
+
+export const mockBilling = {
+  currentPlanId: 'basic' as const,
+  status: 'free_trial' as const,
+  nextPaymentDate: '2026.10.05',
+  platformFee: '8.9%',
+}
+
+export const mockBillingHistory = [
+  { id: 1, date: '2026.07.01', description: 'Basic 구독 (무료 체험)', amount: 0, status: 'PAID' as const },
+  { id: 2, date: '2026.06.01', description: 'Basic 구독 (무료 체험)', amount: 0, status: 'PAID' as const },
+  { id: 3, date: '2026.05.01', description: 'Basic 구독 (무료 체험)', amount: 0, status: 'PAID' as const },
+]
 
 export const mockExposurePlans = [
   { id: 'basic', label: '기본 반경', radius: '5km', extra_fee: 0, selected: true },

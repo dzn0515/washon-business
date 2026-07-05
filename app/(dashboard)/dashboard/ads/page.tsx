@@ -1,99 +1,201 @@
 'use client'
-import { useState } from 'react'
-import Badge from '@/components/ui/Badge'
-import { useAds } from '@/lib/hooks/useAds'
-import { mockExposurePlans, mockPremiumProducts } from '@/lib/mock/data'
-import { CARD, won } from '@/lib/dashboard-ui'
-import { AlertTriangle } from 'lucide-react'
+
+import { useMemo, useState } from 'react'
+import Modal from '@/components/ui/Modal'
+import { useDemoMode } from '@/components/providers/DemoModeProvider'
+import {
+  AD_PRODUCTS,
+  AUTOMATION_PRODUCTS,
+  EXPOSURE_PRODUCTS,
+  billingTypeLabel,
+  getAdProduct,
+  type AdProduct,
+} from '@/lib/billing/catalog'
+import { handleApplyAdProduct } from '@/lib/billing/handleApplyAdProduct'
+import { mockAds } from '@/lib/mock/data'
+import { CARD, BTN_PRIMARY, SECTION_LABEL, won } from '@/lib/dashboard-ui'
+
+function ProductRow({
+  product,
+  selected,
+  onToggle,
+}: {
+  product: AdProduct
+  selected: boolean
+  onToggle: () => void
+}) {
+  const suffix = product.billingType === 'monthly' ? '/ 월' : ''
+  return (
+    <label
+      className={`${CARD} flex items-center gap-3 cursor-pointer transition-colors ${
+        selected ? 'border-blue-300 bg-blue-50/50' : ''
+      }`}
+    >
+      <input
+        type="checkbox"
+        checked={selected}
+        onChange={onToggle}
+        className="rounded text-blue-600 shrink-0"
+      />
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-gray-900">{product.name}</p>
+        <p className="text-xs text-gray-400">{product.description}</p>
+      </div>
+      <span className="text-sm font-semibold text-blue-600 shrink-0">
+        +{won(product.price)}{suffix}
+      </span>
+    </label>
+  )
+}
 
 export default function AdsPage() {
-  const { ads } = useAds()
-  const [plans, setPlans] = useState(mockExposurePlans)
+  const { isDemo } = useDemoMode()
+  const [ads] = useState(mockAds)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [modalOpen, setModalOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  const selectedProducts = useMemo(
+    () =>
+      Array.from(selectedIds)
+        .map((id) => getAdProduct(id))
+        .filter((p): p is AdProduct => p !== undefined),
+    [selectedIds],
+  )
+
+  const totalAmount = selectedProducts.reduce((sum, p) => sum + p.price, 0)
+
+  function toggle(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  async function onApply() {
+    if (selectedProducts.length === 0) return
+    setSubmitting(true)
+    await handleApplyAdProduct(selectedProducts)
+    setSubmitting(false)
+    setModalOpen(true)
+  }
 
   return (
     <div className="space-y-4">
       <div className={CARD}>
-        <p className="text-[12px] text-gray-400 font-medium mb-3">현재 노출 현황</p>
-        <div className="grid grid-cols-2 gap-3">
+        <p className={SECTION_LABEL}>현재 상태</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="bg-gray-50 rounded-xl p-3">
-            <p className="text-[12px] text-gray-400">이번달 노출</p>
-            <p className="text-lg font-semibold mt-1">{ads.monthly_exposure.toLocaleString()}회</p>
+            <p className="text-[12px] text-gray-400">현재 노출 상태</p>
+            <p className="text-sm font-semibold text-gray-900 mt-1">{ads.exposure_status}</p>
           </div>
           <div className="bg-gray-50 rounded-xl p-3">
-            <p className="text-[12px] text-gray-400">클릭</p>
-            <p className="text-lg font-semibold mt-1">{ads.clicks.toLocaleString()}회</p>
+            <p className="text-[12px] text-gray-400">현재 광고 상태</p>
+            <p className="text-sm font-semibold text-gray-900 mt-1">{ads.ad_status}</p>
           </div>
           <div className="bg-gray-50 rounded-xl p-3">
-            <p className="text-[12px] text-gray-400">예약 전환</p>
-            <p className="text-lg font-semibold mt-1">{ads.booking_conversions}건</p>
-          </div>
-          <div className="bg-gray-50 rounded-xl p-3">
-            <p className="text-[12px] text-gray-400">노출 범위</p>
-            <p className="text-lg font-semibold mt-1">반경 {ads.radius_km}km</p>
-          </div>
-          <div className="bg-gray-50 rounded-xl p-3">
-            <p className="text-[12px] text-gray-400">전환율</p>
-            <p className="text-lg font-semibold mt-1">{ads.conversion_rate}%</p>
-          </div>
-          <div className="bg-gray-50 rounded-xl p-3">
-            <p className="text-[12px] text-gray-400">앱 노출 유지비</p>
-            <p className="text-lg font-semibold mt-1">{won(ads.app_maintenance_fee)}/월</p>
+            <p className="text-[12px] text-gray-400">현재 자동화 상태</p>
+            <p className="text-sm font-semibold text-gray-900 mt-1">{ads.automation_status}</p>
           </div>
         </div>
+        {isDemo && (
+          <p className="text-xs text-gray-400 mt-3">데모 모드 · Mock 데이터 · 실제 결제 없음</p>
+        )}
       </div>
 
       <div>
-        <p className="text-[12px] text-gray-400 font-medium mb-2">노출 범위 확장</p>
+        <p className={SECTION_LABEL}>노출 확장</p>
         <div className="space-y-2">
-          {plans.map((plan) => (
-            <label
-              key={plan.id}
-              className={`${CARD} flex items-center gap-3 cursor-pointer ${
-                plan.selected ? 'border-blue-300 bg-blue-50/50' : ''
-              }`}
-            >
-              <input
-                type="radio"
-                name="exposure"
-                checked={plan.selected}
-                onChange={() => setPlans((prev) => prev.map((p) => ({ ...p, selected: p.id === plan.id })))}
-                className="text-blue-600"
-              />
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">{plan.label}</p>
-                <p className="text-xs text-gray-400">{plan.radius}</p>
-              </div>
-              <span className="text-sm font-medium text-gray-700">
-                {plan.extra_fee === 0 ? '기본 포함' : `+${plan.extra_fee.toLocaleString()}원`}
-              </span>
-            </label>
+          {EXPOSURE_PRODUCTS.map((p) => (
+            <ProductRow
+              key={p.id}
+              product={p}
+              selected={selectedIds.has(p.id)}
+              onToggle={() => toggle(p.id)}
+            />
           ))}
         </div>
       </div>
 
       <div>
-        <p className="text-[12px] text-gray-400 font-medium mb-2">프리미엄 광고 상품</p>
-        <div className="grid grid-cols-2 gap-3">
-          {mockPremiumProducts.map((p) => (
-            <div key={p.id} className={CARD}>
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <p className="font-medium text-gray-900 text-sm">{p.name}</p>
-                {p.badge && <Badge className="bg-orange-100 text-orange-700 shrink-0">{p.badge}</Badge>}
-              </div>
-              <p className="text-xs text-gray-400 mb-3">{p.desc}</p>
-              <p className="text-sm font-semibold text-blue-600">{won(p.price)}</p>
-              <button type="button" className="mt-3 w-full text-xs py-2 rounded-xl border border-blue-200 text-blue-600 bg-blue-50 font-medium">
-                신청하기
-              </button>
-            </div>
+        <p className={SECTION_LABEL}>광고 상품</p>
+        <div className="space-y-2">
+          {AD_PRODUCTS.map((p) => (
+            <ProductRow
+              key={p.id}
+              product={p}
+              selected={selectedIds.has(p.id)}
+              onToggle={() => toggle(p.id)}
+            />
           ))}
         </div>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-2 text-sm text-amber-800">
-        <AlertTriangle size={16} className="shrink-0 mt-0.5" />
-        <p>월 {ads.app_maintenance_fee.toLocaleString()}원 미납 시 모든 노출이 일시 중지됩니다.</p>
+      <div>
+        <p className={SECTION_LABEL}>자동화 기능</p>
+        <div className="space-y-2">
+          {AUTOMATION_PRODUCTS.map((p) => (
+            <ProductRow
+              key={p.id}
+              product={p}
+              selected={selectedIds.has(p.id)}
+              onToggle={() => toggle(p.id)}
+            />
+          ))}
+        </div>
       </div>
+
+      <div className={CARD}>
+        <p className={SECTION_LABEL}>선택한 상품</p>
+        {selectedProducts.length === 0 ? (
+          <p className="text-sm text-gray-400 py-2">상품을 선택해 주세요.</p>
+        ) : (
+          <div className="space-y-3">
+            {selectedProducts.map((p) => (
+              <div key={p.id} className="flex items-center justify-between gap-3 text-sm">
+                <div>
+                  <p className="font-medium text-gray-900">{p.name}</p>
+                  <p className="text-xs text-gray-400">{billingTypeLabel(p.billingType)}</p>
+                </div>
+                <p className="font-semibold text-gray-900">{won(p.price)}</p>
+              </div>
+            ))}
+            <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-sm text-gray-600">합계 (VAT 별도)</span>
+              <span className="text-base font-bold text-blue-600">{won(totalAmount)}</span>
+            </div>
+            <p className="text-xs text-gray-400">VAT 별도 · PG 수수료 별도</p>
+          </div>
+        )}
+        <button
+          type="button"
+          disabled={selectedProducts.length === 0 || submitting}
+          onClick={onApply}
+          className={`${BTN_PRIMARY} w-full mt-4 disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          결제 신청
+        </button>
+      </div>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="신청 접수" size="sm">
+        <p className="text-sm text-gray-600 leading-relaxed">
+          상품 신청이 접수되었습니다.
+          <br />
+          담당자가 확인 후 안내드립니다.
+        </p>
+        <p className="text-xs text-gray-400 mt-3">
+          선택 {selectedProducts.length}건 · 합계 {won(totalAmount)} (VAT 별도)
+        </p>
+        <button
+          type="button"
+          onClick={() => setModalOpen(false)}
+          className={`${BTN_PRIMARY} w-full mt-5`}
+        >
+          확인
+        </button>
+      </Modal>
     </div>
   )
 }

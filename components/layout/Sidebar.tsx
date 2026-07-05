@@ -2,15 +2,16 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, Calendar, List, Users, Wallet, Settings, Megaphone, ShieldCheck, Smartphone, Wrench, Ticket, Car, QrCode,
+  LayoutDashboard, Calendar, List, Users, Wallet, Settings, Megaphone, ShieldCheck, Smartphone, Wrench, Ticket, Car, QrCode, Sparkles, CreditCard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/constants'
 import { mockBusiness } from '@/lib/mock/data'
 import { isAdminUser } from '@/lib/api-client'
+import { useDemoMode } from '@/components/providers/DemoModeProvider'
 
 const ICONS = {
-  LayoutDashboard, Calendar, List, Users, Wallet, Settings, Megaphone, ShieldCheck, Smartphone, Wrench, Ticket, Car, QrCode,
+  LayoutDashboard, Calendar, List, Users, Wallet, Settings, Megaphone, ShieldCheck, Smartphone, Wrench, Ticket, Car, QrCode, Sparkles, CreditCard,
 }
 
 interface SidebarProps {
@@ -19,6 +20,7 @@ interface SidebarProps {
 
 export default function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname()
+  const { isDemo, href } = useDemoMode()
 
   return (
     <aside className="w-[220px] bg-white border-r border-gray-100 flex flex-col h-full shrink-0">
@@ -27,18 +29,27 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       </div>
       <div className="px-4 py-3 border-b border-gray-100">
         <div className="text-sm font-medium text-gray-900">{mockBusiness.name}</div>
-        <div className="text-[11px] text-primary-600 mt-0.5">business.washon.kr</div>
+        <div className="text-[11px] text-primary-600 mt-0.5">
+          {isDemo ? 'business.autoon.kr/demo' : 'business.washon.kr'}
+        </div>
       </div>
       <nav className="flex-1 py-2 overflow-y-auto">
-        {NAV_ITEMS.filter((item) => item.href !== '/dashboard/admin' || isAdminUser()).map((item) => {
+        {NAV_ITEMS.filter((item) => {
+          if (item.href === '/dashboard/admin') {
+            return !isDemo && isAdminUser()
+          }
+          return true
+        }).map((item) => {
           const Icon = ICONS[item.icon]
-          const active = item.href === '/dashboard'
-            ? pathname === '/dashboard'
-            : pathname === item.href || pathname.startsWith(item.href + '/')
+          const linkHref = href(item.href)
+          const active =
+            item.href === '/dashboard'
+              ? pathname === linkHref
+              : pathname === linkHref || pathname.startsWith(linkHref + '/')
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={linkHref}
               onClick={onNavigate}
               className={cn(
                 'flex items-center gap-2.5 px-4 py-2.5 text-[13px] transition-colors',

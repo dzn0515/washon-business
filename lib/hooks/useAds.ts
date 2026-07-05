@@ -28,6 +28,9 @@ export function useAds() {
           radius_km: api.exposure_radius_km,
           conversion_rate: api.conversion_rate,
           app_maintenance_fee: api.app_maintenance_fee,
+          exposure_status: `기본 반경 ${api.exposure_radius_km}km`,
+          ad_status: '미이용',
+          automation_status: '미이용',
         }),
       )
       .catch((e: Error) => setError(e.message))
