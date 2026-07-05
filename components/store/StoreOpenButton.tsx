@@ -9,7 +9,8 @@ type Props = {
 }
 
 /**
- * Opens AUTOON app via custom scheme; falls back to Play Store if app is not installed.
+ * Tap to open AUTOON app; falls back to Play Store if not installed.
+ * No auto-launch on page load — user must tap the button.
  */
 export default function StoreOpenButton({ slug, brandColor = '#1A6DFF' }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -43,12 +44,15 @@ export default function StoreOpenButton({ slug, brandColor = '#1A6DFF' }: Props)
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur-sm">
-      <div className="mx-auto max-w-3xl">
+    <div
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white/95 backdrop-blur-sm"
+      style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 0px))' }}
+    >
+      <div className="mx-auto w-full max-w-lg px-4 pt-3">
         <button
           type="button"
           onClick={openInApp}
-          className="w-full rounded-xl py-3.5 text-base font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+          className="w-full max-w-full rounded-xl py-3.5 text-base font-semibold text-white shadow-sm transition-opacity active:opacity-90"
           style={{ backgroundColor: brandColor }}
         >
           앱에서 예약하기

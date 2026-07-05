@@ -14,28 +14,17 @@ export default function StoreLandingNav() {
   }, [])
 
   return (
-    <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
-        scrolled ? 'bg-white shadow-sm' : 'bg-white/80 backdrop-blur-sm'
+    <header
+      className={`fixed inset-x-0 top-0 z-40 border-b border-transparent transition-all duration-200 ${
+        scrolled ? 'border-gray-100 bg-white shadow-sm' : 'bg-white/90 backdrop-blur-sm'
       }`}
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
-      <div className="max-w-6xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="text-blue-600 font-bold text-xl">AUTOON</span>
+      <div className="mx-auto flex h-14 w-full max-w-lg items-center px-4">
+        <Link href="/" className="text-lg font-bold text-blue-600">
+          AUTOON
         </Link>
-        <ul className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
-          <li>
-            <Link href="/join" className="hover:text-blue-600 transition-colors">
-              입점 안내
-            </Link>
-          </li>
-          <li>
-            <Link href="/about" className="hover:text-blue-600 transition-colors">
-              회사 소개
-            </Link>
-          </li>
-        </ul>
       </div>
-    </nav>
+    </header>
   )
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import LandingFooter from '@/components/landing/LandingFooter'
+import StoreFooter from '@/components/store/StoreFooter'
 import StoreLandingNav from '@/components/store/StoreLandingNav'
 import StoreOpenButton from '@/components/store/StoreOpenButton'
 import { minMenuPrice, publicFetch, type PublicBusiness, type PublicMenu } from '@/lib/public-api'
@@ -65,61 +65,67 @@ export default async function StoreLandingPage({ params }: PageProps) {
   return (
     <>
       <StoreLandingNav />
-      <main className="pb-32 pt-24">
-        <div className="mx-auto max-w-3xl px-4 md:px-8">
-          <p className="mb-2 text-sm font-semibold text-blue-600">AUTOON 입점 매장</p>
-          <h1 className="mb-6 text-3xl font-bold text-gray-900">{business.name}</h1>
+      <main
+        className="mx-auto w-full max-w-lg px-4 pt-[calc(3.75rem+env(safe-area-inset-top,0px))] pb-6"
+        style={{ paddingBottom: 'calc(5.5rem + env(safe-area-inset-bottom, 0px))' }}
+      >
+        <p className="mb-1 text-xs font-semibold text-blue-600">AUTOON 입점 매장</p>
+        <h1 className="mb-5 break-words text-2xl font-bold leading-snug text-gray-900 sm:text-3xl">
+          {business.name}
+        </h1>
 
-          <div className="space-y-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            {business.address ? (
-              <section>
-                <h2 className="mb-2 text-sm font-semibold text-gray-500">주소</h2>
-                <p className="text-base text-gray-800">{business.address}</p>
-              </section>
-            ) : null}
-            {business.phone ? (
-              <section>
-                <h2 className="mb-2 text-sm font-semibold text-gray-500">연락처</h2>
-                <p className="text-base text-gray-800">{business.phone}</p>
-              </section>
-            ) : null}
-          </div>
-
-          {visibleMenus.length > 0 ? (
-            <section className="mt-8">
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">대표 메뉴</h2>
-              <ul className="divide-y divide-gray-200 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                {visibleMenus.map((menu) => (
-                  <li key={menu.id} className="flex items-start justify-between gap-4 px-5 py-4">
-                    <div className="min-w-0">
-                      <p className="font-medium text-gray-900">
-                        {menu.name}
-                        {menu.is_popular ? (
-                          <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">
-                            인기
-                          </span>
-                        ) : null}
-                      </p>
-                      {menu.description ? (
-                        <p className="mt-1 text-sm text-gray-500">{menu.description}</p>
-                      ) : null}
-                    </div>
-                    <p className="shrink-0 text-base font-semibold text-gray-900">
-                      {minMenuPrice(menu).toLocaleString()}원
-                    </p>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-3 text-sm text-gray-500">
-                차량 크기·수입 여부에 따라 가격이 달라질 수 있습니다. 상세는 앱에서 확인해 주세요.
-              </p>
+        <div className="w-full max-w-full space-y-5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+          {business.address ? (
+            <section className="min-w-0">
+              <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">주소</h2>
+              <p className="break-words text-sm leading-relaxed text-gray-800 sm:text-base">{business.address}</p>
             </section>
           ) : null}
-
-          <p className="mt-12 text-center text-xs text-gray-400">powered by AUTOON</p>
+          {business.phone ? (
+            <section className="min-w-0">
+              <h2 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500">연락처</h2>
+              <p className="break-words text-sm text-gray-800 sm:text-base">{business.phone}</p>
+            </section>
+          ) : null}
         </div>
+
+        {visibleMenus.length > 0 ? (
+          <section className="mt-6 w-full max-w-full">
+            <h2 className="mb-3 text-base font-semibold text-gray-900 sm:text-lg">대표 메뉴</h2>
+            <ul className="w-full max-w-full divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+              {visibleMenus.map((menu) => (
+                <li
+                  key={menu.id}
+                  className="flex min-w-0 flex-col gap-1.5 px-4 py-3.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-5 sm:py-4"
+                >
+                  <div className="min-w-0 w-full flex-1">
+                    <p className="break-words font-medium leading-snug text-gray-900">
+                      {menu.name}
+                      {menu.is_popular ? (
+                        <span className="ml-1.5 inline-block rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-600 align-middle">
+                          인기
+                        </span>
+                      ) : null}
+                    </p>
+                    {menu.description ? (
+                      <p className="mt-1 break-words text-xs leading-relaxed text-gray-500 sm:text-sm">
+                        {menu.description}
+                      </p>
+                    ) : null}
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold text-gray-900 sm:text-base">
+                    {minMenuPrice(menu).toLocaleString()}원
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2.5 break-words text-xs leading-relaxed text-gray-500 sm:text-sm">
+              차량 크기·수입 여부에 따라 가격이 달라질 수 있습니다. 상세는 앱에서 확인해 주세요.
+            </p>
+          </section>
+        ) : null}
       </main>
-      <LandingFooter />
+      <StoreFooter />
       <StoreOpenButton slug={slug} brandColor={brandColor} />
     </>
   )
