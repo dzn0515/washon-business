@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -15,7 +16,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { mockStats } from '@/lib/mock/admin-data'
-import { clearAuthSession } from '@/lib/api-client'
+import { clearAuthSession, getUserEmail } from '@/lib/api-client'
 
 const NAV = [
   { href: '/admin', label: '대시보드', icon: LayoutDashboard, exact: true },
@@ -34,6 +35,11 @@ interface AdminSidebarProps {
 export function AdminSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
+  const [adminEmail, setAdminEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    setAdminEmail(getUserEmail())
+  }, [])
 
   const logout = () => {
     clearAuthSession()
@@ -47,8 +53,8 @@ export function AdminSidebarContent({ onNavigate }: { onNavigate?: () => void })
         <span className="text-[15px] font-bold text-[#1A6DFF]">💧 AUTOON Admin</span>
       </div>
       <div className="px-4 py-3 border-b border-gray-100">
-        <div className="text-sm font-medium text-gray-900">관리자: 슈퍼어드민</div>
-        <div className="text-[11px] text-gray-400 mt-0.5">admin@washon.kr</div>
+        <div className="text-sm font-medium text-gray-900">관리자</div>
+        <div className="text-[11px] text-gray-400 mt-0.5">{adminEmail ?? 'AUTOON Admin'}</div>
       </div>
       <nav className="flex-1 py-2 overflow-y-auto">
         {NAV.map((item) => {

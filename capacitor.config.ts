@@ -1,7 +1,6 @@
 import type { CapacitorConfig } from '@capacitor/cli'
 
-// business.autoon.kr 연결 전까지 Vercel URL 사용
-const SERVER_URL = 'https://washon-business.vercel.app'
+const SERVER_URL = 'https://business.autoon.kr'
 
 const config: CapacitorConfig = {
   appId: 'kr.autoon.washon.business',

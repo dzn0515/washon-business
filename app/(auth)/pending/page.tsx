@@ -30,7 +30,7 @@ export default function PendingPage() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <Button variant="secondary" className="w-full" onClick={() => window.open('mailto:support@washon.kr')}>
+          <Button variant="secondary" className="w-full" onClick={() => window.open('mailto:support@autoon.kr')}>
             문의하기
           </Button>
           <button type="button" onClick={logout} className="text-sm text-gray-500 py-2">

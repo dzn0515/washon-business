@@ -4,12 +4,13 @@ import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { mockBusiness } from '@/lib/mock/data'
+import { getStoreWebUrl } from '@/lib/store-links'
 import { QRCodeSVG } from 'qrcode.react'
 import { Copy, Download } from 'lucide-react'
 
 export default function BrandPage() {
   const [color, setColor] = useState(mockBusiness.primary_color)
-  const url = `https://washon.kr/${mockBusiness.slug}`
+  const url = getStoreWebUrl(mockBusiness.slug)
 
   return (
     <div className="grid lg:grid-cols-2 gap-4">

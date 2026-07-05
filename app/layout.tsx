@@ -4,7 +4,7 @@ import UpdateNotifier from '@/components/UpdateNotifier'
 
 export const metadata: Metadata = {
   title: 'AUTOON Business — 세차장 관리자',
-  description: 'AUTOON 세차장 사장님 관리자 웹 (business.washon.kr)',
+  description: 'AUTOON 세차장 사장님 관리자 웹 (business.autoon.kr)',
 }
 
 export const viewport: Viewport = {
