@@ -35,6 +35,8 @@ export async function downloadQR(slug: string, svgElement: SVGElement): Promise<
   }
 }
 
+import { getStoreWebUrl } from '@/lib/store-links'
+
 export function getStoreUrl(slug: string): string {
-  return `https://autoon.kr/store/${slug}`
+  return getStoreWebUrl(slug)
 }

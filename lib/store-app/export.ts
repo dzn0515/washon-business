@@ -79,11 +79,11 @@ export function toCustomerService(s: StoreAppService) {
 }
 
 export function getStoreAppDeepLink(slug: string): string {
-  return `washon://store/${slug}`
+  return `autoon://store/${encodeURIComponent(slug)}`
 }
 
 export function getStoreAppWebUrl(slug: string): string {
-  return `https://washon.kr/${slug}`
+  return `https://autoon.kr/store/${encodeURIComponent(slug)}`
 }
 
 /** washon-app AsyncStorage 가져오기용 JSON (version 1) */

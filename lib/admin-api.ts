@@ -1,6 +1,12 @@
 import { getAccessToken } from '@/lib/api-client'
 import { getToken } from '@/lib/auth'
 import type {
+  AdApplicationProductType,
+  AdApplicationStatus,
+  AdminAdApplication,
+} from '@/lib/ad-applications/types'
+import type { AdBillingType } from '@/lib/billing/catalog'
+import type {
   PlatformSettings,
   SystemStatus,
   AdminLoginLog,
@@ -811,4 +817,175 @@ export async function unblockIp(ip: string): Promise<void> {
     console.warn('[Admin][Dev] unblockIp → mock', ip)
     mockBlockedIps = mockBlockedIps.filter((b) => b.ip !== ip)
   }
+}
+
+// ── Admin Ad Applications (실 API, mock fallback 없음) ─────────
+
+const AD_APPLICATION_STATUSES: AdApplicationStatus[] = [
+  'PENDING_REVIEW',
+  'APPROVED',
+  'REJECTED',
+  'ACTIVE',
+  'ENDED',
+]
+
+const AD_PRODUCT_TYPES: AdApplicationProductType[] = ['exposure', 'ad', 'automation']
+
+const AD_BILLING_TYPES: AdBillingType[] = ['monthly', 'one_time']
+
+function toDateOnly(value: unknown): string | null {
+  if (value == null || value === '') return null
+  return String(value).slice(0, 10)
+}
+
+function normalizeAdApplicationStatus(value: unknown): AdApplicationStatus {
+  const raw = String(value ?? 'PENDING_REVIEW').toUpperCase()
+  if (AD_APPLICATION_STATUSES.includes(raw as AdApplicationStatus)) {
+    return raw as AdApplicationStatus
+  }
+  const legacy: Record<string, AdApplicationStatus> = {
+    PENDING: 'PENDING_REVIEW',
+    PENDING_REVIEW: 'PENDING_REVIEW',
+    APPROVED: 'APPROVED',
+    REJECTED: 'REJECTED',
+    ACTIVE: 'ACTIVE',
+    ENDED: 'ENDED',
+  }
+  return legacy[raw] ?? 'PENDING_REVIEW'
+}
+
+function normalizeProductType(value: unknown): AdApplicationProductType {
+  const raw = String(value ?? 'ad').toLowerCase()
+  if (AD_PRODUCT_TYPES.includes(raw as AdApplicationProductType)) {
+    return raw as AdApplicationProductType
+  }
+  return 'ad'
+}
+
+function normalizeBillingType(value: unknown): AdBillingType {
+  const raw = String(value ?? 'monthly').toLowerCase()
+  if (AD_BILLING_TYPES.includes(raw as AdBillingType)) {
+    return raw as AdBillingType
+  }
+  if (raw === 'one-time' || raw === 'onetime') return 'one_time'
+  return 'monthly'
+}
+
+function mapStatusHistoryEntry(
+  entry: Record<string, unknown>,
+): AdminAdApplication['statusHistory'][number] {
+  return {
+    id: String(entry.id ?? `hist-${entry.changed_at ?? entry.changedAt ?? Date.now()}`),
+    status: normalizeAdApplicationStatus(entry.status),
+    changedAt: String(entry.changed_at ?? entry.changedAt ?? ''),
+    note: String(entry.note ?? entry.message ?? ''),
+    by: (entry.by === 'system' ? 'system' : 'admin') as 'admin' | 'system',
+  }
+}
+
+function mapAdApplication(row: Record<string, unknown>): AdminAdApplication {
+  const historyRaw =
+    (row.status_history as Record<string, unknown>[] | undefined) ??
+    (row.statusHistory as Record<string, unknown>[] | undefined) ??
+    []
+
+  return {
+    id: String(row.id),
+    businessId: String(row.business_id ?? row.businessId ?? ''),
+    businessName: String(row.business_name ?? row.businessName ?? ''),
+    ownerName: String(row.owner_name ?? row.ownerName ?? ''),
+    ownerPhone: String(row.owner_phone ?? row.ownerPhone ?? row.phone ?? ''),
+    ownerEmail: String(row.owner_email ?? row.ownerEmail ?? row.email ?? ''),
+    productId: String(row.product_id ?? row.productId ?? ''),
+    productName: String(row.product_name ?? row.productName ?? ''),
+    productType: normalizeProductType(row.product_type ?? row.productType),
+    billingType: normalizeBillingType(row.billing_type ?? row.billingType),
+    amount: Number(row.amount ?? 0),
+    appliedAt: toDateOnly(row.applied_at ?? row.appliedAt ?? row.created_at ?? row.createdAt) ?? '',
+    status: normalizeAdApplicationStatus(row.status),
+    startDate: toDateOnly(row.start_date ?? row.startDate),
+    endDate: toDateOnly(row.end_date ?? row.endDate),
+    applicationMemo: String(row.application_memo ?? row.applicationMemo ?? row.memo ?? ''),
+    adminMemo: String(row.admin_memo ?? row.adminMemo ?? ''),
+    rejectReason:
+      row.reject_reason != null
+        ? String(row.reject_reason)
+        : row.rejectReason != null
+          ? String(row.rejectReason)
+          : undefined,
+    statusHistory: historyRaw.map(mapStatusHistoryEntry),
+  }
+}
+
+function unwrapAdApplication(data: unknown): AdminAdApplication {
+  if (data && typeof data === 'object') {
+    const obj = data as Record<string, unknown>
+    const nested = obj.application ?? obj.item
+    if (nested && typeof nested === 'object') {
+      return mapAdApplication(nested as Record<string, unknown>)
+    }
+    if ('id' in obj) {
+      return mapAdApplication(obj)
+    }
+  }
+  throw new Error('광고 신청 응답 형식이 올바르지 않습니다.')
+}
+
+/** GET /admin/ad-applications */
+export async function fetchAdAppApplications(params?: {
+  status?: AdApplicationStatus | 'all'
+}): Promise<AdminAdApplication[]> {
+  const query = new URLSearchParams()
+  if (params?.status && params.status !== 'all') {
+    query.set('status', params.status)
+  }
+  const qs = query.toString()
+  const data = await adminFetch<unknown>(`/admin/ad-applications${qs ? `?${qs}` : ''}`)
+  const list = parseList<Record<string, unknown>>(data, ['applications', 'items'])
+  return list.map(mapAdApplication)
+}
+
+/** POST /admin/ad-applications/{id}/approve */
+export async function approveAdApp(
+  id: string,
+  input: { startDate: string; endDate: string; adminMemo: string },
+): Promise<AdminAdApplication> {
+  const data = await adminFetch<unknown>(`/admin/ad-applications/${id}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({
+      start_date: input.startDate,
+      end_date: input.endDate,
+      admin_memo: input.adminMemo,
+    }),
+  })
+  return unwrapAdApplication(data)
+}
+
+/** POST /admin/ad-applications/{id}/reject */
+export async function rejectAdApp(
+  id: string,
+  input: { rejectReason: string; adminMemo: string },
+): Promise<AdminAdApplication> {
+  const data = await adminFetch<unknown>(`/admin/ad-applications/${id}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({
+      reject_reason: input.rejectReason,
+      admin_memo: input.adminMemo,
+    }),
+  })
+  return unwrapAdApplication(data)
+}
+
+/** POST /admin/ad-applications/{id}/end */
+export async function endAdApp(
+  id: string,
+  input?: { adminMemo?: string },
+): Promise<AdminAdApplication> {
+  const data = await adminFetch<unknown>(`/admin/ad-applications/${id}/end`, {
+    method: 'POST',
+    body: JSON.stringify({
+      admin_memo: input?.adminMemo ?? '',
+    }),
+  })
+  return unwrapAdApplication(data)
 }

@@ -18,6 +18,7 @@ import {
 import { BUSINESS_STATUS_LABEL, BUSINESS_STATUS_VARIANT } from '@/lib/admin-ui'
 import { BUSINESS_TYPE_LABELS } from '@/lib/business-types'
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_STYLE } from '@/constants'
+import { getStoreUrl } from '@/lib/admin-qr'
 import type { BookingStatus } from '@/types'
 import Badge from '@/components/ui/Badge'
 
@@ -122,7 +123,7 @@ export default function AdminBusinessDetailPage() {
     )
   }
 
-  const reservationUrl = business.slug ? `https://autoon.kr/store/${business.slug}` : null
+  const reservationUrl = business.slug ? getStoreUrl(business.slug) : null
 
   return (
     <div className="space-y-6">

@@ -1,14 +1,17 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import AdminTable from '@/components/admin/AdminTable'
 import AdminBadge from '@/components/admin/AdminBadge'
 import AdminModal from '@/components/admin/AdminModal'
 import { useToast } from '@/components/admin/AdminToast'
-import { handleApproveApplication } from '@/lib/ad-applications/handleApproveApplication'
-import { handleEndApplication } from '@/lib/ad-applications/handleEndApplication'
-import { handleRejectApplication } from '@/lib/ad-applications/handleRejectApplication'
+import {
+  approveAdApp,
+  endAdApp,
+  fetchAdAppApplications,
+  rejectAdApp,
+} from '@/lib/admin-api'
 import {
   AD_APPLICATION_PRODUCT_TYPE_LABEL,
   AD_APPLICATION_STATUS_LABEL,
@@ -21,9 +24,6 @@ import {
   remainingPeriodLabel,
 } from '@/lib/ad-applications/utils'
 import { billingTypeLabel } from '@/lib/billing/catalog'
-import {
-  mockAdminAdApplications,
-} from '@/lib/mock/admin-ad-applications'
 
 const STATUS_TABS: { key: 'all' | AdApplicationStatus; label: string }[] = [
   { key: 'all', label: '전체' },
@@ -55,7 +55,7 @@ function formatHistoryTime(iso: string) {
 
 export default function AdminAdApplicationsPage() {
   const { showToast, ToastComponent } = useToast()
-  const [applications, setApplications] = useState<AdminAdApplication[]>(mockAdminAdApplications)
+  const [applications, setApplications] = useState<AdminAdApplication[]>([])
   const [statusTab, setStatusTab] = useState<'all' | AdApplicationStatus>('all')
   const [detail, setDetail] = useState<AdminAdApplication | null>(null)
   const [startDate, setStartDate] = useState('')
@@ -64,6 +64,26 @@ export default function AdminAdApplicationsPage() {
   const [rejectReason, setRejectReason] = useState('')
   const [mode, setMode] = useState<'view' | 'reject'>('view')
   const [processing, setProcessing] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(false)
+    try {
+      const data = await fetchAdAppApplications()
+      setApplications(data)
+    } catch {
+      setError(true)
+      setApplications([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   const filtered = useMemo(
     () =>
@@ -88,60 +108,57 @@ export default function AdminAdApplicationsPage() {
     setRejectReason('')
   }
 
-  const patchApplication = (updated: AdminAdApplication) => {
-    setApplications((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
-    setDetail(updated)
-  }
-
   const onApprove = async () => {
     if (!detail) return
-    setProcessing(true)
-    const result = await handleApproveApplication({
-      application: detail,
-      startDate,
-      endDate,
-      adminMemo,
-    })
-    setProcessing(false)
-    if (!result.success) {
+    if (!startDate || !endDate || startDate > endDate) {
       showToast('시작일·종료일을 확인해 주세요.', 'warning')
       return
     }
-    patchApplication(result.application)
-    showToast(`승인 처리 (${AD_APPLICATION_STATUS_LABEL[result.nextStatus]}) · Mock`, 'success')
-    closeDetail()
+    setProcessing(true)
+    try {
+      const updated = await approveAdApp(detail.id, { startDate, endDate, adminMemo })
+      setApplications((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+      showToast(`승인 처리 (${AD_APPLICATION_STATUS_LABEL[updated.status]})`, 'success')
+      closeDetail()
+    } catch {
+      showToast('승인 처리에 실패했습니다.', 'error')
+    } finally {
+      setProcessing(false)
+    }
   }
 
   const onReject = async () => {
     if (!detail) return
-    setProcessing(true)
-    const result = await handleRejectApplication({
-      application: detail,
-      rejectReason,
-      adminMemo,
-    })
-    setProcessing(false)
-    if (!result.success) {
+    if (!rejectReason.trim()) {
       showToast('반려 사유를 입력해 주세요.', 'warning')
       return
     }
-    patchApplication(result.application)
-    showToast('반려 처리되었습니다. (Mock)', 'success')
-    closeDetail()
+    setProcessing(true)
+    try {
+      const updated = await rejectAdApp(detail.id, { rejectReason, adminMemo })
+      setApplications((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+      showToast('반려 처리되었습니다.', 'success')
+      closeDetail()
+    } catch {
+      showToast('반려 처리에 실패했습니다.', 'error')
+    } finally {
+      setProcessing(false)
+    }
   }
 
   const onEnd = async () => {
     if (!detail) return
     setProcessing(true)
-    const result = await handleEndApplication({ application: detail, adminMemo })
-    setProcessing(false)
-    if (!result.success) {
-      showToast('종료할 수 없는 상태입니다.', 'warning')
-      return
+    try {
+      const updated = await endAdApp(detail.id, { adminMemo })
+      setApplications((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+      showToast('종료 처리되었습니다.', 'success')
+      closeDetail()
+    } catch {
+      showToast('종료 처리에 실패했습니다.', 'error')
+    } finally {
+      setProcessing(false)
     }
-    patchApplication(result.application)
-    showToast('종료 처리되었습니다. (Mock)', 'success')
-    closeDetail()
   }
 
   const tableData = filtered.map((app) => ({
@@ -182,12 +199,13 @@ export default function AdminAdApplicationsPage() {
         description="앱 노출·광고·자동화 상품 신청 확인 및 승인/반려/종료"
       />
 
-      <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-800 space-y-1">
-        <p>실제 광고 노출 적용은 추후 API 연동 후 자동 처리됩니다.</p>
-        <p className="text-blue-600">현재는 본사 운영 확인용 신청 관리 화면입니다.</p>
-      </div>
+      {error && (
+        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+          광고 신청 목록을 불러오지 못했습니다. API 연결 상태를 확인해 주세요.
+        </p>
+      )}
 
-      {pendingCount > 0 && (
+      {pendingCount > 0 && !error && (
         <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
           신청 대기 {pendingCount}건 — 확인 후 승인 또는 반려 처리해 주세요.
         </p>
@@ -217,26 +235,30 @@ export default function AdminAdApplicationsPage() {
       </div>
 
       <div className="bg-white border border-gray-100 rounded-xl shadow-sm">
-        <AdminTable
-          columns={[
-            { key: 'businessName', label: '업체명' },
-            { key: 'productName', label: '상품명' },
-            { key: 'productType', label: '상품 유형' },
-            { key: 'billingType', label: '결제 유형' },
-            { key: 'amount', label: '금액' },
-            { key: 'status', label: '상태' },
-            { key: 'appliedAt', label: '신청일' },
-            { key: 'startDate', label: '시작일' },
-            { key: 'endDate', label: '종료일' },
-            { key: 'remaining', label: '남은 기간' },
-          ]}
-          data={tableData}
-          emptyMessage="해당 상태의 신청이 없습니다."
-          onRowClick={(row) => {
-            const app = applications.find((a) => a.id === row.id)
-            if (app) openDetail(app)
-          }}
-        />
+        {loading ? (
+          <p className="text-sm text-gray-400 py-10 text-center">불러오는 중...</p>
+        ) : (
+          <AdminTable
+            columns={[
+              { key: 'businessName', label: '업체명' },
+              { key: 'productName', label: '상품명' },
+              { key: 'productType', label: '상품 유형' },
+              { key: 'billingType', label: '결제 유형' },
+              { key: 'amount', label: '금액' },
+              { key: 'status', label: '상태' },
+              { key: 'appliedAt', label: '신청일' },
+              { key: 'startDate', label: '시작일' },
+              { key: 'endDate', label: '종료일' },
+              { key: 'remaining', label: '남은 기간' },
+            ]}
+            data={tableData}
+            emptyMessage="해당 상태의 신청이 없습니다."
+            onRowClick={(row) => {
+              const app = applications.find((a) => a.id === row.id)
+              if (app) openDetail(app)
+            }}
+          />
+        )}
       </div>
 
       <AdminModal
@@ -334,7 +356,7 @@ export default function AdminAdApplicationsPage() {
 
             <section>
               <p className="text-xs font-medium text-gray-400 mb-1">신청 메모</p>
-              <p className="text-gray-700 bg-gray-50 rounded-xl p-3">{detail.applicationMemo}</p>
+              <p className="text-gray-700 bg-gray-50 rounded-xl p-3">{detail.applicationMemo || '-'}</p>
             </section>
 
             <section>
@@ -420,24 +442,28 @@ export default function AdminAdApplicationsPage() {
 
             <section>
               <p className="text-xs font-medium text-gray-400 mb-2">상태 변경 이력</p>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {detail.statusHistory.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 bg-gray-50 rounded-lg px-3 py-2"
-                  >
-                    <div>
-                      <span className="font-medium text-gray-800">
-                        {historyStatusLabel(entry.status)}
+              {detail.statusHistory.length === 0 ? (
+                <p className="text-xs text-gray-400">이력이 없습니다.</p>
+              ) : (
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {detail.statusHistory.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 bg-gray-50 rounded-lg px-3 py-2"
+                    >
+                      <div>
+                        <span className="font-medium text-gray-800">
+                          {historyStatusLabel(entry.status)}
+                        </span>
+                        <span className="text-gray-500 ml-2 text-xs">{entry.note}</span>
+                      </div>
+                      <span className="text-[11px] text-gray-400 shrink-0">
+                        {formatHistoryTime(entry.changedAt)}
                       </span>
-                      <span className="text-gray-500 ml-2 text-xs">{entry.note}</span>
                     </div>
-                    <span className="text-[11px] text-gray-400 shrink-0">
-                      {formatHistoryTime(entry.changedAt)}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </section>
           </div>
         )}
