@@ -1,16 +1,19 @@
 'use client'
 import { useRouter } from 'next/navigation'
-import { mockBusiness } from '@/lib/mock/data'
 import BookingReminderSettingsPanel from '@/components/features/bookings/BookingReminderSettingsPanel'
 import { CARD } from '@/lib/dashboard-ui'
 import { useAuthStore } from '@/store/auth'
 import { LogOut } from 'lucide-react'
 import { useDemoMode } from '@/components/providers/DemoModeProvider'
+import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
+import { getUserEmail } from '@/lib/api-client'
 
 export default function SettingsPage() {
   const router = useRouter()
   const { logout } = useAuthStore()
   const { isDemo } = useDemoMode()
+  const { display, loading, error } = useBusinessMe()
+  const userEmail = getUserEmail()
 
   function handleLogout() {
     logout()
@@ -35,24 +38,26 @@ export default function SettingsPage() {
 
       <div className={CARD}>
         <p className="text-[12px] text-gray-400 font-medium mb-3">매장 정보</p>
-        <div className="space-y-3 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-400">매장명</span>
-            <span className="font-medium">{mockBusiness.name}</span>
+        {loading ? (
+          <p className="text-sm text-gray-400">매장 정보를 불러오는 중…</p>
+        ) : error || !display ? (
+          <p className="text-sm text-gray-500">매장 정보를 불러올 수 없습니다.</p>
+        ) : (
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-400">매장명</span>
+              <span className="font-medium">{display.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">연락처</span>
+              <span className="font-medium">{display.phone || '—'}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-gray-400 shrink-0">주소</span>
+              <span className="font-medium text-right">{display.address || '—'}</span>
+            </div>
           </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">연락처</span>
-            <span className="font-medium">{mockBusiness.phone}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-gray-400 shrink-0">주소</span>
-            <span className="font-medium text-right">{mockBusiness.address}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">예약 모드</span>
-            <span className="font-medium">{mockBusiness.booking_mode === 'AUTO' ? '자동 확정' : '수동 확정'}</span>
-          </div>
-        </div>
+        )}
         <button
           type="button"
           disabled={isDemo}
@@ -107,7 +112,7 @@ export default function SettingsPage() {
         <div className="space-y-3 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-400">이메일</span>
-            <span className="font-medium">owner@hgdwash.kr</span>
+            <span className="font-medium">{userEmail ?? '—'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-400">비밀번호</span>

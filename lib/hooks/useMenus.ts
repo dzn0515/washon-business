@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { apiFetch } from '@/lib/api-client'
 import { pricesToGrid } from '@/lib/api-mappers'
-import { mockMenuCards, mockBusinessHours, mockHolidayCards } from '@/lib/mock/data'
 import type { BusinessHours } from '@/types'
 
 type ApiMenu = {
@@ -32,12 +31,27 @@ type ApiHoliday = {
 
 const DAY_LABELS = ['월', '화', '수', '목', '금', '토', '일']
 
-export type MenuCard = (typeof mockMenuCards)[number]
+export type MenuCard = {
+  id: number
+  name: string
+  duration_minutes: number
+  monthly_bookings: number
+  is_popular: boolean
+  is_active: boolean
+  price_grid: ReturnType<typeof pricesToGrid>
+}
+
+type HolidayCard = {
+  id: number
+  date: string
+  reason: string
+  type: 'HOLIDAY' | 'RAIN'
+}
 
 export function useMenus() {
   const [menus, setMenus] = useState<MenuCard[] | null>(null)
   const [hours, setHours] = useState<BusinessHours[] | null>(null)
-  const [holidays, setHolidays] = useState<(typeof mockHolidayCards)[number][] | null>(null)
+  const [holidays, setHolidays] = useState<HolidayCard[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -82,9 +96,9 @@ export function useMenus() {
   }, [])
 
   return {
-    menus: menus ?? mockMenuCards,
-    hours: hours ?? mockBusinessHours,
-    holidays: holidays ?? mockHolidayCards,
+    menus: menus ?? [],
+    hours: hours ?? [],
+    holidays: holidays ?? [],
     loading,
     error,
     isLive: menus !== null,

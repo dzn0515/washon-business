@@ -1,17 +1,19 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { apiFetch } from '@/lib/api-client'
-import { mapBookingStatus, todayIso } from '@/lib/api-mappers'
+import { buildDashboardTodayFromBookings } from '@/lib/build-dashboard-today'
+import { todayIso } from '@/lib/api-mappers'
+import { fetchBusinessBookings, type ApiBooking } from '@/lib/bookings-api'
 import { isDemoMode } from '@/lib/demo-mode'
 import { mockDashboardToday } from '@/lib/mock/data'
+import { fetchBusinessMe } from '@/lib/store-api'
 import type { BookingStatus } from '@/types'
 
 /**
  * Dashboard data policy:
  * - isDemo=true: mock only (demo preview)
- * - isDemo=false + API 200: live data
- * - isDemo=false + API fail: empty state + isUnavailable (never mock fallback)
+ * - isDemo=false: /business/me + /business/bookings (live or empty)
+ * - API fail: isUnavailable (never silent mock fallback)
  */
 
 export type DashboardTodayData = {
@@ -58,43 +60,6 @@ export type DashboardTodayBooking = {
   price: number
 }
 
-type ApiToday = {
-  date: string
-  total_bookings: number
-  status_counts: DashboardTodayData['status_counts']
-  expected_revenue: number
-  bay_summary: DashboardTodayData['bay_summary']
-  staff_summary: DashboardTodayData['staff_summary']
-  current_bookings: {
-    id: string
-    booking_number: string
-    customer_name: string
-    service_name: string
-    start_time: string
-    end_time: string
-    status: string
-    bay_id: string | null
-    bay_name: string | null
-    staff_id: string | null
-    staff_name: string | null
-    price: number
-  }[]
-  next_bookings: {
-    id: string
-    booking_number: string
-    customer_name: string
-    service_name: string
-    start_time: string
-    end_time: string
-    status: string
-    bay_id: string | null
-    bay_name: string | null
-    staff_id: string | null
-    staff_name: string | null
-    price: number
-  }[]
-}
-
 export function emptyDashboardToday(date = todayIso()): DashboardTodayData {
   return {
     date,
@@ -115,38 +80,28 @@ export function emptyDashboardToday(date = todayIso()): DashboardTodayData {
   }
 }
 
-function mapBooking(b: ApiToday['current_bookings'][number]): DashboardTodayBooking {
-  return {
-    ...b,
-    status: mapBookingStatus(b.status),
-  }
-}
-
-function mapToday(api: ApiToday): DashboardTodayData {
-  return {
-    date: api.date,
-    total_bookings: api.total_bookings,
-    status_counts: api.status_counts,
-    expected_revenue: api.expected_revenue,
-    bay_summary: api.bay_summary,
-    staff_summary: api.staff_summary,
-    current_bookings: api.current_bookings.map(mapBooking),
-    next_bookings: api.next_bookings.map(mapBooking),
-  }
-}
-
 function mapMockToday(): DashboardTodayData {
   const m = mockDashboardToday
   return {
     ...m,
     current_bookings: m.current_bookings.map((b) => ({
       ...b,
-      status: mapBookingStatus(b.status),
+      status: b.status as BookingStatus,
     })),
     next_bookings: m.next_bookings.map((b) => ({
       ...b,
-      status: mapBookingStatus(b.status),
+      status: b.status as BookingStatus,
     })),
+  }
+}
+
+async function loadMenuNames(): Promise<Map<string, string>> {
+  try {
+    const { apiFetch } = await import('@/lib/api-client')
+    const menus = await apiFetch<{ id: string; name: string }[]>('/business/menus/')
+    return new Map(menus.map((m) => [m.id, m.name]))
+  } catch {
+    return new Map()
   }
 }
 
@@ -155,6 +110,7 @@ export function useDashboardToday() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const isDemo = isDemoMode()
+  const todayDate = todayIso()
 
   const load = useCallback(() => {
     if (isDemo) {
@@ -166,24 +122,37 @@ export function useDashboardToday() {
 
     setLoading(true)
     setError(null)
-    return apiFetch<ApiToday>('/business/dashboard/today')
-      .then((api) => setData(mapToday(api)))
+
+    return Promise.all([
+      fetchBusinessMe(),
+      fetchBusinessBookings(todayDate),
+      loadMenuNames(),
+    ])
+      .then(([me, bookings, menuNames]) => {
+        setData(
+          buildDashboardTodayFromBookings(bookings as ApiBooking[], {
+            bayCount: me.bay_count ?? 1,
+            date: todayDate,
+            menuNames,
+          }),
+        )
+      })
       .catch((e: Error) => {
         console.log('[useDashboardToday] API failed', e.message)
         setError(e.message)
         setData(null)
       })
       .finally(() => setLoading(false))
-  }, [isDemo])
+  }, [isDemo, todayDate])
 
   useEffect(() => {
     void load()
   }, [load])
 
-  const today = isDemo ? mapMockToday() : (data ?? emptyDashboardToday())
-  const todayDate = today.date || todayIso()
+  const today = isDemo ? mapMockToday() : (data ?? emptyDashboardToday(todayDate))
   const isLive = !isDemo && data !== null
   const isUnavailable = !isDemo && !loading && data === null
+  const isEmpty = isLive && today.total_bookings === 0
 
   return {
     today,
@@ -192,6 +161,7 @@ export function useDashboardToday() {
     isLive,
     isDemo,
     isUnavailable,
+    isEmpty,
     refetch: load,
     todayDate,
   }

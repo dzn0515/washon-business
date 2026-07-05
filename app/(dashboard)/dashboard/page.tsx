@@ -52,7 +52,7 @@ function BookingRow({
 }
 
 export default function DashboardPage() {
-  const { today, loading, isLive, isDemo, isUnavailable, refetch, todayDate } = useDashboardToday()
+  const { today, loading, isLive, isDemo, isUnavailable, isEmpty, refetch, todayDate } = useDashboardToday()
   const {
     insights,
     loading: insightsLoading,
@@ -93,6 +93,11 @@ export default function DashboardPage() {
         <UnavailableCard message="운영 데이터를 불러올 수 없습니다. 잠시 후 새로고침해 주세요." />
       ) : (
         <>
+          {isEmpty ? (
+            <div className={`${CARD} py-4 text-center`}>
+              <p className="text-sm text-gray-500">오늘 예약 데이터가 없습니다.</p>
+            </div>
+          ) : null}
           <div className="grid grid-cols-2 gap-3">
             <div className={CARD}>
               <p className="text-[12px] text-gray-400 font-medium mb-2">오늘 예약</p>

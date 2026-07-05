@@ -13,9 +13,19 @@ export type GroupedMenuItem = {
 
 export type BusinessMe = {
   id: string
+  owner_id?: string
   name: string
   slug: string
+  address?: string
+  phone?: string | null
   biz_type?: string
+  bay_count?: number
+  status?: string
+  plan?: string
+  brand_color?: string
+  logo_url?: string
+  banner_url?: string
+  monthly_fee?: number
 }
 
 export async function fetchBusinessMe(): Promise<BusinessMe> {
