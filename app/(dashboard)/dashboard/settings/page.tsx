@@ -5,10 +5,12 @@ import BookingReminderSettingsPanel from '@/components/features/bookings/Booking
 import { CARD } from '@/lib/dashboard-ui'
 import { useAuthStore } from '@/store/auth'
 import { LogOut } from 'lucide-react'
+import { useDemoMode } from '@/components/providers/DemoModeProvider'
 
 export default function SettingsPage() {
   const router = useRouter()
   const { logout } = useAuthStore()
+  const { isDemo } = useDemoMode()
 
   function handleLogout() {
     logout()
@@ -19,11 +21,15 @@ export default function SettingsPage() {
     <div className="space-y-4">
       <div className="bg-blue-600 text-white rounded-xl p-5">
         <p className="text-sm opacity-80">현재 플랜</p>
-        <p className="text-xl font-bold mt-1">기본 노출</p>
-        <p className="text-sm mt-3 opacity-90">3개월 무료 체험 중 · 2026.09.24 종료</p>
+        <p className="text-xl font-bold mt-1">{isDemo ? 'Standard' : '기본 노출'}</p>
+        <p className="text-sm mt-3 opacity-90">
+          {isDemo ? '첫 1개월 무료 체험 중 · 2026.07.24 종료' : '3개월 무료 체험 중 · 2026.09.24 종료'}
+        </p>
         <div className="mt-4 pt-4 border-t border-white/20 text-sm">
-          <p>다음 결제 2026.09.24</p>
-          <p className="mt-1 font-medium">앱 노출 유지비 28,000원/월</p>
+          <p>{isDemo ? '다음 결제 2026.07.24' : '다음 결제 2026.09.24'}</p>
+          <p className="mt-1 font-medium">
+            {isDemo ? 'AUTOON Business 이용료 59,000원/월' : '앱 노출 유지비 28,000원/월'}
+          </p>
         </div>
       </div>
 
@@ -47,7 +53,11 @@ export default function SettingsPage() {
             <span className="font-medium">{mockBusiness.booking_mode === 'AUTO' ? '자동 확정' : '수동 확정'}</span>
           </div>
         </div>
-        <button type="button" className="w-full mt-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">
+        <button
+          type="button"
+          disabled={isDemo}
+          className="w-full mt-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           매장 정보 수정
         </button>
       </div>
@@ -101,16 +111,20 @@ export default function SettingsPage() {
           </div>
           <div className="flex justify-between">
             <span className="text-gray-400">비밀번호</span>
-            <button type="button" className="text-blue-600 font-medium">변경</button>
+            <button type="button" disabled={isDemo} className="text-blue-600 font-medium disabled:opacity-50">
+              변경
+            </button>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="w-full mt-4 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium flex items-center justify-center gap-2 hover:bg-red-50"
-        >
-          <LogOut size={16} /> 로그아웃
-        </button>
+        {!isDemo ? (
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full mt-4 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-medium flex items-center justify-center gap-2 hover:bg-red-50"
+          >
+            <LogOut size={16} /> 로그아웃
+          </button>
+        ) : null}
       </div>
     </div>
   )

@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { notFound } from 'next/navigation'
+import { isReservedStoreSlug } from '@/lib/reserved-slugs'
 import {
   ArrowLeft,
   Calendar,
@@ -152,6 +154,20 @@ export default function PublicShopPage() {
   const slug = String(params.slug ?? 'sparkling')
   const [tab, setTab] = useState<Tab>('menu')
   const [liked, setLiked] = useState(false)
+
+  useEffect(() => {
+    if (slug === 'demo') {
+      router.replace('/demo')
+    }
+  }, [slug, router])
+
+  if (slug === 'demo') {
+    return null
+  }
+
+  if (isReservedStoreSlug(slug)) {
+    notFound()
+  }
 
   const infoGrid = [
     { icon: MapPin, label: '주소', value: store.address },

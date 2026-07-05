@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { useDemoMode } from '@/components/providers/DemoModeProvider'
 
 const LINKS = [
   { href: '/dashboard/operations/calendar', label: '운영 캘린더' },
@@ -12,6 +13,9 @@ const LINKS = [
 
 export default function OperationsSubNav() {
   const pathname = usePathname()
+  const { isDemo } = useDemoMode()
+
+  if (isDemo) return null
 
   return (
     <div className="flex gap-2 border-b border-gray-100 pb-3">

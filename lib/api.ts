@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { getToken } from '@/lib/auth'
 import { clearAuthSession } from '@/lib/api-client'
+import { isDemoMode } from '@/lib/demo-mode'
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1',
@@ -8,6 +9,9 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
+  if (isDemoMode()) {
+    return Promise.reject(new Error('Demo mode: API calls are disabled'))
+  }
   const token = getToken()
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
@@ -16,7 +20,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 && typeof window !== 'undefined') {
+    if (err.response?.status === 401 && typeof window !== 'undefined' && !isDemoMode()) {
       clearAuthSession()
       window.location.href = '/login'
     }

@@ -8,6 +8,7 @@ const PUBLIC_PATHS = ['/', '/login', '/register', '/pending', '/join', '/about',
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.includes(pathname)) return true
+  if (pathname === '/demo' || pathname.startsWith('/demo/')) return true
   return pathname.startsWith('/install') || /^[^?]*\/[^/]+\/booking/.test(pathname)
 }
 

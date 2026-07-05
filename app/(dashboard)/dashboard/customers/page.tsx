@@ -9,11 +9,13 @@ import { mockCustomerStats } from '@/lib/mock/data'
 import { CARD, won, AVATAR_COLORS } from '@/lib/dashboard-ui'
 import { CUSTOMER_GRADE_LABEL, CUSTOMER_GRADE_STYLE } from '@/constants'
 import type { CustomerGrade } from '@/types'
+import { useDemoMode } from '@/components/providers/DemoModeProvider'
 
 export default function CustomersPage() {
   const [search, setSearch] = useState('')
   const [query, setQuery] = useState('')
   const { customers, stats, loading, isLive } = useCustomers(query)
+  const { isDemo, href } = useDemoMode()
 
   const filtered = useMemo(() => customers, [customers])
 
@@ -65,13 +67,15 @@ export default function CustomersPage() {
       </form>
 
       {loading ? <p className="text-xs text-gray-400">불러오는 중...</p> : null}
-      {!isLive && !loading ? <p className="text-xs text-amber-600">데모 데이터 표시 중</p> : null}
+      {!isLive && !loading ? (
+        <p className="text-xs text-amber-600">{isDemo ? '데모 데이터 (PC 프로그램 미리보기)' : '데모 데이터 표시 중'}</p>
+      ) : null}
 
       <div className="space-y-2">
         {filtered.map((c: CustomerRow, i: number) => (
           <Link
             key={c.id}
-            href={`/dashboard/customers/${c.id}`}
+            href={href(`/dashboard/customers/${c.id}`)}
             className={`${CARD} block hover:border-blue-200 transition-colors`}
           >
             <div className="flex items-center gap-3">

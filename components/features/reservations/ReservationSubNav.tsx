@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { useDemoMode } from '@/components/providers/DemoModeProvider'
 
 const LINKS = [
   { href: '/dashboard/reservations', label: '예약 목록' },
@@ -11,6 +12,9 @@ const LINKS = [
 
 export default function ReservationSubNav() {
   const pathname = usePathname()
+  const { isDemo } = useDemoMode()
+
+  if (isDemo) return null
 
   return (
     <div className="flex gap-2 border-b border-gray-100 pb-3">

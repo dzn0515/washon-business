@@ -14,11 +14,13 @@ import { CARD, won } from '@/lib/dashboard-ui'
 import { PAYMENT_METHOD_LABEL, PAYMENT_STATUS_LABEL, PAYMENT_STATUS_STYLE } from '@/constants'
 import { mapPaymentMethod, mapPaymentStatus } from '@/lib/api-mappers'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
+import { useDemoMode } from '@/components/providers/DemoModeProvider'
 
 type Tab = 'today' | 'week' | 'month'
 
 export default function RevenuePage() {
   const [tab, setTab] = useState<Tab>('today')
+  const { isDemo } = useDemoMode()
   const { todayKpi, weeklyKpi, monthlyKpi, byMenu, paymentsToday } = useRevenue()
   const { data: daily, loading: dailyLoading, isLive: dailyLive, selectedDate, setSelectedDate } = useDailyRevenue()
 
@@ -28,11 +30,18 @@ export default function RevenuePage() {
     { key: 'month', label: '월간' },
   ]
 
+  const programFeeLabel = isDemo ? 'AUTOON Business 이용료' : '앱 노출 유지비'
+  const onlinePaymentLabel = isDemo ? '온라인결제 대기' : '앱결제 대기'
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-gray-900">매출관리</h2>
-        <button type="button" className="flex items-center gap-1.5 text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-600 hover:bg-gray-50">
+        <button
+          type="button"
+          disabled={isDemo}
+          className="flex items-center gap-1.5 text-sm border border-gray-200 rounded-xl px-3 py-2 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           <Download size={14} /> 정산서 다운로드
         </button>
       </div>
@@ -48,7 +57,11 @@ export default function RevenuePage() {
             className="text-sm border border-gray-200 rounded-lg px-3 py-1.5"
           />
           {dailyLoading ? <span className="text-xs text-gray-400">불러오는 중...</span> : null}
-          {!dailyLive && !dailyLoading ? <span className="text-xs text-amber-600">API 연결 필요</span> : null}
+          {!dailyLive && !dailyLoading ? (
+            <span className="text-xs text-amber-600">
+              {isDemo ? '데모 데이터 (PC 프로그램 미리보기)' : 'API 연결 필요'}
+            </span>
+          ) : null}
         </div>
         {daily ? (
           <>
@@ -74,7 +87,7 @@ export default function RevenuePage() {
                 <p className="text-base font-semibold">{won(daily.by_method.onsite)}</p>
               </div>
               <div className="col-span-2">
-                <p className="text-[12px] text-gray-400">앱결제 대기</p>
+                <p className="text-[12px] text-gray-400">{onlinePaymentLabel}</p>
                 <p className="text-base font-semibold text-blue-700">
                   {won(daily.app_pending_amount)}{' '}
                   <span className="text-sm font-normal text-gray-500">({daily.app_pending_count}건)</span>
@@ -111,7 +124,7 @@ export default function RevenuePage() {
                         <td className="py-2.5">
                           <Badge className={PAYMENT_STATUS_STYLE[ps]}>{PAYMENT_STATUS_LABEL[ps]}</Badge>
                           {row.app_order_status === 'ready' ? (
-                            <Badge className="ml-1 bg-blue-100 text-blue-700">앱결제 대기</Badge>
+                            <Badge className="ml-1 bg-blue-100 text-blue-700">{onlinePaymentLabel}</Badge>
                           ) : null}
                           <span className="text-[11px] text-gray-400 ml-1 block mt-0.5">
                             {PAYMENT_METHOD_LABEL[mapPaymentMethod(row.payment_method)]}
@@ -161,7 +174,7 @@ export default function RevenuePage() {
               <p className="text-lg font-semibold">{won(todayKpi.pending_settlement)}</p>
             </div>
             <div className={CARD}>
-              <p className="text-[12px] text-gray-400 font-medium mb-2">앱 노출 유지비</p>
+              <p className="text-[12px] text-gray-400 font-medium mb-2">{programFeeLabel}</p>
               <p className="text-lg font-semibold">{won(todayKpi.app_maintenance_fee)}/월</p>
             </div>
           </div>
@@ -271,7 +284,7 @@ export default function RevenuePage() {
               <p className="text-lg font-semibold">{won(monthlyKpi.platform_fee)}</p>
             </div>
             <div className={CARD}>
-              <p className="text-[12px] text-gray-400 font-medium mb-2">앱 노출 유지비</p>
+              <p className="text-[12px] text-gray-400 font-medium mb-2">{programFeeLabel}</p>
               <p className="text-lg font-semibold">{won(monthlyKpi.app_maintenance_fee)}/월</p>
             </div>
           </div>

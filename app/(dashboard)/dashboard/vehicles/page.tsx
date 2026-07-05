@@ -11,6 +11,10 @@ import {
 } from '@/lib/api'
 import { CATEGORY_LABELS } from '@/types'
 import type { Vehicle, VehicleRecord } from '@/types'
+import { isDemoMode } from '@/lib/demo-mode'
+import { demoVehicles, getDemoVehicleRecords, DEMO_STORE_ID } from '@/lib/demo-data'
+
+import { useDemoMode } from '@/components/providers/DemoModeProvider'
 
 function formatDate(iso: string): string {
   const d = new Date(iso)
@@ -23,6 +27,7 @@ function vehicleTitle(v: Vehicle): string {
 }
 
 export default function VehiclesPage() {
+  const { isDemo } = useDemoMode()
   const [storeId, setStoreId] = useState<string | null>(null)
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(true)
@@ -38,6 +43,12 @@ export default function VehiclesPage() {
 
   const loadVehicles = useCallback(async () => {
     setLoading(true)
+    if (isDemoMode()) {
+      setStoreId(DEMO_STORE_ID)
+      setVehicles(demoVehicles)
+      setLoading(false)
+      return
+    }
     try {
       const me = await fetchBusinessMe()
       setStoreId(me.id)
@@ -58,6 +69,11 @@ export default function VehiclesPage() {
   const openDetail = async (vehicle: Vehicle) => {
     setSelected(vehicle)
     setRecordsLoading(true)
+    if (isDemoMode()) {
+      setRecords(getDemoVehicleRecords(vehicle.id))
+      setRecordsLoading(false)
+      return
+    }
     try {
       const rows = await getVehicleRecords(vehicle.id)
       setRecords(
@@ -73,7 +89,7 @@ export default function VehiclesPage() {
   }
 
   const handleAddRecord = async () => {
-    if (!selected) return
+    if (!selected || isDemo) return
     setSubmitting(true)
     try {
       await createVehicleRecord(selected.id, {
@@ -164,13 +180,15 @@ export default function VehiclesPage() {
 
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-gray-900">서비스 이력</h3>
-              <button
-                type="button"
-                className={`text-sm px-3 py-1.5 rounded-lg ${BTN_PRIMARY}`}
-                onClick={() => setRecordModalOpen(true)}
-              >
-                이력 추가
-              </button>
+              {!isDemo ? (
+                <button
+                  type="button"
+                  className={`text-sm px-3 py-1.5 rounded-lg ${BTN_PRIMARY}`}
+                  onClick={() => setRecordModalOpen(true)}
+                >
+                  이력 추가
+                </button>
+              ) : null}
             </div>
 
             {recordsLoading ? (

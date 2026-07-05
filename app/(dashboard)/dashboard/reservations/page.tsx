@@ -15,6 +15,7 @@ import { CARD, won } from '@/lib/dashboard-ui'
 import { PAYMENT_STATUS_LABEL, PAYMENT_STATUS_STYLE } from '@/constants'
 import type { BookingStatus, PaymentStatus } from '@/types'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
+import { useDemoMode } from '@/components/providers/DemoModeProvider'
 
 type Tab = 'today' | 'week' | 'month'
 
@@ -30,6 +31,7 @@ export default function ReservationsPage() {
     loading,
     setBookings,
   } = useReservations()
+  const { isDemo } = useDemoMode()
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'today', label: '오늘' },
@@ -120,7 +122,7 @@ export default function ReservationsPage() {
                     <BookingStatusActions
                       bookingId={String(b.id)}
                       status={b.status as BookingStatus}
-                      disabled={updatingId === String(b.id)}
+                      disabled={isDemo || updatingId === String(b.id)}
                       onStatusChange={(newStatus) => {
                         void updateStatus(b.id, newStatus)
                         setBookings((prev) =>

@@ -9,9 +9,11 @@ import { useStaff } from '@/lib/hooks/useStaff'
 import { CARD, BTN_PRIMARY } from '@/lib/dashboard-ui'
 import { STAFF_COLOR_PRESETS, STAFF_POSITION_PRESETS } from '@/lib/staff-ui'
 import type { BusinessStaff } from '@/types'
+import { useDemoMode } from '@/components/providers/DemoModeProvider'
 
 export default function StaffPage() {
   const { staff, loading, isLive, refetch } = useStaff()
+  const { isDemo } = useDemoMode()
   const [modalOpen, setModalOpen] = useState(false)
   const [editStaff, setEditStaff] = useState<BusinessStaff | null>(null)
   const [formName, setFormName] = useState('')
@@ -92,7 +94,12 @@ export default function StaffPage() {
           <h2 className="text-base font-semibold text-gray-900">직원 관리</h2>
           <p className="text-xs text-gray-400 mt-1">비활성 직원은 신규 배정에서 제외됩니다. 기존 예약은 유지됩니다.</p>
         </div>
-        <button type="button" onClick={openAdd} className={`${BTN_PRIMARY} flex items-center gap-1 shrink-0`}>
+        <button
+          type="button"
+          onClick={openAdd}
+          disabled={isDemo}
+          className={`${BTN_PRIMARY} flex items-center gap-1 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
           <Plus size={14} /> 직원 추가
         </button>
       </div>
@@ -127,14 +134,15 @@ export default function StaffPage() {
                 <button
                   type="button"
                   onClick={() => openEdit(member)}
-                  className="text-xs px-2.5 py-1 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
+                  disabled={isDemo}
+                  className="text-xs px-2.5 py-1 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Pencil size={12} /> 수정
                 </button>
                 <button
                   type="button"
                   onClick={() => void toggleActive(member)}
-                  disabled={!isLive}
+                  disabled={isDemo || !isLive}
                   className={`text-xs px-2.5 py-1 rounded-lg border ${
                     member.is_active
                       ? 'bg-red-50 text-red-700 border-red-200'
@@ -150,7 +158,9 @@ export default function StaffPage() {
       </div>
 
       {!isLive && !loading ? (
-        <p className="text-xs text-center text-gray-400">데모 데이터 (API 연결 시 실제 직원 목록 표시)</p>
+        <p className="text-xs text-center text-gray-400">
+          {isDemo ? '데모 데이터 (PC 프로그램 미리보기)' : '데모 데이터 (API 연결 시 실제 직원 목록 표시)'}
+        </p>
       ) : null}
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editStaff ? '직원 수정' : '직원 추가'}>
@@ -216,14 +226,16 @@ export default function StaffPage() {
             />
           </div>
           {error ? <p className="text-xs text-red-600">{error}</p> : null}
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={saving}
-            className={`${BTN_PRIMARY} w-full`}
-          >
-            {saving ? '저장 중...' : '저장'}
-          </button>
+          {!isDemo ? (
+            <button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={saving}
+              className={`${BTN_PRIMARY} w-full`}
+            >
+              {saving ? '저장 중...' : '저장'}
+            </button>
+          ) : null}
         </div>
       </Modal>
     </div>

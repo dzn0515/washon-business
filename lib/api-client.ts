@@ -1,3 +1,5 @@
+import { DemoModeError, isDemoMode } from '@/lib/demo-mode'
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 const TOKEN_KEY = 'washon_access_token'
 const USER_EMAIL_KEY = 'washon_user_email'
@@ -159,6 +161,8 @@ export function ensureLoggedIn(): boolean {
 }
 
 export async function apiFetch<T = unknown>(path: string, options?: RequestInit): Promise<T> {
+  if (isDemoMode()) throw new DemoModeError()
+
   if (!ensureLoggedIn()) throw new AuthRequiredError()
 
   const res = await fetch(`${API_BASE}${path}`, {

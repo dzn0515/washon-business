@@ -3,8 +3,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiFetch } from '@/lib/api-client'
 import { mapBookingStatus, todayIso } from '@/lib/api-mappers'
+import { isDemoMode } from '@/lib/demo-mode'
 import { mockDashboardToday } from '@/lib/mock/data'
 import type { BookingStatus } from '@/types'
+
+/**
+ * Dashboard data policy:
+ * - isDemo=true: mock only (demo preview)
+ * - isDemo=false + API 200: live data
+ * - isDemo=false + API fail: empty state + isUnavailable (never mock fallback)
+ */
 
 export type DashboardTodayData = {
   date: string
@@ -87,6 +95,26 @@ type ApiToday = {
   }[]
 }
 
+export function emptyDashboardToday(date = todayIso()): DashboardTodayData {
+  return {
+    date,
+    total_bookings: 0,
+    status_counts: {
+      pending: 0,
+      confirmed: 0,
+      in_progress: 0,
+      completed: 0,
+      cancelled: 0,
+      noshow: 0,
+    },
+    expected_revenue: 0,
+    bay_summary: { total: 0, active: 0, busy_now: 0, available_now: 0 },
+    staff_summary: [],
+    current_bookings: [],
+    next_bookings: [],
+  }
+}
+
 function mapBooking(b: ApiToday['current_bookings'][number]): DashboardTodayBooking {
   return {
     ...b,
@@ -126,32 +154,44 @@ export function useDashboardToday() {
   const [data, setData] = useState<DashboardTodayData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const isDemo = isDemoMode()
 
   const load = useCallback(() => {
+    if (isDemo) {
+      setData(null)
+      setError(null)
+      setLoading(false)
+      return Promise.resolve()
+    }
+
     setLoading(true)
     setError(null)
     return apiFetch<ApiToday>('/business/dashboard/today')
       .then((api) => setData(mapToday(api)))
       .catch((e: Error) => {
-        console.log('[useDashboardToday] API failed, using mock fallback', e.message)
+        console.log('[useDashboardToday] API failed', e.message)
         setError(e.message)
         setData(null)
       })
       .finally(() => setLoading(false))
-  }, [])
+  }, [isDemo])
 
   useEffect(() => {
-    load()
+    void load()
   }, [load])
 
-  const display = data ?? mapMockToday()
-  const todayDate = display.date || todayIso()
+  const today = isDemo ? mapMockToday() : (data ?? emptyDashboardToday())
+  const todayDate = today.date || todayIso()
+  const isLive = !isDemo && data !== null
+  const isUnavailable = !isDemo && !loading && data === null
 
   return {
-    today: display,
+    today,
     loading,
     error,
-    isLive: data !== null,
+    isLive,
+    isDemo,
+    isUnavailable,
     refetch: load,
     todayDate,
   }
