@@ -26,6 +26,21 @@ export function getStoreDeepLink(slug: string): string {
   return `${APP_SCHEME}://store/${encodeURIComponent(normalized)}`
 }
 
+/**
+ * Android intent URL — Samsung Browser / Chrome에서 custom scheme보다 안정적.
+ * @see https://developer.chrome.com/docs/android/intents
+ */
+export function getAndroidIntentUrl(slug: string, fallbackUrl?: string): string {
+  const normalized = normalizeStoreSlug(slug)
+  const encodedSlug = encodeURIComponent(normalized)
+  const fallback = fallbackUrl ?? getPlayStoreUrl(slug)
+  return (
+    `intent://store/${encodedSlug}` +
+    `#Intent;scheme=${APP_SCHEME};package=${ANDROID_PACKAGE};` +
+    `S.browser_fallback_url=${encodeURIComponent(fallback)};end`
+  )
+}
+
 /** Play Store with install referrer for deferred deep link (Android). */
 export function getPlayStoreUrl(slug: string): string {
   const normalized = normalizeStoreSlug(slug)
