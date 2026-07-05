@@ -6,41 +6,51 @@ import AdminTable from '@/components/admin/AdminTable'
 import AdminBadge from '@/components/admin/AdminBadge'
 import AdminModal from '@/components/admin/AdminModal'
 import { useToast } from '@/components/admin/AdminToast'
-import { billingTypeLabel } from '@/lib/billing/catalog'
+import { handleApproveApplication } from '@/lib/ad-applications/handleApproveApplication'
+import { handleEndApplication } from '@/lib/ad-applications/handleEndApplication'
+import { handleRejectApplication } from '@/lib/ad-applications/handleRejectApplication'
 import {
   AD_APPLICATION_PRODUCT_TYPE_LABEL,
   AD_APPLICATION_STATUS_LABEL,
-  mockAdminAdApplications,
-  type AdminAdApplication,
   type AdApplicationStatus,
+  type AdminAdApplication,
+} from '@/lib/ad-applications/types'
+import {
+  formatDisplayDate,
+  historyStatusLabel,
+  remainingPeriodLabel,
+} from '@/lib/ad-applications/utils'
+import { billingTypeLabel } from '@/lib/billing/catalog'
+import {
+  mockAdminAdApplications,
 } from '@/lib/mock/admin-ad-applications'
 
 const STATUS_TABS: { key: 'all' | AdApplicationStatus; label: string }[] = [
   { key: 'all', label: '전체' },
-  { key: 'pending', label: '신청대기' },
-  { key: 'approved', label: '승인' },
-  { key: 'rejected', label: '반려' },
-  { key: 'active', label: '진행중' },
-  { key: 'ended', label: '종료' },
+  { key: 'PENDING_REVIEW', label: '신청대기' },
+  { key: 'APPROVED', label: '승인' },
+  { key: 'REJECTED', label: '반려' },
+  { key: 'ACTIVE', label: '진행중' },
+  { key: 'ENDED', label: '종료' },
 ]
 
 const STATUS_VARIANT: Record<
   AdApplicationStatus,
   'success' | 'warning' | 'error' | 'info' | 'neutral'
 > = {
-  pending: 'warning',
-  approved: 'info',
-  rejected: 'error',
-  active: 'success',
-  ended: 'neutral',
+  PENDING_REVIEW: 'warning',
+  APPROVED: 'info',
+  REJECTED: 'error',
+  ACTIVE: 'success',
+  ENDED: 'neutral',
 }
 
 function won(amount: number) {
   return amount.toLocaleString() + '원'
 }
 
-function formatDate(d: string | null) {
-  return d ? d.replace(/-/g, '.') : '-'
+function formatHistoryTime(iso: string) {
+  return iso.slice(0, 16).replace('T', ' ')
 }
 
 export default function AdminAdApplicationsPage() {
@@ -53,6 +63,7 @@ export default function AdminAdApplicationsPage() {
   const [adminMemo, setAdminMemo] = useState('')
   const [rejectReason, setRejectReason] = useState('')
   const [mode, setMode] = useState<'view' | 'reject'>('view')
+  const [processing, setProcessing] = useState(false)
 
   const filtered = useMemo(
     () =>
@@ -77,43 +88,59 @@ export default function AdminAdApplicationsPage() {
     setRejectReason('')
   }
 
-  const updateApplication = (id: string, patch: Partial<AdminAdApplication>) => {
-    setApplications((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)))
-    setDetail((prev) => (prev?.id === id ? { ...prev, ...patch } : prev))
+  const patchApplication = (updated: AdminAdApplication) => {
+    setApplications((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
+    setDetail(updated)
   }
 
-  const handleApprove = () => {
-    if (!detail || !startDate || !endDate) {
-      showToast('시작일과 종료일을 입력해 주세요.', 'warning')
-      return
-    }
-    if (startDate > endDate) {
-      showToast('종료일은 시작일 이후여야 합니다.', 'warning')
-      return
-    }
-    updateApplication(detail.id, {
-      status: 'active',
+  const onApprove = async () => {
+    if (!detail) return
+    setProcessing(true)
+    const result = await handleApproveApplication({
+      application: detail,
       startDate,
       endDate,
       adminMemo,
     })
-    showToast('승인 처리되었습니다. (Mock)', 'success')
+    setProcessing(false)
+    if (!result.success) {
+      showToast('시작일·종료일을 확인해 주세요.', 'warning')
+      return
+    }
+    patchApplication(result.application)
+    showToast(`승인 처리 (${AD_APPLICATION_STATUS_LABEL[result.nextStatus]}) · Mock`, 'success')
     closeDetail()
   }
 
-  const handleReject = () => {
-    if (!detail || !rejectReason.trim()) {
+  const onReject = async () => {
+    if (!detail) return
+    setProcessing(true)
+    const result = await handleRejectApplication({
+      application: detail,
+      rejectReason,
+      adminMemo,
+    })
+    setProcessing(false)
+    if (!result.success) {
       showToast('반려 사유를 입력해 주세요.', 'warning')
       return
     }
-    updateApplication(detail.id, {
-      status: 'rejected',
-      rejectReason: rejectReason.trim(),
-      adminMemo,
-      startDate: null,
-      endDate: null,
-    })
+    patchApplication(result.application)
     showToast('반려 처리되었습니다. (Mock)', 'success')
+    closeDetail()
+  }
+
+  const onEnd = async () => {
+    if (!detail) return
+    setProcessing(true)
+    const result = await handleEndApplication({ application: detail, adminMemo })
+    setProcessing(false)
+    if (!result.success) {
+      showToast('종료할 수 없는 상태입니다.', 'warning')
+      return
+    }
+    patchApplication(result.application)
+    showToast('종료 처리되었습니다. (Mock)', 'success')
     closeDetail()
   }
 
@@ -128,25 +155,31 @@ export default function AdminAdApplicationsPage() {
     ),
     billingType: billingTypeLabel(app.billingType),
     amount: <span className="font-medium">{won(app.amount)}</span>,
-    appliedAt: formatDate(app.appliedAt),
     status: (
       <AdminBadge
         label={AD_APPLICATION_STATUS_LABEL[app.status]}
         variant={STATUS_VARIANT[app.status]}
       />
     ),
-    startDate: formatDate(app.startDate),
-    endDate: formatDate(app.endDate),
+    appliedAt: formatDisplayDate(app.appliedAt),
+    startDate: formatDisplayDate(app.startDate),
+    endDate: formatDisplayDate(app.endDate),
+    remaining: (
+      <span className="text-xs text-gray-600">
+        {remainingPeriodLabel(app.status, app.startDate, app.endDate)}
+      </span>
+    ),
   }))
 
-  const pendingCount = applications.filter((a) => a.status === 'pending').length
+  const pendingCount = applications.filter((a) => a.status === 'PENDING_REVIEW').length
+  const canEnd = detail?.status === 'ACTIVE' || detail?.status === 'APPROVED'
 
   return (
     <div className="space-y-6">
       {ToastComponent}
       <AdminPageHeader
         title="광고 신청 관리"
-        description="앱 노출·광고·자동화 상품 신청 확인 및 승인/반려"
+        description="앱 노출·광고·자동화 상품 신청 확인 및 승인/반려/종료"
       />
 
       <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-800 space-y-1">
@@ -191,10 +224,11 @@ export default function AdminAdApplicationsPage() {
             { key: 'productType', label: '상품 유형' },
             { key: 'billingType', label: '결제 유형' },
             { key: 'amount', label: '금액' },
-            { key: 'appliedAt', label: '신청일' },
             { key: 'status', label: '상태' },
+            { key: 'appliedAt', label: '신청일' },
             { key: 'startDate', label: '시작일' },
             { key: 'endDate', label: '종료일' },
+            { key: 'remaining', label: '남은 기간' },
           ]}
           data={tableData}
           emptyMessage="해당 상태의 신청이 없습니다."
@@ -211,11 +245,12 @@ export default function AdminAdApplicationsPage() {
         title="신청 상세"
         size="lg"
         footer={
-          detail?.status === 'pending' ? (
+          detail?.status === 'PENDING_REVIEW' ? (
             mode === 'reject' ? (
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   type="button"
+                  disabled={processing}
                   onClick={() => setMode('view')}
                   className="flex-1 px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
                 >
@@ -223,8 +258,9 @@ export default function AdminAdApplicationsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleReject}
-                  className="flex-1 px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700"
+                  disabled={processing}
+                  onClick={onReject}
+                  className="flex-1 px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50"
                 >
                   반려 확정
                 </button>
@@ -233,6 +269,7 @@ export default function AdminAdApplicationsPage() {
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   type="button"
+                  disabled={processing}
                   onClick={() => setMode('reject')}
                   className="flex-1 px-4 py-2 rounded-xl border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50"
                 >
@@ -240,13 +277,23 @@ export default function AdminAdApplicationsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleApprove}
-                  className="flex-1 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+                  disabled={processing}
+                  onClick={onApprove}
+                  className="flex-1 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
                 >
                   승인
                 </button>
               </div>
             )
+          ) : canEnd ? (
+            <button
+              type="button"
+              disabled={processing}
+              onClick={onEnd}
+              className="w-full px-4 py-2 rounded-xl border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              종료 처리
+            </button>
           ) : undefined
         }
       >
@@ -264,7 +311,7 @@ export default function AdminAdApplicationsPage() {
             </section>
 
             <section>
-              <p className="text-xs font-medium text-gray-400 mb-2">신청 상품</p>
+              <p className="text-xs font-medium text-gray-400 mb-2">상품 정보</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-gray-400 text-xs">상품명</p>
@@ -297,15 +344,15 @@ export default function AdminAdApplicationsPage() {
                 onChange={(e) => setAdminMemo(e.target.value)}
                 rows={2}
                 placeholder="내부 메모"
-                disabled={detail.status !== 'pending'}
+                disabled={detail.status !== 'PENDING_REVIEW' && !canEnd}
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400 resize-none disabled:bg-gray-50"
               />
             </section>
 
-            {detail.status === 'pending' && mode === 'view' && (
+            {detail.status === 'PENDING_REVIEW' && mode === 'view' && (
               <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-400">시작일</label>
+                  <label className="text-xs font-medium text-gray-400">시작일 *</label>
                   <input
                     type="date"
                     value={startDate}
@@ -314,7 +361,7 @@ export default function AdminAdApplicationsPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-400">종료일</label>
+                  <label className="text-xs font-medium text-gray-400">종료일 *</label>
                   <input
                     type="date"
                     value={endDate}
@@ -322,12 +369,15 @@ export default function AdminAdApplicationsPage() {
                     className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-400"
                   />
                 </div>
+                <p className="col-span-full text-xs text-gray-400">
+                  시작일이 오늘 이하이면 진행중(ACTIVE), 미래이면 승인(APPROVED)으로 처리됩니다.
+                </p>
               </section>
             )}
 
-            {detail.status === 'pending' && mode === 'reject' && (
+            {detail.status === 'PENDING_REVIEW' && mode === 'reject' && (
               <section>
-                <p className="text-xs font-medium text-gray-400 mb-1">반려 사유</p>
+                <p className="text-xs font-medium text-gray-400 mb-1">반려 사유 *</p>
                 <textarea
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
@@ -338,8 +388,8 @@ export default function AdminAdApplicationsPage() {
               </section>
             )}
 
-            {detail.status !== 'pending' && (
-              <section className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
+            {detail.status !== 'PENDING_REVIEW' && (
+              <section className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-gray-100">
                 <div>
                   <p className="text-xs text-gray-400">상태</p>
                   <AdminBadge
@@ -349,11 +399,15 @@ export default function AdminAdApplicationsPage() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">시작일</p>
-                  <p>{formatDate(detail.startDate)}</p>
+                  <p>{formatDisplayDate(detail.startDate)}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">종료일</p>
-                  <p>{formatDate(detail.endDate)}</p>
+                  <p>{formatDisplayDate(detail.endDate)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">남은 기간</p>
+                  <p>{remainingPeriodLabel(detail.status, detail.startDate, detail.endDate)}</p>
                 </div>
                 {detail.rejectReason && (
                   <div className="col-span-full">
@@ -363,6 +417,28 @@ export default function AdminAdApplicationsPage() {
                 )}
               </section>
             )}
+
+            <section>
+              <p className="text-xs font-medium text-gray-400 mb-2">상태 변경 이력</p>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {detail.statusHistory.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 bg-gray-50 rounded-lg px-3 py-2"
+                  >
+                    <div>
+                      <span className="font-medium text-gray-800">
+                        {historyStatusLabel(entry.status)}
+                      </span>
+                      <span className="text-gray-500 ml-2 text-xs">{entry.note}</span>
+                    </div>
+                    <span className="text-[11px] text-gray-400 shrink-0">
+                      {formatHistoryTime(entry.changedAt)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
           </div>
         )}
       </AdminModal>

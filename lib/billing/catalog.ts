@@ -3,24 +3,30 @@ export type SubscriptionPlanId = 'basic' | 'standard' | 'premium'
 export type SubscriptionStatus =
   | 'free_trial'
   | 'active'
+  | 'payment_pending'
   | 'expiring'
+  | 'expired'
   | 'pending'
-  | 'inactive'
+  | 'payment_failed'
 
 export const SUBSCRIPTION_STATUS_LABEL: Record<SubscriptionStatus, string> = {
-  free_trial: '무료기간',
+  free_trial: '무료 체험',
   active: '이용중',
-  expiring: '만료예정',
-  pending: '신청대기',
-  inactive: '미이용',
+  payment_pending: '결제 대기',
+  expiring: '만료 예정',
+  expired: '만료',
+  pending: '신청 대기',
+  payment_failed: '결제 실패',
 }
 
 export const SUBSCRIPTION_STATUS_STYLE: Record<SubscriptionStatus, string> = {
   free_trial: 'bg-blue-100 text-blue-700',
   active: 'bg-green-100 text-green-700',
-  expiring: 'bg-amber-100 text-amber-800',
-  pending: 'bg-gray-100 text-gray-700',
-  inactive: 'bg-gray-100 text-gray-500',
+  payment_pending: 'bg-amber-100 text-amber-800',
+  expiring: 'bg-orange-100 text-orange-800',
+  expired: 'bg-gray-100 text-gray-500',
+  pending: 'bg-purple-100 text-purple-700',
+  payment_failed: 'bg-red-100 text-red-700',
 }
 
 export const SUBSCRIPTION_PLANS = [

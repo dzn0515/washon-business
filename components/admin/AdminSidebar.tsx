@@ -94,6 +94,13 @@ export const ADMIN_MENUS: { group: string; items: AdminMenuItem[] }[] = [
         ready: true,
         permission: 'ads.read',
       },
+      {
+        icon: '📋',
+        label: '구독 관리',
+        href: '/admin/subscriptions',
+        ready: true,
+        permission: 'subscription.read',
+      },
       { icon: '🎁', label: '쿠폰', href: '/admin/coupons', ready: false, permission: 'coupon.read' },
     ],
   },

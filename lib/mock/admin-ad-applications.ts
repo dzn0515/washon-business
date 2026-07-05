@@ -1,42 +1,17 @@
-import type { AdBillingType } from '@/lib/billing/catalog'
+import type { AdminAdApplication } from '@/lib/ad-applications/types'
 
-export type AdApplicationStatus = 'pending' | 'approved' | 'rejected' | 'active' | 'ended'
+export type { AdminAdApplication, AdApplicationStatus, AdApplicationProductType } from '@/lib/ad-applications/types'
+export {
+  AD_APPLICATION_STATUS_LABEL,
+  AD_APPLICATION_PRODUCT_TYPE_LABEL,
+} from '@/lib/ad-applications/types'
 
-export type AdApplicationProductType = 'exposure' | 'ad' | 'automation'
-
-export type AdminAdApplication = {
-  id: string
-  businessId: string
-  businessName: string
-  ownerName: string
-  ownerPhone: string
-  ownerEmail: string
-  productId: string
-  productName: string
-  productType: AdApplicationProductType
-  billingType: AdBillingType
-  amount: number
-  appliedAt: string
-  status: AdApplicationStatus
-  startDate: string | null
-  endDate: string | null
-  applicationMemo: string
-  adminMemo: string
-  rejectReason?: string
-}
-
-export const AD_APPLICATION_STATUS_LABEL: Record<AdApplicationStatus, string> = {
-  pending: '신청대기',
-  approved: '승인',
-  rejected: '반려',
-  active: '진행중',
-  ended: '종료',
-}
-
-export const AD_APPLICATION_PRODUCT_TYPE_LABEL: Record<AdApplicationProductType, string> = {
-  exposure: '노출확장',
-  ad: '광고상품',
-  automation: '자동화',
+function hist(
+  status: AdminAdApplication['status'],
+  note: string,
+  changedAt: string,
+): AdminAdApplication['statusHistory'][number] {
+  return { id: `hist-${status}-${changedAt}`, status, changedAt, note, by: 'admin' }
 }
 
 export const mockAdminAdApplications: AdminAdApplication[] = [
@@ -53,11 +28,14 @@ export const mockAdminAdApplications: AdminAdApplication[] = [
     billingType: 'monthly',
     amount: 15000,
     appliedAt: '2026-07-05',
-    status: 'pending',
+    status: 'PENDING_REVIEW',
     startDate: null,
     endDate: null,
     applicationMemo: '강남권 신규 고객 유입을 위해 노출 반경 확장 희망합니다.',
     adminMemo: '',
+    statusHistory: [
+      hist('PENDING_REVIEW', '사장님 신청 접수', '2026-07-05T09:00:00.000Z'),
+    ],
   },
   {
     id: 'adapp-002',
@@ -72,11 +50,14 @@ export const mockAdminAdApplications: AdminAdApplication[] = [
     billingType: 'one_time',
     amount: 50000,
     appliedAt: '2026-07-04',
-    status: 'pending',
+    status: 'PENDING_REVIEW',
     startDate: null,
     endDate: null,
     applicationMemo: '7월 프로모션 기간 검색 상단 노출 신청합니다.',
     adminMemo: '',
+    statusHistory: [
+      hist('PENDING_REVIEW', '사장님 신청 접수', '2026-07-04T14:30:00.000Z'),
+    ],
   },
   {
     id: 'adapp-003',
@@ -85,17 +66,21 @@ export const mockAdminAdApplications: AdminAdApplication[] = [
     ownerName: '박준호',
     ownerPhone: '010-3456-7890',
     ownerEmail: 'junho@speed.kr',
-    productId: 'auto-bundle',
-    productName: '자동화 전체',
+    productId: 'auto-revisit',
+    productName: '재방문 알림',
     productType: 'automation',
     billingType: 'monthly',
-    amount: 15000,
+    amount: 5000,
     appliedAt: '2026-07-03',
-    status: 'approved',
+    status: 'APPROVED',
     startDate: '2026-07-10',
     endDate: '2026-10-10',
-    applicationMemo: '재방문율 개선을 위해 자동화 전체 패키지 신청.',
+    applicationMemo: '미방문 고객 대상 재방문 알림 자동 발송 신청.',
     adminMemo: '7/10 시작 예정. 카카오 알림톡 템플릿 확인 필요.',
+    statusHistory: [
+      hist('PENDING_REVIEW', '사장님 신청 접수', '2026-07-03T10:00:00.000Z'),
+      hist('APPROVED', '승인 · 시작 예정 (2026-07-10 ~ 2026-10-10)', '2026-07-04T11:00:00.000Z'),
+    ],
   },
   {
     id: 'adapp-004',
@@ -110,11 +95,15 @@ export const mockAdminAdApplications: AdminAdApplication[] = [
     billingType: 'one_time',
     amount: 80000,
     appliedAt: '2026-07-01',
-    status: 'active',
+    status: 'ACTIVE',
     startDate: '2026-07-01',
-    endDate: '2026-07-04',
+    endDate: '2026-07-15',
     applicationMemo: '여름 타이어 교체 시즌 메인 배너 3일 노출.',
     adminMemo: '배너 소재 확인 완료.',
+    statusHistory: [
+      hist('PENDING_REVIEW', '사장님 신청 접수', '2026-07-01T09:00:00.000Z'),
+      hist('ACTIVE', '승인 · 즉시 진행 (2026-07-01 ~ 2026-07-15)', '2026-07-01T15:00:00.000Z'),
+    ],
   },
   {
     id: 'adapp-005',
@@ -129,11 +118,16 @@ export const mockAdminAdApplications: AdminAdApplication[] = [
     billingType: 'monthly',
     amount: 50000,
     appliedAt: '2026-06-20',
-    status: 'active',
+    status: 'ACTIVE',
     startDate: '2026-06-25',
     endDate: '2026-09-25',
     applicationMemo: '프랜차이즈 확장으로 전국 노출 필요.',
     adminMemo: '분당 본점 기준 전국 노출 적용.',
+    statusHistory: [
+      hist('PENDING_REVIEW', '사장님 신청 접수', '2026-06-20T11:00:00.000Z'),
+      hist('APPROVED', '승인 · 시작 예정 (2026-06-25 ~ 2026-09-25)', '2026-06-21T10:00:00.000Z'),
+      hist('ACTIVE', '시작일 도래 · 자동 진행중 전환', '2026-06-25T00:00:00.000Z'),
+    ],
   },
   {
     id: 'adapp-006',
@@ -148,11 +142,16 @@ export const mockAdminAdApplications: AdminAdApplication[] = [
     billingType: 'one_time',
     amount: 30000,
     appliedAt: '2026-06-15',
-    status: 'ended',
+    status: 'ENDED',
     startDate: '2026-06-18',
     endDate: '2026-06-18',
     applicationMemo: '6월 할인 이벤트 푸시 1회 발송.',
     adminMemo: '발송 완료. 클릭률 2.1%.',
+    statusHistory: [
+      hist('PENDING_REVIEW', '사장님 신청 접수', '2026-06-15T09:00:00.000Z'),
+      hist('ACTIVE', '승인 · 즉시 진행 (2026-06-18 ~ 2026-06-18)', '2026-06-16T10:00:00.000Z'),
+      hist('ENDED', '종료일 도래 · 자동 종료', '2026-06-19T00:00:00.000Z'),
+    ],
   },
   {
     id: 'adapp-007',
@@ -161,36 +160,21 @@ export const mockAdminAdApplications: AdminAdApplication[] = [
     ownerName: '윤서연',
     ownerPhone: '010-7890-1234',
     ownerEmail: 'seoyeon@carcare.kr',
-    productId: 'auto-revisit',
-    productName: '재방문 알림',
+    productId: 'auto-birthday',
+    productName: '생일 쿠폰',
     productType: 'automation',
     billingType: 'monthly',
     amount: 5000,
     appliedAt: '2026-07-02',
-    status: 'rejected',
+    status: 'REJECTED',
     startDate: null,
     endDate: null,
-    applicationMemo: '미방문 고객 대상 재방문 알림 자동 발송.',
+    applicationMemo: '생일 고객 대상 쿠폰 자동 발송.',
     adminMemo: 'Basic 플랜 한도 초과.',
     rejectReason: '현재 Basic 플랜에서는 자동화 기능 신청이 제한됩니다. Standard 이상으로 변경 후 재신청해 주세요.',
-  },
-  {
-    id: 'adapp-008',
-    businessId: 'biz-108',
-    businessName: '디테일링하우스',
-    ownerName: '강태민',
-    ownerPhone: '010-8901-2345',
-    ownerEmail: 'taemin@detail.kr',
-    productId: 'exposure-20km',
-    productName: '반경 20km',
-    productType: 'exposure',
-    billingType: 'monthly',
-    amount: 30000,
-    appliedAt: '2026-07-05',
-    status: 'pending',
-    startDate: null,
-    endDate: null,
-    applicationMemo: '인천·부천 지역까지 노출 확장 요청.',
-    adminMemo: '',
+    statusHistory: [
+      hist('PENDING_REVIEW', '사장님 신청 접수', '2026-07-02T13:00:00.000Z'),
+      hist('REJECTED', '반려: Basic 플랜 자동화 제한', '2026-07-03T09:00:00.000Z'),
+    ],
   },
 ]
