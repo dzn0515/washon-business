@@ -67,7 +67,7 @@ export function productCardStatusLabel(
     available: '신청 가능',
     pending: '신청 대기',
     approved: '승인',
-    ended: '종료',
+    ended: '재신청 가능',
   }
   return labels[status as Exclude<BusinessProductDisplayStatus, 'active'>] ?? status
 }
