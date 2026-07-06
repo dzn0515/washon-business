@@ -16,9 +16,14 @@ export const BUSINESS_TYPE_LABELS: Record<string, string> = Object.fromEntries(
 )
 
 export const MENU_NAME_PLACEHOLDERS: Partial<Record<BusinessTypeCode, string>> = {
-  tire: '예: 한국 K127 225/45R17',
-  blackbox_navi: '예: 파인뷰 X500 2채널 (기기+장착)',
-  glass_tint: '예: 루마 버텍스 전면',
+  wash: '예: 소형 실내외 세차',
+  detailing: '예: 디테일링 풀코스',
+  tire: '예: 타이어 교체, 휠 밸런스',
+  oil_maintenance: '예: 엔진오일 교환, 에어컨 가스',
+  battery: '예: 배터리 교체',
+  glass_tint: '예: 전면 썬팅, 측후면 썬팅, 전체 썬팅',
+  blackbox_navi: '예: 블랙박스 장착, 내비게이션 장착, 카오디오 설치',
+  dent_repair: '예: 문콕 복원, 범퍼 복원, 흠집 제거',
 }
 
 export function getBusinessTypeLabel(code: string): string {

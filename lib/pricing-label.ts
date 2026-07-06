@@ -14,13 +14,21 @@ export function shouldShowVehiclePriceGrid(bizType?: string | null): boolean {
   return VEHICLE_GRID_TYPES.has(norm(bizType))
 }
 
+/** 세차·디테일링 계열만 메뉴 추가 옵션 UI 노출 */
+export function shouldShowWashExtraOptions(bizType?: string | null): boolean {
+  return shouldShowVehiclePriceGrid(bizType)
+}
+
 export function getBasePriceLabel(bizType?: string | null): string {
   const code = norm(bizType)
   if (VEHICLE_GRID_TYPES.has(code)) return '소형 국산 기준가'
-  if (LIFT_TYPES.has(code)) return '기본 가격 (타이어·장착)'
-  if (ROOM_TYPES.has(code)) return '시공 가격 (부위·필름)'
+  if (code === 'oil_maintenance' || code === 'oil' || code === 'maintenance' || code === 'repair') {
+    return '정비 기본 가격'
+  }
+  if (LIFT_TYPES.has(code)) return '타이어·장착 가격'
+  if (ROOM_TYPES.has(code)) return '부위·필름별 가격'
   if (BENCH_TYPES.has(code)) return '제품·장착 가격'
-  if (ZONE_TYPES.has(code)) return '작업 견적 (기본가)'
+  if (ZONE_TYPES.has(code)) return '작업 부위별 견적 (시작가)'
   return '가격'
 }
 
