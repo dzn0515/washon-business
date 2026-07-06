@@ -156,10 +156,17 @@ export const AUTOMATION_PRODUCTS: AdProduct[] = [
     category: 'automation',
     name: '자동화 전체',
     description: '전체 묶음',
-    price: 15000,
+    price: 10000,
     billingType: 'monthly',
   },
 ]
+
+/** 개별 자동화 3종 합계 (할인 배지용) */
+export const AUTOMATION_INDIVIDUAL_PRICE_SUM = AUTOMATION_PRODUCTS.filter(
+  (p) => p.id !== 'auto-bundle',
+).reduce((sum, p) => sum + p.price, 0)
+
+export const AUTOMATION_BUNDLE_DISCOUNT_BADGE = '개별 합계 13,000원 → 23% 할인'
 
 export const ALL_AD_CATALOG = [...EXPOSURE_PRODUCTS, ...AD_PRODUCTS, ...AUTOMATION_PRODUCTS]
 
