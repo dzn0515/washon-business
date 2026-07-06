@@ -1,14 +1,25 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus, Pencil, Trash2, CloudRain } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
-import { useMenus, type MenuCard } from '@/lib/hooks/useMenus'
-import { fetchBusinessMe, getMenusGrouped, updateMenuCategory, type GroupedMenuItem } from '@/lib/api'
+import { useMenus } from '@/lib/hooks/useMenus'
+import { fetchBusinessMe, getMenusGrouped, updateMenuCategory, type GroupedMenuItem } from '@/lib/store-api'
 import type { BusinessHours } from '@/types'
 import { CATEGORY_LABELS } from '@/types'
 import { getMenuNamePlaceholder } from '@/lib/business-types'
 import { CARD, BTN_PRIMARY, calcPriceGrid, won, type PriceGrid } from '@/lib/dashboard-ui'
+import { useDemoMode } from '@/components/providers/DemoModeProvider'
+
+const EMPTY_GROUPED: Record<string, GroupedMenuItem[]> = {}
+
+function normalizeGroupedMenus(raw: Record<string, GroupedMenuItem[]>): Record<string, GroupedMenuItem[]> {
+  const result: Record<string, GroupedMenuItem[]> = {}
+  for (const [key, value] of Object.entries(raw)) {
+    if (Array.isArray(value)) result[key] = value
+  }
+  return result
+}
 
 type Tab = 'menus' | 'hours' | 'holidays'
 
@@ -35,10 +46,11 @@ function PriceGridView({ grid }: { grid: PriceGrid }) {
 }
 
 export default function MenusPage() {
-  const { menus: apiMenus, hours: apiHours, holidays } = useMenus()
+  const { isDemo } = useDemoMode()
+  const { menus: apiMenus, hours: apiHours, holidays, loading: menusLoading, error: menusError } = useMenus()
   const [tab, setTab] = useState<Tab>('menus')
-  const [menus, setMenus] = useState<MenuCard[]>(apiMenus)
-  const [hours, setHours] = useState<BusinessHours[]>(apiHours)
+  const [activeOverrides, setActiveOverrides] = useState<Record<number, boolean>>({})
+  const [hoursDraft, setHoursDraft] = useState<BusinessHours[] | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [formName, setFormName] = useState('')
@@ -48,36 +60,60 @@ export default function MenusPage() {
   const [formVisible, setFormVisible] = useState(true)
   const [formCategory, setFormCategory] = useState('wash')
   const [editMenuApiId, setEditMenuApiId] = useState<string | null>(null)
-  const [groupedMenus, setGroupedMenus] = useState<Record<string, GroupedMenuItem[]>>({})
+  const [groupedMenus, setGroupedMenus] = useState<Record<string, GroupedMenuItem[]>>(EMPTY_GROUPED)
   const [groupedLoading, setGroupedLoading] = useState(false)
+  const [groupedError, setGroupedError] = useState<string | null>(null)
   const [businessType, setBusinessType] = useState<string>('wash')
 
-  useEffect(() => setMenus(apiMenus), [apiMenus])
-  useEffect(() => setHours(apiHours), [apiHours])
+  const menus = useMemo(
+    () =>
+      apiMenus.map((m) =>
+        activeOverrides[m.id] === undefined ? m : { ...m, is_active: activeOverrides[m.id]! },
+      ),
+    [apiMenus, activeOverrides],
+  )
+
+  const hours = hoursDraft ?? apiHours
 
   useEffect(() => {
+    if (isDemo) {
+      setGroupedMenus(EMPTY_GROUPED)
+      setGroupedError(null)
+      setGroupedLoading(false)
+      return
+    }
+
     let cancelled = false
     setGroupedLoading(true)
+    setGroupedError(null)
+
     fetchBusinessMe()
       .then((me) => {
         if (!cancelled && me.biz_type) setBusinessType(me.biz_type)
         return getMenusGrouped(me.id)
       })
       .then((grouped) => {
-        if (!cancelled) setGroupedMenus(grouped)
+        if (!cancelled) setGroupedMenus(normalizeGroupedMenus(grouped))
       })
       .catch(() => {
-        if (!cancelled) setGroupedMenus({})
+        if (!cancelled) {
+          setGroupedMenus(EMPTY_GROUPED)
+          setGroupedError('그룹 메뉴 정보를 불러올 수 없습니다.')
+        }
       })
       .finally(() => {
         if (!cancelled) setGroupedLoading(false)
       })
+
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [isDemo])
 
-  const groupedCategories = Object.keys(groupedMenus).filter((k) => groupedMenus[k]?.length)
+  const groupedCategories = useMemo(
+    () => Object.keys(groupedMenus).filter((k) => groupedMenus[k]?.length),
+    [groupedMenus],
+  )
   const useGrouped = groupedCategories.length > 0
 
   const tabs: { key: Tab; label: string }[] = [
@@ -86,7 +122,7 @@ export default function MenusPage() {
     { key: 'holidays', label: '휴무 관리' },
   ]
 
-  function openAdd() {
+  const openAdd = useCallback(() => {
     setEditId(null)
     setEditMenuApiId(null)
     setFormName('')
@@ -96,9 +132,9 @@ export default function MenusPage() {
     setFormVisible(true)
     setFormCategory('wash')
     setModalOpen(true)
-  }
+  }, [])
 
-  function openEditGrouped(item: GroupedMenuItem) {
+  const openEditGrouped = useCallback((item: GroupedMenuItem) => {
     setEditId(null)
     setEditMenuApiId(item.id)
     setFormName(item.name)
@@ -108,31 +144,45 @@ export default function MenusPage() {
     setFormVisible(item.is_active)
     setFormCategory(item.category ?? 'wash')
     setModalOpen(true)
-  }
+  }, [])
 
-  function openEdit(id: number) {
-    const m = menus.find((x) => x.id === id)
-    if (!m) return
-    setEditId(id)
-    setFormName(m.name)
-    setFormDuration(m.duration_minutes)
-    setFormBasePrice(m.price_grid.domestic_small)
-    setFormPrices(m.price_grid)
-    setFormVisible(m.is_active)
-    setModalOpen(true)
-  }
+  const openEdit = useCallback(
+    (id: number) => {
+      const m = menus.find((x) => x.id === id)
+      if (!m) return
+      setEditId(id)
+      setFormName(m.name)
+      setFormDuration(m.duration_minutes)
+      setFormBasePrice(m.price_grid.domestic_small)
+      setFormPrices(m.price_grid)
+      setFormVisible(m.is_active)
+      setModalOpen(true)
+    },
+    [menus],
+  )
 
-  function handleBasePriceChange(v: number) {
+  const handleBasePriceChange = useCallback((v: number) => {
     setFormBasePrice(v)
     setFormPrices(calcPriceGrid(v))
-  }
+  }, [])
 
-  function toggleMenu(id: number) {
-    setMenus((prev) => prev.map((m) => (m.id === id ? { ...m, is_active: !m.is_active } : m)))
-  }
+  const toggleMenu = useCallback((id: number) => {
+    setActiveOverrides((prev) => {
+      const base = apiMenus.find((m) => m.id === id)
+      const displayed = prev[id] !== undefined ? prev[id]! : (base?.is_active ?? true)
+      return { ...prev, [id]: !displayed }
+    })
+  }, [apiMenus])
+
+  const updateHoursRow = useCallback((index: number, patch: Partial<BusinessHours>) => {
+    setHoursDraft((prev) => {
+      const base = prev ?? apiHours
+      return base.map((row, i) => (i === index ? { ...row, ...patch } : row))
+    })
+  }, [apiHours])
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative">
       <div className="flex items-center justify-between gap-3">
         <div className="flex gap-2 flex-wrap">
           {tabs.map((t) => (
@@ -157,7 +207,15 @@ export default function MenusPage() {
 
       {tab === 'menus' && (
         <div className="space-y-4">
-          {groupedLoading && !useGrouped ? (
+          {(menusError || groupedError) && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {menusError ?? groupedError}
+            </div>
+          )}
+
+          {menusLoading && menus.length === 0 && !useGrouped ? (
+            <p className="text-sm text-gray-400 py-6 text-center">메뉴 불러오는 중...</p>
+          ) : groupedLoading && !useGrouped && menus.length === 0 && !menusError ? (
             <p className="text-sm text-gray-400 py-6 text-center">메뉴 불러오는 중...</p>
           ) : useGrouped ? (
             groupedCategories.map((category) => (
@@ -166,7 +224,7 @@ export default function MenusPage() {
                   [{CATEGORY_LABELS[category] ?? category}]
                 </h3>
                 <div className="space-y-2">
-                  {groupedMenus[category].map((item) => (
+                  {(groupedMenus[category] ?? []).map((item) => (
                     <div
                       key={item.id}
                       className={`${CARD} flex items-center justify-between gap-3 ${!item.is_active ? 'opacity-50' : ''}`}
@@ -202,6 +260,12 @@ export default function MenusPage() {
                 </div>
               </div>
             ))
+          ) : menus.length === 0 && !menusLoading ? (
+            <div className="rounded-xl border border-gray-200 bg-white px-4 py-8 text-center">
+              <p className="text-sm text-gray-500">
+                {menusError ? '메뉴 정보를 불러올 수 없습니다.' : '등록된 메뉴가 없습니다.'}
+              </p>
+            </div>
           ) : (
             <div className="space-y-3">
               {menus.map((m) => (
@@ -251,7 +315,7 @@ export default function MenusPage() {
                   <input
                     type="checkbox"
                     checked={h.is_open}
-                    onChange={(e) => setHours((prev) => prev.map((x, j) => j === i ? { ...x, is_open: e.target.checked } : x))}
+                    onChange={(e) => updateHoursRow(i, { is_open: e.target.checked })}
                     className="rounded"
                   />
                   영업
@@ -260,7 +324,7 @@ export default function MenusPage() {
                   type="time"
                   value={h.open_time}
                   disabled={!h.is_open}
-                  onChange={(e) => setHours((prev) => prev.map((x, j) => j === i ? { ...x, open_time: e.target.value } : x))}
+                  onChange={(e) => updateHoursRow(i, { open_time: e.target.value })}
                   className="text-sm border border-gray-200 rounded-lg px-2 py-1 disabled:opacity-40"
                 />
                 <span className="text-gray-400">~</span>
@@ -268,7 +332,7 @@ export default function MenusPage() {
                   type="time"
                   value={h.close_time}
                   disabled={!h.is_open}
-                  onChange={(e) => setHours((prev) => prev.map((x, j) => j === i ? { ...x, close_time: e.target.value } : x))}
+                  onChange={(e) => updateHoursRow(i, { close_time: e.target.value })}
                   className="text-sm border border-gray-200 rounded-lg px-2 py-1 disabled:opacity-40"
                 />
               </div>
@@ -387,7 +451,8 @@ export default function MenusPage() {
                     await updateMenuCategory(editMenuApiId, formCategory)
                     const me = await fetchBusinessMe()
                     const grouped = await getMenusGrouped(me.id)
-                    setGroupedMenus(grouped)
+                    setGroupedMenus(normalizeGroupedMenus(grouped))
+                    setGroupedError(null)
                   } catch {
                     alert('카테고리 저장에 실패했습니다.')
                     return

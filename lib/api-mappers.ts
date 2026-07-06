@@ -72,7 +72,7 @@ export function mapApiGradeFilter(filter: string): string | undefined {
 }
 
 export function pricesToGrid(
-  prices: { vehicle_size: string; vehicle_origin: string; price: number }[],
+  prices: { vehicle_size: string; vehicle_origin: string; price: number }[] = [],
 ): PriceGrid {
   const grid = calcPriceGrid(
     prices.find((p) => p.vehicle_origin === 'domestic' && p.vehicle_size === 'small')?.price ?? 25000,
