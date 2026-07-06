@@ -31,6 +31,7 @@ if [[ -z "${PROJECT_ID}" || "${PROJECT_ID}" == "(unset)" ]]; then
 fi
 
 IMAGE_URI="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${IMAGE}"
+SHORT_SHA="${SHORT_SHA:-$(git rev-parse --short HEAD 2>/dev/null || echo manual)}"
 
 echo "==> Project:  ${PROJECT_ID}"
 echo "==> Region:   ${REGION}"
@@ -42,7 +43,7 @@ echo "==> [1/3] Cloud Build — build & push image"
 gcloud builds submit \
   --project="${PROJECT_ID}" \
   --config=cloudbuild.yaml \
-  --substitutions="_REGION=${REGION},_REPOSITORY=${REPOSITORY},_IMAGE=${IMAGE},_NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL},_NEXT_PUBLIC_USE_MOCK=${NEXT_PUBLIC_USE_MOCK}"
+  --substitutions="_REGION=${REGION},_REPOSITORY=${REPOSITORY},_IMAGE=${IMAGE},_NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL},_NEXT_PUBLIC_USE_MOCK=${NEXT_PUBLIC_USE_MOCK},SHORT_SHA=${SHORT_SHA}"
 
 echo ""
 echo "==> [2/3] Cloud Run — deploy service"
