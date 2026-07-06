@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import Badge from '@/components/ui/Badge'
 import ReservationSubNav from '@/components/features/reservations/ReservationSubNav'
+import ReservationCreateModals from '@/components/features/reservations/ReservationCreateModals'
 import BookingStatusBadge from '@/components/BookingStatusBadge'
 import BookingStatusActions from '@/components/BookingStatusActions'
 import { useReservations } from '@/lib/hooks/useReservations'
@@ -13,6 +14,7 @@ import {
 } from '@/lib/mock/data'
 import { CARD, won } from '@/lib/dashboard-ui'
 import { PAYMENT_STATUS_LABEL, PAYMENT_STATUS_STYLE } from '@/constants'
+import { RESERVATION_SOURCE_LABEL, RESERVATION_SOURCE_STYLE } from '@/lib/reservation-ui'
 import type { BookingStatus, PaymentStatus } from '@/types'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts'
 import { useDemoMode } from '@/components/providers/DemoModeProvider'
@@ -30,6 +32,7 @@ export default function ReservationsPage() {
     updatingId,
     loading,
     setBookings,
+    refetch,
   } = useReservations()
   const { isDemo } = useDemoMode()
 
@@ -60,6 +63,13 @@ export default function ReservationsPage() {
 
       {tab === 'today' && (
         <>
+          <ReservationCreateModals
+            selectedDate={selectedDate}
+            isDemo={isDemo}
+            onSaved={() => void refetch()}
+            onDemoAdd={(row) => setBookings((prev) => [...(prev ?? []), row])}
+          />
+
           <div className="flex items-center gap-2">
             <label htmlFor="booking-date" className="text-sm text-gray-500 shrink-0">
               예약일
@@ -91,47 +101,70 @@ export default function ReservationsPage() {
 
           <div className="space-y-2">
             {bookings.map((b) => (
-              <div key={String(b.id)} className={CARD}>
+              <div
+                key={String(b.id)}
+                className={`${CARD} ${b.source === 'block' ? 'border-gray-200 bg-gray-50' : ''}`}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex gap-3 min-w-0">
-                    <span className="text-blue-600 font-semibold text-sm shrink-0">{b.time}</span>
+                    <span className="text-blue-600 font-semibold text-sm shrink-0">
+                      {b.time}
+                      {b.end_time ? `~${b.end_time}` : ''}
+                    </span>
                     <div className="min-w-0">
-                      <Link
-                        href={`/bookings/${b.id}?date=${selectedDate}`}
-                        className="font-medium text-gray-900 hover:text-blue-600"
-                      >
-                        {b.customer_name}
-                      </Link>
-                      <p className="text-xs text-gray-400 truncate">{b.service_name} · {b.car_model}</p>
+                      {b.source === 'block' ? (
+                        <p className="font-medium text-gray-900">{b.customer_name}</p>
+                      ) : (
+                        <Link
+                          href={`/bookings/${b.id}?date=${selectedDate}`}
+                          className="font-medium text-gray-900 hover:text-blue-600"
+                        >
+                          {b.customer_name}
+                        </Link>
+                      )}
+                      <p className="text-xs text-gray-400 truncate">
+                        {b.service_name}
+                        {b.car_model ? ` · ${b.car_model}` : ''}
+                        {b.car_number ? ` · ${b.car_number}` : ''}
+                      </p>
                       {'vehicle' in b && b.vehicle ? (
                         <span className="text-sm text-gray-500">
                           🚗 {[b.vehicle.brand, b.vehicle.model].filter(Boolean).join(' ')}
                           {b.vehicle.license_plate ? ` · ${b.vehicle.license_plate}` : ''}
                         </span>
                       ) : null}
-                      <p className="text-sm font-medium mt-1">{won(b.price)}</p>
+                      <p className="text-sm font-medium mt-1">
+                        {b.source === 'block' ? '—' : won(b.price)}
+                      </p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
-                    {'payment_status' in b && b.payment_status ? (
+                    <Badge className={RESERVATION_SOURCE_STYLE[b.source]}>
+                      {RESERVATION_SOURCE_LABEL[b.source]}
+                    </Badge>
+                    {b.source !== 'block' && 'payment_status' in b && b.payment_status ? (
                       <Badge className={PAYMENT_STATUS_STYLE[b.payment_status as PaymentStatus]}>
                         {PAYMENT_STATUS_LABEL[b.payment_status as PaymentStatus]}
                       </Badge>
                     ) : null}
-                    <BookingStatusBadge status={b.status as BookingStatus} />
-                    <BookingStatusActions
-                      bookingId={String(b.id)}
-                      status={b.status as BookingStatus}
-                      disabled={isDemo || updatingId === String(b.id)}
-                      onStatusChange={(newStatus) => {
-                        void updateStatus(b.id, newStatus)
-                        setBookings((prev) =>
-                          (prev ?? []).map((row) =>
-                            row.id === b.id ? { ...row, status: newStatus } : row,
-                          ),
-                        )
-                      }}
-                    />
+                    {b.source !== 'block' ? (
+                      <>
+                        <BookingStatusBadge status={b.status as BookingStatus} />
+                        <BookingStatusActions
+                          bookingId={String(b.id)}
+                          status={b.status as BookingStatus}
+                          disabled={isDemo || updatingId === String(b.id)}
+                          onStatusChange={(newStatus) => {
+                            void updateStatus(b.id, newStatus)
+                            setBookings((prev) =>
+                              (prev ?? []).map((row) =>
+                                row.id === b.id ? { ...row, status: newStatus } : row,
+                              ),
+                            )
+                          }}
+                        />
+                      </>
+                    ) : null}
                   </div>
                 </div>
               </div>

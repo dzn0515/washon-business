@@ -1,10 +1,13 @@
+import type { BookingStatus } from '@/types'
 import { apiFetch } from '@/lib/api-client'
 import { mapBookingStatusToApi } from '@/lib/api-mappers'
-import type { BookingStatus } from '@/types'
+
+export type ReservationSource = 'app' | 'local' | 'block'
 
 export type ApiBooking = {
   id: string
-  menu_id: string
+  menu_id: string | null
+  menu_name?: string | null
   booking_date: string
   start_time: string
   end_time: string
@@ -16,9 +19,13 @@ export type ApiBooking = {
   staff_color: string | null
   price: number
   status: string
+  source?: ReservationSource
+  block_reason?: string | null
   customer_name: string
   customer_phone: string
   vehicle_model: string | null
+  vehicle_number?: string | null
+  vehicle_type?: string | null
   booking_number: string
   note: string | null
   payment_method: 'onsite' | 'app' | 'none'
@@ -35,9 +42,37 @@ export type ApiMenu = {
   duration_minutes: number
 }
 
-export async function fetchBusinessBookings(bookingDate?: string): Promise<ApiBooking[]> {
+export type LocalReservationPayload = {
+  customer_name: string
+  customer_phone: string
+  vehicle_number?: string
+  vehicle_type?: string
+  menu_id: string
+  booking_date: string
+  start_time: string
+  end_time: string
+  bay_id?: string
+  staff_id?: string
+  note?: string
+}
+
+export type BlockReservationPayload = {
+  block_reason: string
+  booking_date: string
+  start_time: string
+  end_time: string
+  bay_id?: string
+  note?: string
+}
+
+export async function fetchBusinessReservations(bookingDate?: string): Promise<ApiBooking[]> {
   const qs = bookingDate ? `?booking_date=${bookingDate}` : ''
-  return apiFetch<ApiBooking[]>(`/business/bookings/${qs}`)
+  return apiFetch<ApiBooking[]>(`/business/reservations/${qs}`)
+}
+
+/** @deprecated use fetchBusinessReservations */
+export async function fetchBusinessBookings(bookingDate?: string): Promise<ApiBooking[]> {
+  return fetchBusinessReservations(bookingDate)
 }
 
 export async function fetchBusinessBookingById(
@@ -47,15 +82,29 @@ export async function fetchBusinessBookingById(
   try {
     return await apiFetch<ApiBooking>(`/business/bookings/${id}`)
   } catch {
-    const list = await fetchBusinessBookings(bookingDate)
+    const list = await fetchBusinessReservations(bookingDate)
     const found = list.find((b) => b.id === id)
     if (found) return found
     if (bookingDate) {
-      const all = await fetchBusinessBookings()
+      const all = await fetchBusinessReservations()
       return all.find((b) => b.id === id) ?? null
     }
     return null
   }
+}
+
+export async function createLocalReservation(data: LocalReservationPayload): Promise<ApiBooking> {
+  return apiFetch<ApiBooking>('/business/reservations/local', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function createBlockReservation(data: BlockReservationPayload): Promise<ApiBooking> {
+  return apiFetch<ApiBooking>('/business/reservations/block', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
 }
 
 export async function updateBookingStatus(

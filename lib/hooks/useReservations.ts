@@ -2,14 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  fetchBusinessBookings,
+  fetchBusinessReservations,
   type ApiBooking,
   type ApiMenu,
+  type ReservationSource,
 } from '@/lib/bookings-api'
 import { updateBookingStatus as patchReservationStatus } from '@/lib/store-api'
 import { apiFetch } from '@/lib/api-client'
 import { mapBookingStatus, mapPaymentStatus, todayIso } from '@/lib/api-mappers'
 import { mockTodayBookings } from '@/lib/mock/data'
+import { normalizeReservationSource } from '@/lib/reservation-ui'
 import type { BookingStatus, PaymentStatus } from '@/types'
 
 export type ReservationVehicle = {
@@ -22,6 +24,10 @@ export type ReservationRow = Omit<(typeof mockTodayBookings)[number], 'id' | 'st
   id: string | number
   status: BookingStatus
   payment_status?: PaymentStatus
+  source: ReservationSource
+  block_reason?: string | null
+  end_time?: string
+  bay_name?: string | null
   vehicle?: ReservationVehicle | null
 }
 
@@ -45,18 +51,27 @@ function fallbackMenuName(menuId: string): string {
 
 function mapBookingRow(b: ApiBooking, menuMap: Record<string, ApiMenu>): ReservationRow {
   const vehicle = parseVehicleFromModel(b.vehicle_model)
+  const source = normalizeReservationSource(b.source)
+  const serviceName =
+    source === 'block'
+      ? (b.block_reason ?? b.menu_name ?? '시간 차단')
+      : (b.menu_name ?? menuMap[b.menu_id ?? '']?.name ?? fallbackMenuName(b.menu_id ?? ''))
   return {
     id: b.id,
     booking_number: b.booking_number,
     time: b.start_time.slice(0, 5),
-    customer_name: b.customer_name,
-    service_name: menuMap[b.menu_id]?.name ?? fallbackMenuName(b.menu_id),
-    car_number: vehicle?.license_plate ?? '',
-    car_model: b.vehicle_model ?? '',
-    staff_name: '',
+    end_time: b.end_time.slice(0, 5),
+    customer_name: source === 'block' ? (b.block_reason ?? b.customer_name) : b.customer_name,
+    service_name: serviceName,
+    car_number: b.vehicle_number ?? vehicle?.license_plate ?? '',
+    car_model: b.vehicle_type ?? b.vehicle_model ?? '',
+    staff_name: b.staff_name ?? '',
+    bay_name: b.bay_name,
     status: mapBookingStatus(b.status),
     payment_status: mapPaymentStatus(b.payment_status ?? 'unpaid'),
     price: b.price,
+    source,
+    block_reason: b.block_reason ?? undefined,
     vehicle,
   }
 }
@@ -72,7 +87,7 @@ export function useReservations(initialDate?: string) {
     setLoading(true)
     setError(null)
     try {
-      const rawBookings = await fetchBusinessBookings(date)
+      const rawBookings = await fetchBusinessReservations(date)
       const menusResult = await Promise.allSettled([apiFetch<ApiMenu[]>('/business/menus/')])
       const menus = menusResult[0].status === 'fulfilled' ? menusResult[0].value : []
       const menuMap = Object.fromEntries(menus.map((m) => [m.id, m]))
