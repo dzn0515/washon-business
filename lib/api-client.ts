@@ -6,8 +6,20 @@ const USER_EMAIL_KEY = 'washon_user_email'
 const ROLE_KEY = 'washon_mock_role'
 const ADMIN_USER_KEY = 'washon_admin_user'
 const LEGACY_TOKEN_KEY = 'access_token'
+const AUTH_COOKIE = 'washon_access_token'
+const AUTH_COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 7
 
 let accessToken: string | null = null
+
+function setAuthCookie(token: string | null): void {
+  if (typeof document === 'undefined') return
+  const secure = window.location.protocol === 'https:' ? '; Secure' : ''
+  if (!token) {
+    document.cookie = `${AUTH_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax${secure}`
+    return
+  }
+  document.cookie = `${AUTH_COOKIE}=${encodeURIComponent(token)}; Path=/; Max-Age=${AUTH_COOKIE_MAX_AGE_SEC}; SameSite=Lax${secure}`
+}
 
 export class AuthRequiredError extends Error {
   status = 401
@@ -21,13 +33,19 @@ export class AuthRequiredError extends Error {
 export function restoreTokenFromSession(): void {
   if (typeof window === 'undefined') return
   accessToken = sessionStorage.getItem(TOKEN_KEY)
+  if (accessToken) setAuthCookie(accessToken)
 }
 
 export function setAccessToken(token: string | null): void {
   accessToken = token
   if (typeof window === 'undefined') return
-  if (token) sessionStorage.setItem(TOKEN_KEY, token)
-  else sessionStorage.removeItem(TOKEN_KEY)
+  if (token) {
+    sessionStorage.setItem(TOKEN_KEY, token)
+    setAuthCookie(token)
+  } else {
+    sessionStorage.removeItem(TOKEN_KEY)
+    setAuthCookie(null)
+  }
 }
 
 export function setUserEmail(email: string | null): void {
@@ -88,6 +106,7 @@ export function clearAuthSession(): void {
   sessionStorage.removeItem(ROLE_KEY)
   sessionStorage.removeItem(ADMIN_USER_KEY)
   localStorage.removeItem(LEGACY_TOKEN_KEY)
+  setAuthCookie(null)
 }
 
 export type RegisterPayload = {
