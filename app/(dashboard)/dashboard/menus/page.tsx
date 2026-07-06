@@ -128,7 +128,7 @@ export default function MenusPage() {
 
   const { display: businessDisplay } = useBusinessMe()
 
-  const pricingBizType = businessType || businessDisplay?.bizType || 'wash'
+  const pricingBizType = businessDisplay?.bizType || businessType || 'wash'
 
   const showVehicleGrid = shouldShowVehiclePriceGrid(pricingBizType)
 

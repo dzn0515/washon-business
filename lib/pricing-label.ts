@@ -45,6 +45,9 @@ export function getBasePriceHint(bizType?: string | null): string {
 export function getPriceSectionTitle(bizType?: string | null): string {
   const code = norm(bizType)
   if (VEHICLE_GRID_TYPES.has(code)) return '차종별 가격'
+  if (code === 'oil_maintenance' || code === 'oil' || code === 'maintenance' || code === 'repair') {
+    return '정비 기본 가격'
+  }
   if (LIFT_TYPES.has(code)) return '타이어·장착 가격'
   if (ROOM_TYPES.has(code)) return '부위·필름별 가격'
   if (BENCH_TYPES.has(code)) return '제품·장착 가격'
@@ -55,6 +58,9 @@ export function getPriceSectionTitle(bizType?: string | null): string {
 export function getListPriceSummaryLabel(bizType?: string | null): string {
   const code = norm(bizType)
   if (VEHICLE_GRID_TYPES.has(code)) return '차종별'
+  if (code === 'oil_maintenance' || code === 'oil' || code === 'maintenance' || code === 'repair') {
+    return '정비'
+  }
   if (LIFT_TYPES.has(code)) return '타이어·장착'
   if (ROOM_TYPES.has(code)) return '부위·필름'
   if (BENCH_TYPES.has(code)) return '제품·장착'
