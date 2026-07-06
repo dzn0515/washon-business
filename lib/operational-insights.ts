@@ -71,7 +71,10 @@ function findPeakHour(bookings: ApiBooking[]) {
 }
 
 /** 오늘 예약 기준 시간대 몰림 (룰: 2건 이상 & 35% 이상) */
-export function computeTodayPeakTimeSlot(bookings: ApiBooking[]): OperationalInsight | null {
+export function computeTodayPeakTimeSlot(
+  bookings: ApiBooking[],
+  resourceLabel = '작업공간',
+): OperationalInsight | null {
   const active = bookings.filter(isCountableBooking)
   if (active.length < 2) return null
 
@@ -83,7 +86,7 @@ export function computeTodayPeakTimeSlot(bookings: ApiBooking[]): OperationalIns
     id: 'peak-time-slot',
     type: 'booking',
     title: '오늘 예약 시간대 몰림',
-    summary: `오늘 예약 ${active.length}건 중 ${peakHour}–${endHour}시에 ${peakCount}건(${pct}%)이 몰려 있습니다. 인력·베이 배치를 확인하세요.`,
+    summary: `오늘 예약 ${active.length}건 중 ${peakHour}–${endHour}시에 ${peakCount}건(${pct}%)이 몰려 있습니다. 인력·${resourceLabel} 배치를 확인하세요.`,
     metric: `${peakHour}–${endHour}시`,
     action: '예약 캘린더 확인',
     priority: pct >= 50 ? 'high' : 'medium',
@@ -91,7 +94,10 @@ export function computeTodayPeakTimeSlot(bookings: ApiBooking[]): OperationalIns
   }
 }
 
-export function computePeakTimeSlot(bookings: ApiBooking[]): OperationalInsight | null {
+export function computePeakTimeSlot(
+  bookings: ApiBooking[],
+  resourceLabel = '작업공간',
+): OperationalInsight | null {
   const active = bookings.filter(isCountableBooking)
   if (active.length === 0) return null
 
@@ -102,7 +108,7 @@ export function computePeakTimeSlot(bookings: ApiBooking[]): OperationalInsight 
     id: 'peak-time-slot',
     type: 'booking',
     title: '시간대 예약 몰림',
-    summary: `최근 7일 예약 ${active.length}건 중 ${peakHour}–${endHour}시대가 ${pct}%를 차지합니다. 인력·베이 배치를 참고하세요.`,
+    summary: `최근 7일 예약 ${active.length}건 중 ${peakHour}–${endHour}시대가 ${pct}%를 차지합니다. 인력·${resourceLabel} 배치를 참고하세요.`,
     metric: `${pct}%`,
     action: '예약 캘린더 확인',
     priority: peakCount >= 5 ? 'high' : 'medium',

@@ -4,22 +4,29 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useDemoMode } from '@/components/providers/DemoModeProvider'
-
-const LINKS = [
-  { href: '/dashboard/operations/calendar', label: '운영 캘린더' },
-  { href: '/dashboard/operations/bays', label: '베이 관리' },
-  { href: '/dashboard/operations/staff', label: '직원 관리' },
-] as const
+import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
+import { formatResourceManageTitle } from '@/lib/resource-label'
 
 export default function OperationsSubNav() {
   const pathname = usePathname()
   const { isDemo } = useDemoMode()
+  const { display: businessDisplay } = useBusinessMe()
+  const resourceManage = formatResourceManageTitle(
+    businessDisplay?.bizType,
+    businessDisplay?.resourceLabel,
+  )
+
+  const links = [
+    { href: '/dashboard/operations/calendar', label: '운영 캘린더' },
+    { href: '/dashboard/operations/bays', label: resourceManage },
+    { href: '/dashboard/operations/staff', label: '직원 관리' },
+  ] as const
 
   if (isDemo) return null
 
   return (
     <div className="flex gap-2 border-b border-gray-100 pb-3">
-      {LINKS.map((link) => (
+      {links.map((link) => (
         <Link
           key={link.href}
           href={link.href}

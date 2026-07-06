@@ -7,6 +7,7 @@ import { ChevronLeft } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { BUSINESS_TYPES, getBusinessTypeLabel, type BusinessTypeCode } from '@/lib/business-types'
+import { formatResourceCountLabel, formatResourceCountOption } from '@/lib/resource-label'
 import { register, type RegisterPayload } from '@/lib/api-client'
 
 const STEPS = ['계정 정보', '매장 정보', '사업자 정보']
@@ -149,14 +150,26 @@ export default function RegisterPage() {
                 <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="강원도 원주시 무실로 42" />
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">베이 수</label>
+                <label className="text-xs text-gray-500 mb-1 block">업종</label>
+                <select
+                  value={bizType}
+                  onChange={(e) => setBizType(e.target.value as BusinessTypeCode)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm"
+                >
+                  {BUSINESS_TYPES.map((item) => (
+                    <option key={item.code} value={item.code}>{item.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">{formatResourceCountLabel(bizType)}</label>
                 <select
                   value={bayCount}
                   onChange={(e) => setBayCount(Number(e.target.value))}
                   className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm"
                 >
                   {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-                    <option key={n} value={n}>{n}베이</option>
+                    <option key={n} value={n}>{formatResourceCountOption(n, bizType)}</option>
                   ))}
                 </select>
               </div>
@@ -172,18 +185,6 @@ export default function RegisterPage() {
                   onChange={(e) => setBusinessNumber(formatBusinessNumber(e.target.value))}
                   placeholder="000-00-00000"
                 />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">업종</label>
-                <select
-                  value={bizType}
-                  onChange={(e) => setBizType(e.target.value as BusinessTypeCode)}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm"
-                >
-                  {BUSINESS_TYPES.map((item) => (
-                    <option key={item.code} value={item.code}>{item.label}</option>
-                  ))}
-                </select>
               </div>
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">휴대폰 번호</label>

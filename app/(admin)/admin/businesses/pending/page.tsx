@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import Badge from '@/components/ui/Badge'
 import { mockPendingBusinesses, type MockBusiness } from '@/lib/mock/admin-data'
+import { getResourceLabel } from '@/lib/resource-label'
 
 type Tab = 'pending' | 'active' | 'rejected'
 
@@ -177,7 +178,7 @@ function PendingCard({
         {b.address}
       </p>
       <p className="text-xs text-gray-400 mt-2">
-        업종: {b.type} · 베이: {b.bays}개
+        업종: {b.type} · {getResourceLabel(b.bizType)}: {b.bays}개
       </p>
       <div className="flex gap-2 mt-4">
         <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700" onClick={onApprove}>

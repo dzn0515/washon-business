@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useDemoMode } from '@/components/providers/DemoModeProvider'
 import { fetchBusinessBookings, type ApiBooking } from '@/lib/bookings-api'
 import { fetchCustomers, type ApiCustomer } from '@/lib/customers-api'
+import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
+import { resolveResourceLabel } from '@/lib/resource-label'
 import { demoAiInsights } from '@/lib/demo-data'
 import { todayIso } from '@/lib/api-mappers'
 import {
@@ -45,12 +47,13 @@ function mergeInsights(
   lastWeekBookings: ApiBooking[],
   recentBookings: ApiBooking[],
   customers: ApiCustomer[],
+  resourceLabel: string,
 ): OperationalInsight[] {
   const liveById = new Map<string, OperationalInsight>()
 
   if (bookingsLive) {
-    const peakToday = computeTodayPeakTimeSlot(todayBookings)
-    const peak = peakToday ?? computePeakTimeSlot(thisWeekBookings)
+    const peakToday = computeTodayPeakTimeSlot(todayBookings, resourceLabel)
+    const peak = peakToday ?? computePeakTimeSlot(thisWeekBookings, resourceLabel)
     if (peak) liveById.set(peak.id, peak)
 
     const weekly = computeWeeklyBookingChange(thisWeekBookings, lastWeekBookings)
@@ -97,6 +100,11 @@ function mergeInsights(
 
 export function useOperationalInsights() {
   const { isDemo } = useDemoMode()
+  const { display: businessDisplay } = useBusinessMe()
+  const resourceLabel = resolveResourceLabel(
+    businessDisplay?.bizType,
+    businessDisplay?.resourceLabel,
+  )
   const [insights, setInsights] = useState<OperationalInsight[]>([])
   const [loading, setLoading] = useState(true)
   const [bookingsLive, setBookingsLive] = useState(false)
@@ -166,10 +174,11 @@ export function useOperationalInsights() {
         lastWeek,
         recent,
         liveCustomers ?? [],
+        resourceLabel,
       ),
     )
     setLoading(false)
-  }, [isDemo])
+  }, [isDemo, resourceLabel])
 
   useEffect(() => {
     void load()

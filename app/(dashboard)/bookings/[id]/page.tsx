@@ -9,6 +9,8 @@ import BookingStatusActions from '@/components/features/bookings/BookingStatusAc
 import { useBookingDetail } from '@/lib/hooks/useBookingDetail'
 import { useBays } from '@/lib/hooks/useBays'
 import { useStaff } from '@/lib/hooks/useStaff'
+import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
+import { formatResourceName, resolveResourceLabel } from '@/lib/resource-label'
 import { formatMoney, formatPhone } from '@/lib/utils'
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_STYLE, PAYMENT_METHOD_LABEL, PAYMENT_STATUS_LABEL, PAYMENT_STATUS_STYLE } from '@/constants'
 
@@ -35,6 +37,11 @@ export default function BookingDetailPage() {
   } = useBookingDetail(id, bookingDate)
   const { bays } = useBays()
   const { staff } = useStaff()
+  const { display: businessDisplay } = useBusinessMe()
+  const resourceLabel = resolveResourceLabel(
+    businessDisplay?.bizType,
+    businessDisplay?.resourceLabel,
+  )
 
   if (loading) return <div className="text-sm text-gray-400">로딩 중...</div>
   if (!booking) return <div className="text-sm text-gray-400">예약을 찾을 수 없습니다.</div>
@@ -124,7 +131,7 @@ export default function BookingDetailPage() {
         {paymentError ? <p className="text-xs text-red-600 mt-2">{paymentError}</p> : null}
       </Card>
 
-      <Card title="배정 베이">
+      <Card title={`배정 ${resourceLabel}`}>
         <select
           className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm disabled:opacity-50"
           value={booking.bay?.id ?? ''}
@@ -134,7 +141,7 @@ export default function BookingDetailPage() {
             if (value) void updateBay(value)
           }}
         >
-          <option value="" disabled>베이 선택</option>
+          <option value="" disabled>{resourceLabel} 선택</option>
           {bayOptions.map((b) => (
             <option key={b.id} value={b.id}>
               {b.name}{!b.is_active ? ' · 비활성' : ''}
@@ -142,11 +149,13 @@ export default function BookingDetailPage() {
           ))}
         </select>
         {booking.bay ? (
-          <p className="text-xs text-gray-400 mt-2">현재: {booking.bay.name} (베이 {booking.bay.number})</p>
+          <p className="text-xs text-gray-400 mt-2">
+            현재: {booking.bay.name} ({formatResourceName(businessDisplay?.bizType, booking.bay.number)})
+          </p>
         ) : null}
         {assigningBay ? <p className="text-xs text-gray-400 mt-2">저장 중...</p> : null}
         {bayError === 'bay_conflict' ? (
-          <p className="text-xs text-red-600 mt-2">해당 시간에 이미 사용 중인 베이입니다.</p>
+          <p className="text-xs text-red-600 mt-2">해당 시간에 이미 사용 중인 {resourceLabel}입니다.</p>
         ) : null}
       </Card>
 

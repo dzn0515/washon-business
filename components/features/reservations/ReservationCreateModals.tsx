@@ -11,6 +11,8 @@ import {
 import { apiFetch } from '@/lib/api-client'
 import { useBays } from '@/lib/hooks/useBays'
 import { useStaff } from '@/lib/hooks/useStaff'
+import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
+import { resolveResourceLabel } from '@/lib/resource-label'
 import type { ReservationRow } from '@/lib/hooks/useReservations'
 import { mockMenus } from '@/lib/mock/data'
 
@@ -59,6 +61,8 @@ export default function ReservationCreateModals({
   const [demoNotice, setDemoNotice] = useState<string | null>(null)
   const { bays } = useBays()
   const { staff } = useStaff()
+  const { display: businessDisplay } = useBusinessMe()
+  const resourceLabel = resolveResourceLabel(businessDisplay?.bizType)
 
   useEffect(() => {
     if (!kind) return
@@ -286,7 +290,7 @@ export default function ReservationCreateModals({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-gray-500">베이</label>
+              <label className="text-xs text-gray-500">{resourceLabel}</label>
               <select
                 className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
                 value={localForm.bay_id}
@@ -364,7 +368,7 @@ export default function ReservationCreateModals({
             </div>
           </div>
           <div>
-            <label className="text-xs text-gray-500">베이</label>
+            <label className="text-xs text-gray-500">{resourceLabel}</label>
             <select
               className="w-full mt-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
               value={blockForm.bay_id}

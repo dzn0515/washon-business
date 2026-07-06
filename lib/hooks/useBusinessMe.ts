@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { isDemoMode } from '@/lib/demo-mode'
 import { mockBusiness } from '@/lib/mock/data'
+import { resolveResourceLabel } from '@/lib/resource-label'
 import { fetchBusinessMe, type BusinessMe } from '@/lib/store-api'
 
 export function useBusinessMe() {
@@ -42,6 +43,7 @@ export function useBusinessMe() {
         address: mockBusiness.address,
         slug: mockBusiness.slug,
         bizType: 'wash',
+        resourceLabel: '베이',
         bayCount: 3,
         status: 'active' as const,
       }
@@ -52,7 +54,8 @@ export function useBusinessMe() {
           address: business.address,
           slug: business.slug,
           bizType: business.biz_type ?? 'wash',
-          bayCount: business.bay_count ?? 1,
+          resourceLabel: resolveResourceLabel(business.biz_type, business.resource_label),
+          bayCount: business.bay_count ?? business.resource_count ?? 1,
           status: business.status,
         }
       : null

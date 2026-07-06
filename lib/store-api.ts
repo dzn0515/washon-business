@@ -20,6 +20,8 @@ export type BusinessMe = {
   phone?: string | null
   biz_type?: string
   bay_count?: number
+  resource_label?: string
+  resource_count?: number
   status?: string
   plan?: string
   brand_color?: string

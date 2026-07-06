@@ -89,7 +89,7 @@ export function useRevenue() {
               id: i + 1,
               time: b.start_time.slice(0, 5),
               customer_name: b.customer_name,
-              menu: menuMap[b.menu_id] ?? '세차',
+              menu: menuMap[b.menu_id] ?? '서비스',
               amount: b.price,
               method: '앱결제',
             })),

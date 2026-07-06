@@ -10,6 +10,7 @@ export type MockBusiness = {
   address: string
   region: string
   type: string
+  bizType?: string
   bays: number
   appliedAt: string
   approvedAt?: string
@@ -29,6 +30,7 @@ export const mockPendingBusinesses: MockBusiness[] = [
     address: '서울시 강남구 테헤란로 123',
     region: '서울',
     type: '손세차',
+    bizType: 'wash',
     bays: 2,
     appliedAt: '2026-06-24',
     status: 'pending',
@@ -43,6 +45,7 @@ export const mockPendingBusinesses: MockBusiness[] = [
     address: '경기도 수원시 영통구 광교로 45',
     region: '경기',
     type: '디테일링',
+    bizType: 'detailing',
     bays: 4,
     appliedAt: '2026-06-23',
     status: 'pending',
@@ -57,6 +60,7 @@ export const mockPendingBusinesses: MockBusiness[] = [
     address: '부산시 해운대구 우동 123',
     region: '부산',
     type: '자동세차',
+    bizType: 'wash',
     bays: 6,
     appliedAt: '2026-06-22',
     status: 'pending',

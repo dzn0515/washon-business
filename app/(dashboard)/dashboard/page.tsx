@@ -7,6 +7,8 @@ import OperationalInsightsSection from '@/components/dashboard/OperationalInsigh
 import StaffSummarySection from '@/components/dashboard/StaffSummarySection'
 import { useDemoMode } from '@/components/providers/DemoModeProvider'
 import { useDashboardToday, type DashboardTodayBooking } from '@/lib/hooks/useDashboardToday'
+import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
+import { resolveResourceLabel } from '@/lib/resource-label'
 import { useOperationalInsights } from '@/lib/hooks/useOperationalInsights'
 import { formatDateLabel } from '@/lib/api-mappers'
 import { CARD, won } from '@/lib/dashboard-ui'
@@ -53,6 +55,11 @@ function BookingRow({
 
 export default function DashboardPage() {
   const { today, loading, isLive, isDemo, isUnavailable, isEmpty, refetch, todayDate } = useDashboardToday()
+  const { display: businessDisplay } = useBusinessMe()
+  const resourceLabel = resolveResourceLabel(
+    businessDisplay?.bizType,
+    businessDisplay?.resourceLabel,
+  )
   const {
     insights,
     loading: insightsLoading,
@@ -108,7 +115,7 @@ export default function DashboardPage() {
               <p className="text-xl font-semibold text-gray-900">{won(today.expected_revenue)}</p>
             </div>
             <div className={CARD}>
-              <p className="text-[12px] text-gray-400 font-medium mb-2">사용 중 베이</p>
+              <p className="text-[12px] text-gray-400 font-medium mb-2">사용 중 {resourceLabel}</p>
               <p className="text-xl font-semibold text-gray-900">
                 {today.bay_summary.busy_now}
                 <span className="text-sm font-normal text-gray-400"> / {today.bay_summary.active}</span>
@@ -131,7 +138,7 @@ export default function DashboardPage() {
               href={href('/dashboard/reservations/calendar')}
               className="text-sm text-blue-600 font-medium flex items-center gap-0.5"
             >
-              베이 캘린더 보기 <ChevronRight size={14} />
+              {resourceLabel} 캘린더 보기 <ChevronRight size={14} />
             </Link>
           </div>
         </>

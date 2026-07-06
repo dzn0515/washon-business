@@ -11,6 +11,8 @@ import {
 } from '@/lib/calendar-utils'
 import { BOOKING_STATUS_LABEL, BOOKING_STATUS_STYLE, PAYMENT_STATUS_LABEL, PAYMENT_STATUS_STYLE } from '@/constants'
 import { cn } from '@/lib/utils'
+import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
+import { resolveResourceLabel } from '@/lib/resource-label'
 import type { BookingStatus, BusinessBay } from '@/types'
 
 type Props = {
@@ -81,6 +83,8 @@ function BookingCard({
 }
 
 export default function BayCalendarGrid({ bays, bookings, selectedDate }: Props) {
+  const { display: businessDisplay } = useBusinessMe()
+  const resourceLabel = resolveResourceLabel(businessDisplay?.bizType)
   const timeSlots = generateTimeSlots()
   const sortedBays = [...bays].sort((a, b) => a.sort_order - b.sort_order)
   const byBay = groupBookingsByBay(bookings, sortedBays)
@@ -89,7 +93,7 @@ export default function BayCalendarGrid({ bays, bookings, selectedDate }: Props)
   if (sortedBays.length === 0) {
     return (
       <div className="bg-white border border-gray-100 rounded-xl p-8 text-center text-sm text-gray-400">
-        등록된 베이가 없습니다. 운영관리에서 베이를 추가해 주세요.
+        등록된 {resourceLabel}가 없습니다. 운영관리에서 {resourceLabel}를 추가해 주세요.
       </div>
     )
   }

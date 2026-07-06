@@ -4,21 +4,25 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useDemoMode } from '@/components/providers/DemoModeProvider'
-
-const LINKS = [
-  { href: '/dashboard/reservations', label: '예약 목록' },
-  { href: '/dashboard/reservations/calendar', label: '베이 캘린더' },
-] as const
+import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
+import { resolveResourceLabel } from '@/lib/resource-label'
 
 export default function ReservationSubNav() {
   const pathname = usePathname()
   const { isDemo } = useDemoMode()
+  const { display: businessDisplay } = useBusinessMe()
+  const resourceLabel = resolveResourceLabel(businessDisplay?.bizType)
+
+  const links = [
+    { href: '/dashboard/reservations', label: '예약 목록' },
+    { href: '/dashboard/reservations/calendar', label: `${resourceLabel} 캘린더` },
+  ] as const
 
   if (isDemo) return null
 
   return (
     <div className="flex gap-2 border-b border-gray-100 pb-3">
-      {LINKS.map((link) => {
+      {links.map((link) => {
         const active =
           link.href === '/dashboard/reservations'
             ? pathname === '/dashboard/reservations'

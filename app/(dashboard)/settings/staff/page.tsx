@@ -10,6 +10,8 @@ import { SETTINGS_NAV } from '@/constants'
 import { cn } from '@/lib/utils'
 import { usePathname } from 'next/navigation'
 import { Plus } from 'lucide-react'
+import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
+import { formatResourceCountLabel } from '@/lib/resource-label'
 
 function SettingsNav() {
   const pathname = usePathname()
@@ -26,11 +28,16 @@ function SettingsNav() {
 
 export default function StaffSettingsPage() {
   const { data: staff } = useSWR('staff', () => mockApi.getStaff())
+  const { display: businessDisplay } = useBusinessMe()
+  const resourceCountLabel = formatResourceCountLabel(
+    businessDisplay?.bizType,
+    businessDisplay?.resourceLabel,
+  )
 
   return (
     <div>
       <SettingsNav />
-      <Card title="베이 수">
+      <Card title={resourceCountLabel}>
         <Input type="number" defaultValue={3} className="mb-4" />
       </Card>
       <Card title="직원 관리">

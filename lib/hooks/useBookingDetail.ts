@@ -13,18 +13,24 @@ import {
 import { parseStatusTransitionError } from '@/lib/booking-status-ui'
 import { mapBookingStatus, mapPaymentMethod, mapPaymentStatus } from '@/lib/api-mappers'
 import { mockApi } from '@/lib/mock/data'
+import { formatResourceName } from '@/lib/resource-label'
+import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
 import type { Booking, BookingStatus } from '@/types'
 
 export type BookingAssignError = 'bay_conflict' | 'staff_conflict' | 'other' | null
 
-function mapApiToBooking(raw: NonNullable<Awaited<ReturnType<typeof fetchBusinessBookingById>>>, menu?: ApiMenu): Booking {
+function mapApiToBooking(
+  raw: NonNullable<Awaited<ReturnType<typeof fetchBusinessBookingById>>>,
+  menu?: ApiMenu,
+  bizType?: string | null,
+): Booking {
   return {
     id: raw.id,
     booking_number: raw.booking_number,
     user: { id: 0, name: raw.customer_name, phone: raw.customer_phone },
     vehicle: { car_number: '', car_model: raw.vehicle_model ?? '' },
     service_menu: {
-      name: menu?.name ?? '세차',
+      name: menu?.name ?? '서비스',
       duration_minutes: menu?.duration_minutes ?? 60,
     },
     staff: raw.staff_id
@@ -37,7 +43,7 @@ function mapApiToBooking(raw: NonNullable<Awaited<ReturnType<typeof fetchBusines
     bay: raw.bay_id
       ? {
           id: raw.bay_id,
-          name: raw.bay_name ?? `베이 ${raw.bay_number}`,
+          name: raw.bay_name ?? formatResourceName(bizType, raw.bay_number),
           number: raw.bay_number,
         }
       : null,
@@ -65,6 +71,8 @@ function parseAssignError(e: unknown): BookingAssignError {
 }
 
 export function useBookingDetail(id: string, bookingDate?: string) {
+  const { display: businessDisplay } = useBusinessMe()
+  const bizType = businessDisplay?.bizType
   const [booking, setBooking] = useState<Booking | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -80,10 +88,10 @@ export function useBookingDetail(id: string, bookingDate?: string) {
 
   const applyBooking = useCallback(
     (raw: NonNullable<Awaited<ReturnType<typeof fetchBusinessBookingById>>>, menu?: ApiMenu) => {
-      setBooking(mapApiToBooking(raw, menu))
+      setBooking(mapApiToBooking(raw, menu, bizType))
       setIsLive(true)
     },
-    [],
+    [bizType],
   )
 
   const load = useCallback(async () => {

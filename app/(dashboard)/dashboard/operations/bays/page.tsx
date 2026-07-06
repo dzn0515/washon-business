@@ -6,11 +6,26 @@ import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import { createBay, setBayActive, updateBay } from '@/lib/bays-api'
 import { useBays } from '@/lib/hooks/useBays'
+import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
+import {
+  formatResourceManageTitle,
+  formatResourceName,
+  resolveResourceLabel,
+} from '@/lib/resource-label'
 import { CARD, BTN_PRIMARY } from '@/lib/dashboard-ui'
 import type { BusinessBay } from '@/types'
 
 export default function BaysPage() {
   const { bays, loading, isLive, refetch } = useBays()
+  const { display: businessDisplay } = useBusinessMe()
+  const resourceLabel = resolveResourceLabel(
+    businessDisplay?.bizType,
+    businessDisplay?.resourceLabel,
+  )
+  const resourceManage = formatResourceManageTitle(
+    businessDisplay?.bizType,
+    businessDisplay?.resourceLabel,
+  )
   const [modalOpen, setModalOpen] = useState(false)
   const [editBay, setEditBay] = useState<BusinessBay | null>(null)
   const [formName, setFormName] = useState('')
@@ -36,7 +51,7 @@ export default function BaysPage() {
 
   async function handleSave() {
     if (!formName.trim()) {
-      setError('베이명을 입력해주세요.')
+      setError(`${resourceLabel}명을 입력해주세요.`)
       return
     }
     setSaving(true)
@@ -72,11 +87,11 @@ export default function BaysPage() {
 
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-gray-900">베이 관리</h2>
-          <p className="text-xs text-gray-400 mt-1">비활성 베이는 예약 자동배정에서 제외됩니다.</p>
+          <h2 className="text-base font-semibold text-gray-900">{resourceManage}</h2>
+          <p className="text-xs text-gray-400 mt-1">비활성 {resourceLabel}는 예약 자동배정에서 제외됩니다.</p>
         </div>
         <button type="button" onClick={openAdd} className={`${BTN_PRIMARY} flex items-center gap-1 shrink-0`}>
-          <Plus size={14} /> 베이 추가
+          <Plus size={14} /> {resourceLabel} 추가
         </button>
       </div>
 
@@ -122,18 +137,18 @@ export default function BaysPage() {
       </div>
 
       {!isLive && !loading ? (
-        <p className="text-xs text-center text-gray-400">데모 데이터 (API 연결 시 실제 베이 목록 표시)</p>
+        <p className="text-xs text-center text-gray-400">데모 데이터 (API 연결 시 실제 {resourceLabel} 목록 표시)</p>
       ) : null}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editBay ? '베이 수정' : '베이 추가'}>
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editBay ? `${resourceLabel} 수정` : `${resourceLabel} 추가`}>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-gray-500">베이명</label>
+            <label className="text-xs text-gray-500">{resourceLabel}명</label>
             <input
               className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm"
               value={formName}
               onChange={(e) => setFormName(e.target.value)}
-              placeholder="베이 1"
+              placeholder={formatResourceName(businessDisplay?.bizType, 1)}
             />
           </div>
           <div>

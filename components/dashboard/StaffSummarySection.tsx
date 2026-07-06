@@ -6,6 +6,8 @@ import { fetchBusinessBookings, type ApiBooking } from '@/lib/bookings-api'
 import type { DashboardTodayBooking, DashboardTodayData } from '@/lib/hooks/useDashboardToday'
 import { CARD } from '@/lib/dashboard-ui'
 import { useDemoMode } from '@/components/providers/DemoModeProvider'
+import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
+import { resolveResourceLabel } from '@/lib/resource-label'
 import { useEffect, useMemo, useState } from 'react'
 
 type Props = {
@@ -43,6 +45,11 @@ function bayAssignments(bookings: DashboardTodayBooking[]) {
 
 export default function StaffSummarySection({ today, isLive, isUnavailable, todayDate }: Props) {
   const { isDemo, href } = useDemoMode()
+  const { display: businessDisplay } = useBusinessMe()
+  const resourceLabel = resolveResourceLabel(
+    businessDisplay?.bizType,
+    businessDisplay?.resourceLabel,
+  )
   const [todayBookings, setTodayBookings] = useState<ApiBooking[] | null>(null)
 
   useEffect(() => {
@@ -109,7 +116,7 @@ export default function StaffSummarySection({ today, isLive, isUnavailable, toda
           <p className="text-lg font-semibold text-gray-900">{inProgress}건</p>
         </div>
         <div className="rounded-lg bg-gray-50 px-3 py-2">
-          <p className="text-[11px] text-gray-400">베이 사용</p>
+          <p className="text-[11px] text-gray-400">{resourceLabel} 사용</p>
           <p className="text-lg font-semibold text-gray-900">
             {today.bay_summary.busy_now}
             <span className="text-sm font-normal text-gray-400"> / {today.bay_summary.active}</span>
@@ -144,10 +151,10 @@ export default function StaffSummarySection({ today, isLive, isUnavailable, toda
         ) : null}
       </div>
 
-      <p className="text-[11px] text-gray-400 font-medium mb-2">베이 배정 현황</p>
+      <p className="text-[11px] text-gray-400 font-medium mb-2">{resourceLabel} 배정 현황</p>
       <div className="space-y-1.5">
         {bays.length === 0 ? (
-          <p className="text-sm text-gray-400">오늘 배정된 베이가 없습니다.</p>
+          <p className="text-sm text-gray-400">오늘 배정된 {resourceLabel}가 없습니다.</p>
         ) : (
           bays.map((bay) => (
             <div key={bay.name} className="flex items-center justify-between text-sm">

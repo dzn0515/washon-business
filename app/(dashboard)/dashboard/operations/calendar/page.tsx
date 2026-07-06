@@ -6,6 +6,8 @@ import OperationsSubNav from '@/components/features/operations/OperationsSubNav'
 import Modal from '@/components/ui/Modal'
 import { useBays } from '@/lib/hooks/useBays'
 import { useStaff } from '@/lib/hooks/useStaff'
+import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
+import { resolveResourceLabel } from '@/lib/resource-label'
 import { useOperationsCalendar, type DayItem } from '@/lib/hooks/useOperationsCalendar'
 import { formatTimeShort } from '@/lib/schedule-api'
 import { CARD, BTN_PRIMARY } from '@/lib/dashboard-ui'
@@ -15,7 +17,7 @@ type AddType = 'holiday' | 'hours' | 'blocked' | 'bay' | 'staff'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 
-function itemLabel(item: DayItem): string {
+function itemLabel(item: DayItem, resourceLabel: string): string {
   if (item.kind === 'schedule') {
     const { type, start_time, end_time, reason } = item.data
     if (type === 'holiday') return reason ? `휴무 · ${reason}` : '휴무'
@@ -23,7 +25,7 @@ function itemLabel(item: DayItem): string {
     return `예약 차단 ${formatTimeShort(start_time)}~${formatTimeShort(end_time)}`
   }
   if (item.kind === 'bay') {
-    const name = item.data.bay_name ?? '베이'
+    const name = item.data.bay_name ?? resourceLabel
     return `${name} 점검 ${formatTimeShort(item.data.start_time)}~${formatTimeShort(item.data.end_time)}`
   }
   const name = item.data.staff_name ?? '직원'
@@ -76,6 +78,11 @@ export default function OperationsCalendarPage() {
 
   const { bays } = useBays()
   const { staff } = useStaff()
+  const { display: businessDisplay } = useBusinessMe()
+  const resourceLabel = resolveResourceLabel(
+    businessDisplay?.bizType,
+    businessDisplay?.resourceLabel,
+  )
 
   const cells = useMemo(() => {
     const first = new Date(year, month - 1, 1)
@@ -120,7 +127,7 @@ export default function OperationsCalendarPage() {
       } else if (addType === 'blocked') {
         await addBlocked(selectedDate, st, et, reason || undefined)
       } else if (addType === 'bay') {
-        if (!bayId) throw new Error('베이를 선택해주세요.')
+        if (!bayId) throw new Error(`${resourceLabel}를 선택해주세요.`)
         await addBayUnavailable({
           bay_id: bayId,
           date: selectedDate,
@@ -168,7 +175,7 @@ export default function OperationsCalendarPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold text-gray-900">운영 캘린더</h2>
-          <p className="text-xs text-gray-400 mt-1">휴무·영업시간·예약 차단·베이 점검·직원 휴무를 날짜별로 관리합니다.</p>
+          <p className="text-xs text-gray-400 mt-1">휴무·영업시간·예약 차단·{resourceLabel} 점검·직원 휴무를 날짜별로 관리합니다.</p>
         </div>
         <button type="button" onClick={openAdd} className={`${BTN_PRIMARY} flex items-center gap-1 shrink-0`}>
           <Plus size={14} /> 추가
@@ -238,7 +245,7 @@ export default function OperationsCalendarPage() {
                   key={`${item.kind}-${item.data.id}`}
                   className={cn('text-xs px-3 py-2 rounded-lg border flex items-start justify-between gap-2', itemBadgeClass(item))}
                 >
-                  <span>{itemLabel(item)}</span>
+                  <span>{itemLabel(item, resourceLabel)}</span>
                   {isLive ? (
                     <button type="button" onClick={() => void handleDelete(item)} className="shrink-0 opacity-60 hover:opacity-100">
                       <Trash2 size={14} />
@@ -263,7 +270,7 @@ export default function OperationsCalendarPage() {
               <option value="holiday">휴무</option>
               <option value="hours">영업시간 변경</option>
               <option value="blocked">예약 차단</option>
-              <option value="bay">베이 점검</option>
+              <option value="bay">{resourceLabel} 점검</option>
               <option value="staff">직원 휴무</option>
             </select>
           </div>
@@ -283,7 +290,7 @@ export default function OperationsCalendarPage() {
 
           {addType === 'bay' && (
             <div>
-              <label className="text-xs text-gray-500 block mb-1">베이</label>
+              <label className="text-xs text-gray-500 block mb-1">{resourceLabel}</label>
               <select value={bayId} onChange={(e) => setBayId(e.target.value)} className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2">
                 {bays.map((b) => (
                   <option key={String(b.id)} value={String(b.id)}>{b.name}</option>

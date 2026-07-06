@@ -14,6 +14,8 @@ import {
   type CalendarBooking,
 } from '@/lib/calendar-utils'
 import { mockBays, mockStaffMembers, mockTodayBookings } from '@/lib/mock/data'
+import { formatResourceName } from '@/lib/resource-label'
+import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
 import type { BusinessBay } from '@/types'
 
 type ApiBay = {
@@ -43,7 +45,8 @@ function mapApiBooking(
   return {
     id: b.id,
     customer_name: b.customer_name,
-    service_name: menuMap[b.menu_id]?.name ?? fallbackMenuName(b.menu_id),
+    service_name:
+      b.menu_name ?? (b.menu_id ? menuMap[b.menu_id]?.name : undefined) ?? fallbackMenuName(b.menu_id ?? ''),
     car_model: b.vehicle_model ?? '',
     status: mapBookingStatus(b.status),
     payment_status: mapPaymentStatus(b.payment_status ?? 'unpaid'),
@@ -103,7 +106,7 @@ function mockCalendarBookings(): CalendarBooking[] {
   return rows
 }
 
-function buildTemporaryBays(bookings: ApiBooking[]): BusinessBay[] {
+function buildTemporaryBays(bookings: ApiBooking[], bizType?: string | null): BusinessBay[] {
   const bayNumbers = Array.from(
     new Set(
       bookings
@@ -114,13 +117,15 @@ function buildTemporaryBays(bookings: ApiBooking[]): BusinessBay[] {
 
   return bayNumbers.map((bayNumber) => ({
     id: `bay-${bayNumber}`,
-    name: `베이 ${bayNumber}`,
+    name: formatResourceName(bizType, bayNumber),
     sort_order: bayNumber,
     is_active: true,
   }))
 }
 
 export function useBayCalendar(initialDate?: string) {
+  const { display: businessDisplay } = useBusinessMe()
+  const bizType = businessDisplay?.bizType
   const [selectedDate, setSelectedDate] = useState(initialDate ?? todayIso())
   const [bookings, setBookings] = useState<CalendarBooking[] | null>(null)
   const [bays, setBays] = useState<BusinessBay[] | null>(null)
@@ -140,7 +145,7 @@ export function useBayCalendar(initialDate?: string) {
       const rawBays = baysResult.status === 'fulfilled' ? baysResult.value : null
       const menuMap = Object.fromEntries(menus.map((m) => [m.id, m]))
       setBookings(rawBookings.map((b) => mapApiBooking(b, menuMap)))
-      setBays(rawBays ? rawBays.map(mapBay) : buildTemporaryBays(rawBookings))
+      setBays(rawBays ? rawBays.map(mapBay) : buildTemporaryBays(rawBookings, bizType))
 
       const fallbackReasons = [
         menusResult.status === 'rejected' ? 'menus' : null,
@@ -158,7 +163,7 @@ export function useBayCalendar(initialDate?: string) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [bizType])
 
   useEffect(() => {
     load(selectedDate)

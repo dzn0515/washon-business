@@ -66,7 +66,8 @@ export function buildReminderAlert(
   stage: ReminderStage,
 ): BookingReminderAlert {
   const carNumber = parseLicensePlate(booking.vehicle_model)
-  const serviceName = menuMap[booking.menu_id]?.name ?? '세차'
+  const serviceName =
+    (booking.menu_id ? menuMap[booking.menu_id]?.name : null) ?? booking.menu_name ?? '서비스'
   const bookingTime = booking.start_time.slice(0, 5)
   const voiceText = buildVoiceText(stage, booking.customer_name, carNumber, serviceName)
 

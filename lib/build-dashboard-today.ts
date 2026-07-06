@@ -2,6 +2,7 @@ import { mapBookingStatus, todayIso } from '@/lib/api-mappers'
 import type { ApiBooking } from '@/lib/bookings-api'
 import type { DashboardTodayBooking, DashboardTodayData } from '@/lib/hooks/useDashboardToday'
 import type { BookingStatus } from '@/types'
+import { formatResourceName } from '@/lib/resource-label'
 
 const EXCLUDED_REVENUE = new Set<BookingStatus>(['cancelled', 'noshow'])
 const CURRENT_STATUSES = new Set<BookingStatus>(['in_progress', 'arrived'])
@@ -28,17 +29,18 @@ function staffColor(staffId: string): string {
 function toDashboardBooking(
   b: ApiBooking,
   menuNames: Map<string, string>,
+  bizType?: string | null,
 ): DashboardTodayBooking {
   return {
     id: b.id,
     booking_number: b.booking_number,
     customer_name: b.customer_name,
-    service_name: menuNames.get(b.menu_id) ?? '예약 메뉴',
+    service_name: (b.menu_id ? menuNames.get(b.menu_id) : null) ?? b.menu_name ?? '예약 메뉴',
     start_time: b.start_time.slice(0, 5),
     end_time: b.end_time.slice(0, 5),
     status: mapBookingStatus(b.status),
     bay_id: b.bay_id,
-    bay_name: b.bay_name ?? (b.bay_number ? `베이 ${b.bay_number}` : null),
+    bay_name: b.bay_name ?? (b.bay_number ? formatResourceName(bizType, b.bay_number) : null),
     staff_id: b.staff_id,
     staff_name: b.staff_name,
     price: b.price,
@@ -52,7 +54,7 @@ function nowTimeLabel(): string {
 
 export function buildDashboardTodayFromBookings(
   bookings: ApiBooking[],
-  options: { bayCount: number; date?: string; menuNames?: Map<string, string> },
+  options: { bayCount: number; date?: string; menuNames?: Map<string, string>; bizType?: string | null },
 ): DashboardTodayData {
   const date = options.date ?? todayIso()
   const menuNames = options.menuNames ?? new Map<string, string>()
@@ -110,7 +112,7 @@ export function buildDashboardTodayFromBookings(
     })
   }
 
-  const mapped = bookings.map((b) => toDashboardBooking(b, menuNames))
+  const mapped = bookings.map((b) => toDashboardBooking(b, menuNames, options.bizType))
 
   return {
     date,

@@ -134,6 +134,7 @@ export function useDashboardToday() {
             bayCount: me.bay_count ?? 1,
             date: todayDate,
             menuNames,
+            bizType: me.biz_type,
           }),
         )
       })
