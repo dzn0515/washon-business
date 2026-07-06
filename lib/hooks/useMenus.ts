@@ -86,7 +86,7 @@ function mapApiHolidays(apiHolidays: ApiHoliday[]): HolidayCard[] {
   }))
 }
 
-const DEMO_MENUS = mockMenus.map((m, i) => ({
+const DEMO_MENUS: MenuCard[] = mockMenus.map((m, i) => ({
   id: i + 1,
   name: m.name,
   duration_minutes: m.duration_minutes,
@@ -121,6 +121,15 @@ export function useMenus() {
     }
 
     let cancelled = false
+    let finished = false
+
+    const finish = () => {
+      if (cancelled || finished) return
+      finished = true
+      setLoading(false)
+    }
+
+    const safetyTimer = window.setTimeout(finish, 15_000)
 
     async function load() {
       setLoading(true)
@@ -128,7 +137,7 @@ export function useMenus() {
 
       try {
         const [menusResult, hoursResult, holidaysResult] = await Promise.allSettled([
-          apiFetch<ApiMenu[]>('/business/menus/?include_inactive=true'),
+          apiFetch<ApiMenu[]>('/business/menus?include_inactive=true'),
           apiFetch<ApiHours[]>('/business/hours'),
           apiFetch<ApiHoliday[]>('/business/holidays'),
         ])
@@ -160,9 +169,8 @@ export function useMenus() {
           setError('메뉴 정보를 불러올 수 없습니다.')
         }
       } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
+        window.clearTimeout(safetyTimer)
+        finish()
       }
     }
 
@@ -170,6 +178,7 @@ export function useMenus() {
 
     return () => {
       cancelled = true
+      window.clearTimeout(safetyTimer)
     }
   }, [])
 
