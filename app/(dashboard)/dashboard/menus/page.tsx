@@ -24,19 +24,27 @@ import { CARD, BTN_PRIMARY, won, type PriceGrid } from '@/lib/dashboard-ui'
 
 import {
   applyMenuBasePrice,
-  getDefaultMenuCategory,
   getRepresentativeMenuPrice,
 } from '@/lib/menu-form'
+
+import {
+  getDefaultFormCategory,
+  getMenuCategoriesForBiz,
+  getMenuFormConfig,
+  getSharedFieldKeys,
+  inferFormCategoryFromApi,
+  toApiCategory,
+  type MenuFormExtras,
+} from '@/lib/menu-form-config'
+
+import MenuFormBody from '@/components/menus/MenuFormBody'
 
 import { useDemoMode } from '@/components/providers/DemoModeProvider'
 
 import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
 
 import {
-  getBasePriceHint,
-  getBasePriceLabel,
   getListPriceSummaryLabel,
-  getPriceSectionTitle,
   shouldShowVehiclePriceGrid,
 } from '@/lib/pricing-label'
 
@@ -156,7 +164,19 @@ export default function MenusPage() {
 
   const [formCategory, setFormCategory] = useState('wash')
 
+  const [formExtras, setFormExtras] = useState<MenuFormExtras>({})
+
   const [editMenuApiId, setEditMenuApiId] = useState<string | null>(null)
+
+  const formConfig = useMemo(
+    () => getMenuFormConfig(pricingBizType, formCategory),
+    [pricingBizType, formCategory],
+  )
+
+  const categoryOptions = useMemo(
+    () => getMenuCategoriesForBiz(pricingBizType),
+    [pricingBizType],
+  )
 
 
 
@@ -194,7 +214,9 @@ export default function MenusPage() {
 
     setFormVisible(true)
 
-    setFormCategory(getDefaultMenuCategory(pricingBizType))
+    setFormCategory(getDefaultFormCategory(pricingBizType))
+
+    setFormExtras({})
 
     setModalOpen(true)
 
@@ -218,7 +240,11 @@ export default function MenusPage() {
 
     setFormVisible(item.is_active)
 
-    setFormCategory(item.category ?? getDefaultMenuCategory(pricingBizType))
+    const formCat = inferFormCategoryFromApi(pricingBizType, item.category)
+
+    setFormCategory(formCat)
+
+    setFormExtras({})
 
     setModalOpen(true)
 
@@ -258,6 +284,23 @@ export default function MenusPage() {
 
 
 
+  const handleCategoryChange = useCallback(
+    (nextCategory: string) => {
+      const prevConfig = getMenuFormConfig(pricingBizType, formCategory)
+      const nextConfig = getMenuFormConfig(pricingBizType, nextCategory)
+      const shared = getSharedFieldKeys(prevConfig.fields, nextConfig.fields)
+      setFormExtras((prev) => {
+        const kept: MenuFormExtras = {}
+        for (const key of shared) {
+          if (prev[key] !== undefined) kept[key] = prev[key]
+        }
+        return kept
+      })
+      setFormCategory(nextCategory)
+    },
+    [pricingBizType, formCategory],
+  )
+
   const handleBasePriceChange = useCallback((v: number) => {
 
     setFormBasePrice(v)
@@ -265,6 +308,10 @@ export default function MenusPage() {
     setFormPrices(applyMenuBasePrice(v, pricingBizType))
 
   }, [pricingBizType])
+
+  const handleExtraChange = useCallback((key: string, value: string | number | boolean) => {
+    setFormExtras((prev) => ({ ...prev, [key]: value }))
+  }, [])
 
 
 
@@ -708,13 +755,13 @@ export default function MenusPage() {
 
               value={formCategory}
 
-              onChange={(e) => setFormCategory(e.target.value)}
+              onChange={(e) => handleCategoryChange(e.target.value)}
 
               className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
 
             >
 
-              {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
+              {categoryOptions.map(({ value, label }) => (
 
                 <option key={value} value={value}>
 
@@ -728,119 +775,45 @@ export default function MenusPage() {
 
           </div>
 
-          <div>
+          <MenuFormBody
 
-            <label className="text-[12px] text-gray-400 font-medium mb-2 block">메뉴 이름</label>
+            bizType={pricingBizType}
 
-            <input
+            showVehicleGrid={formConfig.showVehicleGrid}
 
-              value={formName}
+            showName={formConfig.showName}
 
-              onChange={(e) => setFormName(e.target.value)}
+            showDuration={formConfig.showDuration}
 
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+            namePlaceholder={getMenuNamePlaceholder(pricingBizType)}
 
-              placeholder={getMenuNamePlaceholder(pricingBizType)}
+            priceSectionTitle={formConfig.priceSectionTitle}
 
-            />
+            priceHint={formConfig.priceHint}
 
-          </div>
+            fields={formConfig.fields}
 
-          <div>
+            formName={formName}
 
-            <label className="text-[12px] text-gray-400 font-medium mb-2 block">소요시간 (분)</label>
+            formDuration={formDuration}
 
-            <input
+            formBasePrice={formBasePrice}
 
-              type="number"
+            formPrices={formPrices}
 
-              value={formDuration}
+            extras={formExtras}
 
-              onChange={(e) => setFormDuration(Number(e.target.value))}
+            onNameChange={setFormName}
 
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
+            onDurationChange={setFormDuration}
 
-            />
+            onBasePriceChange={handleBasePriceChange}
 
-          </div>
+            onPricesChange={setFormPrices}
 
-          <div>
+            onExtraChange={handleExtraChange}
 
-            {showVehicleGrid ? (
-              <>
-                <label className="text-[12px] text-gray-400 font-medium mb-2 block">
-                  {getBasePriceLabel(pricingBizType)}
-                </label>
-
-                <input
-
-                  type="number"
-
-                  value={formBasePrice}
-
-                  onChange={(e) => handleBasePriceChange(Number(e.target.value))}
-
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
-
-                />
-
-                <p className="text-[11px] text-gray-400 mt-1">{getBasePriceHint(pricingBizType)}</p>
-
-                <label className="text-[12px] text-gray-400 font-medium mb-2 mt-4 block">
-                  {getPriceSectionTitle(pricingBizType)}
-                </label>
-
-                <div className="grid grid-cols-3 gap-2">
-
-                  {PRICE_LABELS.map(({ key, label }) => (
-
-                    <div key={key} className="bg-gray-50 rounded-lg p-2">
-
-                      <p className="text-[10px] text-gray-400">{label}</p>
-
-                      <input
-
-                        type="number"
-
-                        value={formPrices[key]}
-
-                        onChange={(e) => setFormPrices((p) => ({ ...p, [key]: Number(e.target.value) }))}
-
-                        className="w-full mt-1 text-xs border border-gray-200 rounded px-1.5 py-1"
-
-                      />
-
-                    </div>
-
-                  ))}
-
-                </div>
-              </>
-            ) : (
-              <>
-                <label className="text-[12px] text-gray-400 font-medium mb-2 block">
-                  {getPriceSectionTitle(pricingBizType)}
-                </label>
-
-                <input
-
-                  type="number"
-
-                  value={formBasePrice}
-
-                  onChange={(e) => handleBasePriceChange(Number(e.target.value))}
-
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm"
-
-                  placeholder="0"
-
-                />
-
-                <p className="text-[11px] text-gray-400 mt-1">{getBasePriceHint(pricingBizType)}</p>
-              </>
-            )}
-
-          </div>
+          />
 
           <label className="flex items-center gap-2 text-sm">
 
@@ -868,7 +841,7 @@ export default function MenusPage() {
 
                   try {
 
-                    await updateMenuCategory(editMenuApiId, formCategory)
+                    await updateMenuCategory(editMenuApiId, toApiCategory(pricingBizType, formCategory))
 
                     await refreshGrouped()
 
