@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { apiFetch } from '@/lib/api-client'
 import { pricesToGrid } from '@/lib/api-mappers'
 import { calcPriceGrid } from '@/lib/dashboard-ui'
@@ -109,6 +109,11 @@ export function useMenus() {
   const [holidays, setHolidays] = useState<HolidayCard[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
+
+  const refreshMenus = useCallback(() => {
+    setReloadKey((k) => k + 1)
+  }, [])
 
   useEffect(() => {
     if (isDemoMode()) {
@@ -180,7 +185,7 @@ export function useMenus() {
       cancelled = true
       window.clearTimeout(safetyTimer)
     }
-  }, [])
+  }, [reloadKey])
 
   return useMemo(
     () => ({
@@ -190,7 +195,8 @@ export function useMenus() {
       loading,
       error,
       isLive: menus !== null,
+      refreshMenus,
     }),
-    [menus, hours, holidays, loading, error],
+    [menus, hours, holidays, loading, error, refreshMenus],
   )
 }

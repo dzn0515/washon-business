@@ -12,7 +12,7 @@ import { useMenus } from '@/lib/hooks/useMenus'
 
 import { useGroupedMenus } from '@/lib/hooks/useGroupedMenus'
 
-import { updateMenuCategory, type GroupedMenuItem } from '@/lib/store-api'
+import { createMenu, updateMenu, type GroupedMenuItem } from '@/lib/store-api'
 
 import type { BusinessHours } from '@/types'
 
@@ -33,11 +33,12 @@ import {
   getMenuFormConfig,
   getSharedFieldKeys,
   inferFormCategoryFromApi,
-  toApiCategory,
   type MenuFormExtras,
 } from '@/lib/menu-form-config'
 
 import MenuFormBody from '@/components/menus/MenuFormBody'
+
+import { buildMenuPayload, validateMenuPayload } from '@/lib/menu-payload'
 
 import { useDemoMode } from '@/components/providers/DemoModeProvider'
 
@@ -114,7 +115,7 @@ export default function MenusPage() {
 
   const { isDemo } = useDemoMode()
 
-  const { menus: apiMenus, hours: apiHours, holidays, loading: menusLoading, error: menusError } = useMenus()
+  const { menus: apiMenus, hours: apiHours, holidays, loading: menusLoading, error: menusError, refreshMenus } = useMenus()
 
   const {
 
@@ -168,6 +169,10 @@ export default function MenusPage() {
 
   const [editMenuApiId, setEditMenuApiId] = useState<string | null>(null)
 
+  const [saving, setSaving] = useState(false)
+
+  const [saveError, setSaveError] = useState<string | null>(null)
+
   const formConfig = useMemo(
     () => getMenuFormConfig(pricingBizType, formCategory),
     [pricingBizType, formCategory],
@@ -218,6 +223,8 @@ export default function MenusPage() {
 
     setFormExtras({})
 
+    setSaveError(null)
+
     setModalOpen(true)
 
   }, [pricingBizType])
@@ -246,6 +253,8 @@ export default function MenusPage() {
 
     setFormExtras({})
 
+    setSaveError(null)
+
     setModalOpen(true)
 
   }, [pricingBizType])
@@ -262,6 +271,8 @@ export default function MenusPage() {
 
       setEditId(id)
 
+      setEditMenuApiId(null)
+
       setFormName(m.name)
 
       setFormDuration(m.duration_minutes)
@@ -273,6 +284,8 @@ export default function MenusPage() {
       setFormPrices(showVehicleGrid ? m.price_grid : applyMenuBasePrice(rep, pricingBizType))
 
       setFormVisible(m.is_active)
+
+      setSaveError(null)
 
       setModalOpen(true)
 
@@ -823,6 +836,12 @@ export default function MenusPage() {
 
           </label>
 
+          {saveError ? (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+              {saveError}
+            </p>
+          ) : null}
+
           <div className="flex gap-2 pt-2">
 
             <button type="button" onClick={() => setModalOpen(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600">
@@ -835,35 +854,79 @@ export default function MenusPage() {
 
               type="button"
 
+              disabled={saving}
+
               onClick={async () => {
 
-                if (editMenuApiId) {
+                const payload = buildMenuPayload({
 
-                  try {
+                  name: formName,
 
-                    await updateMenuCategory(editMenuApiId, toApiCategory(pricingBizType, formCategory))
+                  duration: formDuration,
 
-                    await refreshGrouped()
+                  visible: formVisible,
 
-                  } catch {
+                  formCategory,
 
-                    alert('카테고리 저장에 실패했습니다.')
+                  pricingBizType,
 
-                    return
+                  formBasePrice,
 
-                  }
+                  formPrices,
+
+                  formExtras,
+
+                })
+
+                const validationError = validateMenuPayload(payload)
+
+                if (validationError) {
+
+                  setSaveError(validationError)
+
+                  return
 
                 }
 
-                setModalOpen(false)
+                setSaving(true)
+
+                setSaveError(null)
+
+                try {
+
+                  if (editMenuApiId) {
+
+                    await updateMenu(editMenuApiId, payload)
+
+                  } else {
+
+                    await createMenu(payload)
+
+                  }
+
+                  await Promise.all([refreshGrouped(), Promise.resolve(refreshMenus())])
+
+                  setModalOpen(false)
+
+                } catch (e) {
+
+                  const msg = e instanceof Error ? e.message : '메뉴 저장에 실패했습니다.'
+
+                  setSaveError(msg)
+
+                } finally {
+
+                  setSaving(false)
+
+                }
 
               }}
 
-              className={`flex-1 py-2.5 text-sm ${BTN_PRIMARY}`}
+              className={`flex-1 py-2.5 text-sm ${BTN_PRIMARY} disabled:opacity-60`}
 
             >
 
-              저장하기
+              {saving ? '저장 중...' : '저장하기'}
 
             </button>
 

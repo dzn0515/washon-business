@@ -82,3 +82,28 @@ export async function updateMenuCategory(menuId: string, category: string): Prom
     body: JSON.stringify({ category }),
   })
 }
+
+export type MenuWritePayload = {
+  name: string
+  description?: string | null
+  category: string
+  duration_minutes: number
+  is_active: boolean
+  is_popular?: boolean
+  sort_order?: number
+  prices: { vehicle_size: string; vehicle_origin: string; price: number }[]
+}
+
+export async function createMenu(payload: MenuWritePayload) {
+  return apiFetch('/business/menus/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function updateMenu(menuId: string, payload: Partial<MenuWritePayload>) {
+  return apiFetch(`/business/menus/${menuId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
