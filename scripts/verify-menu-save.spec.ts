@@ -53,6 +53,52 @@ test('wash — add menu appears in list after save', async ({ page }) => {
   await expect(page.getByText(menuName)).toBeVisible({ timeout: 15000 })
 })
 
+test('tire — add tire replace shows formatted list title', async ({ page }) => {
+  const stamp = Date.now()
+  const menuName = `프라이머시-${stamp}`
+
+  try {
+    await loginAs(page, 'qa-tire@test.autoon.kr')
+  } catch {
+    test.skip(true, 'qa-tire not seeded')
+    return
+  }
+
+  await openAddMenu(page)
+
+  const categorySelect = page.getByRole('dialog').locator('select[name="category"]')
+  await categorySelect.selectOption('tire_replace')
+
+  await fillMenuName(page, menuName)
+
+  const dialog = page.getByRole('dialog')
+  await dialog.locator('label:has-text("브랜드/메이커") + input').fill('미쉐린')
+  await dialog.locator('label:has-text("타이어 인치") + input').fill('18')
+  await dialog.locator('label:has-text("장착비") + input').fill('95000')
+
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes('/api/v1/business/menus') && r.request().method() === 'POST',
+      { timeout: 30000 },
+    ),
+    page.getByRole('button', { name: '저장하기' }).click(),
+  ])
+
+  expect(response.status()).toBe(201)
+  const body = await response.json()
+  expect(body.description).toContain('AUTOON_MENU_META:')
+  expect(body.description).toContain('미쉐린')
+
+  await expect(page.getByText(`[타이어 교체] 미쉐린 ${menuName} 18인치`)).toBeVisible({
+    timeout: 15000,
+  })
+
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.getByText(`[타이어 교체] 미쉐린 ${menuName} 18인치`)).toBeVisible({
+    timeout: 15000,
+  })
+})
+
 test('tire — add all-products menu appears in list', async ({ page }) => {
   const stamp = Date.now()
   const menuName = `QA타이어전상품-${stamp}`

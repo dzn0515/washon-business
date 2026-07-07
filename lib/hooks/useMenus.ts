@@ -11,6 +11,8 @@ import type { BusinessHours } from '@/types'
 type ApiMenu = {
   id: string
   name: string
+  description?: string | null
+  category?: string | null
   duration_minutes: number
   is_active: boolean
   is_popular: boolean
@@ -40,7 +42,10 @@ const EMPTY_HOLIDAYS: HolidayCard[] = []
 
 export type MenuCard = {
   id: number
+  apiId: string
   name: string
+  description: string | null
+  category: string | null
   duration_minutes: number
   monthly_bookings: number
   is_popular: boolean
@@ -58,7 +63,10 @@ type HolidayCard = {
 function mapApiMenus(apiMenus: ApiMenu[]): MenuCard[] {
   return apiMenus.map((m, i) => ({
     id: i + 1,
+    apiId: m.id,
     name: m.name,
+    description: m.description ?? null,
+    category: m.category ?? null,
     duration_minutes: m.duration_minutes,
     monthly_bookings: 0,
     is_popular: m.is_popular,
@@ -88,7 +96,10 @@ function mapApiHolidays(apiHolidays: ApiHoliday[]): HolidayCard[] {
 
 const DEMO_MENUS: MenuCard[] = mockMenus.map((m, i) => ({
   id: i + 1,
+  apiId: String(i + 1),
   name: m.name,
+  description: null,
+  category: null,
   duration_minutes: m.duration_minutes,
   monthly_bookings: 0,
   is_popular: false,

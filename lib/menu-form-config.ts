@@ -301,14 +301,35 @@ export function syncExtrasToBasePrice(
   return currentBase
 }
 
-export function serializeMenuDescription(extras: MenuFormExtras, humanLines?: string[]): string {
+export function stripMetaBlock(description?: string | null): string {
+  if (!description) return ''
+  const idx = description.lastIndexOf(META_PREFIX)
+  if (idx === -1) return description.trim()
+  return description.slice(0, idx).trim()
+}
+
+export function serializeMenuMeta(
+  existingDescription: string | null | undefined,
+  meta: MenuFormExtras,
+): string {
+  const humanText = stripMetaBlock(existingDescription)
   const clean = Object.fromEntries(
-    Object.entries(extras).filter(([, v]) => v !== '' && v !== false),
+    Object.entries(meta).filter(([, v]) => v !== '' && v !== false && v !== undefined),
   )
-  if (Object.keys(clean).length === 0) return humanLines?.join('\n') ?? ''
-  const meta = `${META_PREFIX}${JSON.stringify(clean)}`
-  if (!humanLines?.length) return meta
-  return `${humanLines.join('\n')}\n${meta}`
+  if (Object.keys(clean).length === 0) return humanText
+  const metaBlock = `${META_PREFIX}${JSON.stringify(clean)}`
+  if (!humanText) return metaBlock
+  return `${humanText}\n${metaBlock}`
+}
+
+export function serializeMenuDescription(
+  extras: MenuFormExtras,
+  existingDescription?: string | null,
+  humanLines?: string[],
+): string {
+  const humanFromExisting = stripMetaBlock(existingDescription)
+  const humanText = humanLines?.length ? humanLines.join('\n') : humanFromExisting
+  return serializeMenuMeta(humanText || null, extras)
 }
 
 export function parseMenuDescription(description?: string | null): MenuFormExtras {

@@ -30,11 +30,12 @@ export function buildMenuPrices(
   formConfig: ReturnType<typeof getMenuFormConfig>,
   formBasePrice: number,
   formPrices: PriceGrid,
+  formExtras: MenuFormExtras,
 ): MenuPriceItemPayload[] {
   if (formConfig.showVehicleGrid) {
     return gridToApiPrices(formPrices) as MenuPriceItemPayload[]
   }
-  const primary = resolvePrimaryPrice(formConfig, formBasePrice, {})
+  const primary = resolvePrimaryPrice(formConfig, formBasePrice, formExtras)
   const grid = applyMenuBasePrice(primary > 0 ? primary : formBasePrice, bizType)
   return gridToApiPrices(grid) as MenuPriceItemPayload[]
 }
@@ -48,10 +49,15 @@ export function buildMenuPayload(input: {
   formBasePrice: number
   formPrices: PriceGrid
   formExtras: MenuFormExtras
+  existingDescription?: string | null
 }): MenuCreatePayload {
   const formConfig = getMenuFormConfig(input.pricingBizType, input.formCategory)
   const primary = resolvePrimaryPrice(formConfig, input.formBasePrice, input.formExtras)
-  const description = serializeMenuDescription(input.formExtras) || null
+  const metaPayload: MenuFormExtras = {
+    ...input.formExtras,
+    _formCategory: input.formCategory,
+  }
+  const description = serializeMenuDescription(metaPayload, input.existingDescription) || null
 
   return {
     name: input.name.trim(),
@@ -66,6 +72,7 @@ export function buildMenuPayload(input: {
       formConfig,
       primary > 0 ? primary : input.formBasePrice,
       input.formPrices,
+      input.formExtras,
     ),
   }
 }

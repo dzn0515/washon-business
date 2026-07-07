@@ -33,12 +33,20 @@ import {
   getMenuFormConfig,
   getSharedFieldKeys,
   inferFormCategoryFromApi,
+  syncExtrasToBasePrice,
   type MenuFormExtras,
 } from '@/lib/menu-form-config'
 
 import MenuFormBody from '@/components/menus/MenuFormBody'
 
 import { buildMenuPayload, validateMenuPayload } from '@/lib/menu-payload'
+
+import {
+  buildMenuDisplaySubtitle,
+  buildMenuDisplayTitle,
+  parseMenuMeta,
+  stripInternalMetaKeys,
+} from '@/lib/menu-display'
 
 import { useDemoMode } from '@/components/providers/DemoModeProvider'
 
@@ -167,6 +175,8 @@ export default function MenusPage() {
 
   const [formExtras, setFormExtras] = useState<MenuFormExtras>({})
 
+  const [formExistingDescription, setFormExistingDescription] = useState<string | null>(null)
+
   const [editMenuApiId, setEditMenuApiId] = useState<string | null>(null)
 
   const [saving, setSaving] = useState(false)
@@ -197,6 +207,14 @@ export default function MenusPage() {
 
   }, [apiMenus, activeOverrides])
 
+  const menuByApiId = useMemo(() => {
+    const map = new Map<string, (typeof apiMenus)[number]>()
+    for (const menu of apiMenus) {
+      map.set(menu.apiId, menu)
+    }
+    return map
+  }, [apiMenus])
+
 
 
   const hours = hoursDraft ?? apiHours
@@ -223,6 +241,8 @@ export default function MenusPage() {
 
     setFormExtras({})
 
+    setFormExistingDescription(null)
+
     setSaveError(null)
 
     setModalOpen(true)
@@ -241,23 +261,43 @@ export default function MenusPage() {
 
     setFormDuration(item.duration_minutes)
 
-    setFormBasePrice(item.price)
+    const full = menuByApiId.get(item.id)
 
-    setFormPrices(applyMenuBasePrice(item.price, pricingBizType))
+    const description = full?.description ?? null
+
+    const meta = parseMenuMeta(description)
+
+    const extras = stripInternalMetaKeys(meta)
+
+    const formCat =
+
+      typeof meta._formCategory === 'string'
+
+        ? meta._formCategory
+
+        : inferFormCategoryFromApi(pricingBizType, item.category)
+
+    const config = getMenuFormConfig(pricingBizType, formCat)
+
+    const price = syncExtrasToBasePrice(config, extras, item.price)
+
+    setFormBasePrice(price)
+
+    setFormPrices(applyMenuBasePrice(price, pricingBizType))
 
     setFormVisible(item.is_active)
 
-    const formCat = inferFormCategoryFromApi(pricingBizType, item.category)
-
     setFormCategory(formCat)
 
-    setFormExtras({})
+    setFormExtras(extras)
+
+    setFormExistingDescription(description)
 
     setSaveError(null)
 
     setModalOpen(true)
 
-  }, [pricingBizType])
+  }, [pricingBizType, menuByApiId])
 
 
 
@@ -271,17 +311,39 @@ export default function MenusPage() {
 
       setEditId(id)
 
-      setEditMenuApiId(null)
+      setEditMenuApiId(m.apiId)
 
       setFormName(m.name)
 
       setFormDuration(m.duration_minutes)
 
+      const meta = parseMenuMeta(m.description)
+
+      const extras = stripInternalMetaKeys(meta)
+
+      const formCat =
+
+        typeof meta._formCategory === 'string'
+
+          ? meta._formCategory
+
+          : inferFormCategoryFromApi(pricingBizType, m.category)
+
+      setFormCategory(formCat)
+
+      setFormExtras(extras)
+
+      setFormExistingDescription(m.description)
+
       const rep = getRepresentativeMenuPrice(m.price_grid, pricingBizType)
 
-      setFormBasePrice(rep)
+      const config = getMenuFormConfig(pricingBizType, formCat)
 
-      setFormPrices(showVehicleGrid ? m.price_grid : applyMenuBasePrice(rep, pricingBizType))
+      const price = syncExtrasToBasePrice(config, extras, rep)
+
+      setFormBasePrice(price)
+
+      setFormPrices(showVehicleGrid ? m.price_grid : applyMenuBasePrice(price, pricingBizType))
 
       setFormVisible(m.is_active)
 
@@ -448,7 +510,27 @@ export default function MenusPage() {
 
                 <div className="space-y-2">
 
-                  {(groupedMenus[category] ?? []).map((item) => (
+                  {(groupedMenus[category] ?? []).map((item) => {
+
+                    const full = menuByApiId.get(item.id)
+
+                    const displaySource = {
+
+                      name: item.name,
+
+                      description: full?.description ?? null,
+
+                      category: item.category,
+
+                      price: item.price,
+
+                    }
+
+                    const displayTitle = buildMenuDisplayTitle(displaySource, pricingBizType)
+
+                    const displaySubtitle = buildMenuDisplaySubtitle(displaySource, pricingBizType)
+
+                    return (
 
                     <div
 
@@ -462,7 +544,7 @@ export default function MenusPage() {
 
                         <div className="flex items-center gap-2 flex-wrap">
 
-                          <p className="font-medium text-gray-900">{item.name}</p>
+                          <p className="font-medium text-gray-900">{displayTitle}</p>
 
                           {!item.is_active && (
 
@@ -471,6 +553,12 @@ export default function MenusPage() {
                           )}
 
                         </div>
+
+                        {displaySubtitle ? (
+
+                          <p className="text-xs text-gray-500 mt-0.5">{displaySubtitle}</p>
+
+                        ) : null}
 
                         <p className="text-xs text-gray-400 mt-1">
 
@@ -512,7 +600,9 @@ export default function MenusPage() {
 
                     </div>
 
-                  ))}
+                    )
+
+                  })}
 
                 </div>
 
@@ -536,7 +626,23 @@ export default function MenusPage() {
 
             <div className="space-y-3">
 
-              {menus.map((m) => (
+              {menus.map((m) => {
+
+                const displaySource = {
+
+                  name: m.name,
+
+                  description: m.description,
+
+                  category: m.category,
+
+                }
+
+                const displayTitle = buildMenuDisplayTitle(displaySource, pricingBizType)
+
+                const displaySubtitle = buildMenuDisplaySubtitle(displaySource, pricingBizType)
+
+                return (
 
                 <div key={m.id} className={`${CARD} ${!m.is_active ? 'opacity-50' : ''}`}>
 
@@ -546,7 +652,7 @@ export default function MenusPage() {
 
                       <div className="flex items-center gap-2 flex-wrap">
 
-                        <span className="font-medium text-gray-900">{m.name}</span>
+                        <span className="font-medium text-gray-900">{displayTitle}</span>
 
                         {m.is_popular && <Badge className="bg-orange-100 text-orange-700">인기</Badge>}
 
@@ -557,6 +663,12 @@ export default function MenusPage() {
                         </Badge>
 
                       </div>
+
+                      {displaySubtitle ? (
+
+                        <p className="text-xs text-gray-500 mt-0.5">{displaySubtitle}</p>
+
+                      ) : null}
 
                       <p className="text-xs text-gray-400 mt-1">소요 {m.duration_minutes}분 · 이번달 예약 {m.monthly_bookings}건</p>
 
@@ -604,7 +716,9 @@ export default function MenusPage() {
 
                 </div>
 
-              ))}
+                )
+
+              })}
 
             </div>
 
@@ -875,6 +989,8 @@ export default function MenusPage() {
                   formPrices,
 
                   formExtras,
+
+                  existingDescription: formExistingDescription,
 
                 })
 
