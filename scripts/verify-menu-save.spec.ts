@@ -53,6 +53,64 @@ test('wash — add menu appears in list after save', async ({ page }) => {
   await expect(page.getByText(menuName)).toBeVisible({ timeout: 15000 })
 })
 
+test('tire — add all-products menu appears in list', async ({ page }) => {
+  const stamp = Date.now()
+  const menuName = `QA타이어전상품-${stamp}`
+
+  try {
+    await loginAs(page, 'qa-tire@test.autoon.kr')
+  } catch {
+    test.skip(true, 'qa-tire not seeded')
+    return
+  }
+
+  await openAddMenu(page)
+  await fillMenuName(page, menuName)
+  await page.getByRole('dialog').locator('input[type="number"]').first().fill('80000')
+
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes('/api/v1/business/menus') && r.request().method() === 'POST',
+      { timeout: 30000 },
+    ),
+    page.getByRole('button', { name: '저장하기' }).click(),
+  ])
+
+  expect(response.status()).toBe(201)
+  await expect(page.getByText(menuName)).toBeVisible({ timeout: 15000 })
+})
+
+test('tire — add tire replace category menu appears in list', async ({ page }) => {
+  const stamp = Date.now()
+  const menuName = `QA타이어교체-${stamp}`
+
+  try {
+    await loginAs(page, 'qa-tire@test.autoon.kr')
+  } catch {
+    test.skip(true, 'qa-tire not seeded')
+    return
+  }
+
+  await openAddMenu(page)
+
+  const categorySelect = page.getByRole('dialog').locator('select[name="category"]')
+  await categorySelect.selectOption('tire_replace')
+
+  await fillMenuName(page, menuName)
+  await page.getByRole('dialog').locator('input[type="number"]').first().fill('95000')
+
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (r) => r.url().includes('/api/v1/business/menus') && r.request().method() === 'POST',
+      { timeout: 30000 },
+    ),
+    page.getByRole('button', { name: '저장하기' }).click(),
+  ])
+
+  expect(response.status()).toBe(201)
+  await expect(page.getByText(menuName)).toBeVisible({ timeout: 15000 })
+})
+
 test('glass_tint — add front tint menu appears in list', async ({ page }) => {
   const stamp = Date.now()
   const menuName = `QA전면썬팅-${stamp}`
@@ -121,6 +179,6 @@ test('save failure shows error message', async ({ page }) => {
   await page.getByRole('dialog').locator('.grid.grid-cols-3 input').first().fill('0')
   await page.getByRole('button', { name: '저장하기' }).click()
 
-  await expect(page.getByText(/메뉴 이름|가격/)).toBeVisible()
+  await expect(page.getByText('메뉴 이름을 입력해주세요.')).toBeVisible()
   await expect(page.getByRole('button', { name: '저장하기' })).toBeVisible()
 })
