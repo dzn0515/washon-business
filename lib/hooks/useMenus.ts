@@ -142,7 +142,7 @@ export function useMenus() {
 
       try {
         const [menusResult, hoursResult, holidaysResult] = await Promise.allSettled([
-          apiFetch<ApiMenu[]>('/business/menus?include_inactive=true'),
+          apiFetch<ApiMenu[]>('/business/menus/?include_inactive=true'),
           apiFetch<ApiHours[]>('/business/hours'),
           apiFetch<ApiHoliday[]>('/business/holidays'),
         ])
