@@ -154,10 +154,6 @@ export function buildMenuDisplaySubtitle(menu: MenuDisplaySource, bizType: strin
   const human = stripMetaBlock(menu.description)
   if (human) return human
 
-  if (menu.name && buildMenuDisplayTitle(menu, bizType) !== menu.name) {
-    return menu.name
-  }
-
   return null
 }
 
