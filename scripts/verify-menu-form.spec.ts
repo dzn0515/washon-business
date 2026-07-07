@@ -45,11 +45,11 @@ test.describe('menu form — wash owner', () => {
 })
 
 const NON_WASH_CASES = [
-  { email: 'qa-tire@test.autoon.kr', label: '정비 기본 가격', hidden: '소형 국산' },
-  { email: 'qa-glass-tint@test.autoon.kr', label: '부위·필름별 가격', hidden: '차종별 가격' },
-  { email: 'qa-blackbox-navi@test.autoon.kr', label: '제품·장착 가격', hidden: '소형 국산' },
-  { email: 'qa-dent-repair@test.autoon.kr', label: '작업 부위별 견적', hidden: '차종별 가격' },
-  { email: 'qa-oil-maintenance@test.autoon.kr', label: '정비 기본 가격', hidden: '차종별 가격' },
+  { email: 'qa-tire@test.autoon.kr', label: '판매가격', hidden: '차종별 가격' },
+  { email: 'qa-glass-tint@test.autoon.kr', label: '필름 브랜드', hidden: '차종별 가격' },
+  { email: 'qa-blackbox-navi@test.autoon.kr', label: '모델명', hidden: '소형 국산' },
+  { email: 'qa-dent-repair@test.autoon.kr', label: '부위', hidden: '차종별 가격' },
+  { email: 'qa-oil-maintenance@test.autoon.kr', label: '오일 종류', hidden: '차종별 가격' },
 ]
 
 for (const { email, label, hidden } of NON_WASH_CASES) {

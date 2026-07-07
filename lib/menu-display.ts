@@ -1,5 +1,6 @@
 import {
-  getMenuCategoriesForBiz,
+  getCategoryLabel,
+  getBizFamily,
   inferFormCategoryFromApi,
   parseMenuDescription,
   stripMetaBlock,
@@ -7,13 +8,23 @@ import {
   type MenuFormExtras,
 } from '@/lib/menu-form-config'
 import { shouldShowVehiclePriceGrid } from '@/lib/pricing-label'
-import { won } from '@/lib/dashboard-ui'
+import { won, type PriceGrid } from '@/lib/dashboard-ui'
 
 export type MenuDisplaySource = {
   name: string
   description?: string | null
   category?: string | null
   price?: number
+  duration_minutes?: number
+  price_grid?: PriceGrid
+}
+
+export type MenuCardDisplay = {
+  categoryBadge: string
+  titleLines: string[]
+  detailLines: string[]
+  durationLabel: string
+  priceLabel: string
 }
 
 const INTERNAL_META_KEYS = new Set(['_formCategory'])
@@ -30,11 +41,6 @@ function publicExtras(meta: MenuFormExtras): MenuFormExtras {
   )
 }
 
-function categoryLabel(bizType: string, formCategory: string): string {
-  const cats = getMenuCategoriesForBiz(bizType)
-  return cats.find((c) => c.value === formCategory)?.label ?? formCategory
-}
-
 function resolveFormCategory(
   bizType: string,
   menu: MenuDisplaySource,
@@ -46,115 +52,136 @@ function resolveFormCategory(
   return inferFormCategoryFromApi(bizType, menu.category)
 }
 
-function joinParts(parts: Array<string | number | boolean | undefined | null>): string {
+function joinText(parts: Array<string | number | boolean | undefined | null>): string {
   return parts
     .map((p) => (typeof p === 'string' ? p.trim() : p))
     .filter((p) => p !== '' && p !== false && p !== undefined && p !== null)
     .join(' ')
 }
 
-function tintCategoryLabel(formCategory: string, fallback: string): string {
-  switch (formCategory) {
-    case 'front':
-      return '전면 썬팅'
-    case 'side_rear':
-      return '측후면 썬팅'
-    case 'full':
-      return '전체 썬팅'
-    default:
-      return fallback
-  }
+function buildTireSize(extras: MenuFormExtras): string | null {
+  const w = extras.tireWidth
+  const ar = extras.aspectRatio
+  const inch = extras.tireInch
+  if (w && ar && inch) return `${w}/${ar}R${inch}`
+  if (inch) return `${inch}인치`
+  return null
 }
 
-export function buildMenuDisplayTitle(menu: MenuDisplaySource, bizType: string): string {
-  if (shouldShowVehiclePriceGrid(bizType)) return menu.name
+function minGridPrice(grid?: PriceGrid): number | null {
+  if (!grid) return null
+  const values = Object.values(grid).filter((v) => typeof v === 'number' && v > 0)
+  if (values.length === 0) return null
+  return Math.min(...values)
+}
 
+export function buildMenuCardDisplay(
+  menu: MenuDisplaySource,
+  bizType: string,
+): MenuCardDisplay {
   const meta = parseMenuMeta(menu.description)
   const extras = publicExtras(meta)
   const formCategory = resolveFormCategory(bizType, menu, meta)
-  const catLabel = categoryLabel(bizType, formCategory)
+  const categoryBadge = getCategoryLabel(bizType, formCategory)
+  const duration = menu.duration_minutes ?? 0
+  const family = getBizFamily(bizType)
 
-  if (['tire', 'oil_maintenance', 'oil', 'maintenance', 'repair', 'battery'].includes(bizType)) {
+  if (shouldShowVehiclePriceGrid(bizType)) {
+    const minPrice = minGridPrice(menu.price_grid) ?? menu.price ?? 0
+    return {
+      categoryBadge,
+      titleLines: [menu.name],
+      detailLines: [],
+      durationLabel: duration > 0 ? `⏱ ${duration}분` : '',
+      priceLabel: minPrice > 0 ? `💰 경차 ${won(minPrice)}~` : '',
+    }
+  }
+
+  const price = menu.price ?? 0
+  const base: MenuCardDisplay = {
+    categoryBadge,
+    titleLines: [],
+    detailLines: [],
+    durationLabel: duration > 0 ? `⏱ ${duration}분` : '⏱ 견적',
+    priceLabel: price > 0 ? `💰 ${won(price)}` : '',
+  }
+
+  if (family === 'tire') {
     switch (formCategory) {
       case 'tire_replace': {
-        const inch = extras.tireInch ? `${extras.tireInch}인치` : ''
-        const detail = joinParts([extras.brandMaker, menu.name, inch])
-        return `[${catLabel}] ${detail || menu.name}`
+        const size = buildTireSize(extras)
+        const product = joinText([extras.brandMaker, extras.productName || menu.name])
+        base.titleLines = [size, product].filter((x): x is string => Boolean(x))
+        if (extras.balanceIncluded === true) base.detailLines.push('휠밸런스 포함')
+        break
       }
       case 'wheel_balance': {
-        const inch = extras.tireInch ? `${extras.tireInch}인치` : ''
-        return `[${catLabel}] ${joinParts([inch, '기본 작업']) || '기본 작업'}`
+        const inch = extras.tireInch ? `${extras.tireInch}인치` : null
+        base.titleLines = [inch ? `${inch} 기본 작업` : '기본 작업']
+        break
       }
       case 'rotation':
-        return `[${catLabel}] 기본 작업`
+      case 'puncture':
+        base.titleLines = ['기본 작업']
+        break
       case 'engine_oil':
-        return `[${catLabel}] ${extras.vehicleOilType || menu.name}`
+        base.titleLines = [joinText([extras.oilType, extras.vehicleType]) || menu.name]
+        break
+      case 'brake':
+        base.titleLines = [String(extras.brakeType || menu.name)]
+        break
       default:
-        return menu.name
+        base.titleLines = [menu.name]
     }
+    return base
   }
 
-  if (['glass_tint', 'tinting', 'glass', 'ppf', 'wrap'].includes(bizType)) {
-    if (formCategory === 'all') return menu.name
-    const label = tintCategoryLabel(formCategory, catLabel)
-    return `[${label}] ${extras.filmGrade || menu.name}`
+  if (family === 'tint') {
+    const film = joinText([extras.filmBrand, extras.filmGrade]) || String(extras.coatingName || menu.name)
+    base.titleLines = [film]
+    if (extras.warrantyPeriod) base.detailLines.push(`보증 ${extras.warrantyPeriod}`)
+    return base
   }
 
-  if (['blackbox_navi', 'blackbox', 'navigation', 'navi', 'audio'].includes(bizType)) {
-    switch (formCategory) {
-      case 'blackbox':
-        return `[블랙박스] ${extras.productModel || menu.name}`
-      case 'navi':
-        return `[내비게이션] ${extras.productModel || menu.name}`
-      case 'audio':
-        return `[카오디오] ${extras.productWorkName || menu.name}`
-      default:
-        return menu.name
+  if (family === 'bench') {
+    const title =
+      formCategory === 'audio'
+        ? String(extras.productWorkName || menu.name)
+        : joinText([extras.brandMaker, extras.productModel || menu.name])
+    base.titleLines = [title || menu.name]
+    const details: string[] = []
+    if (extras.mobileInstall === true) details.push('출장장착')
+    if (extras.productIncluded === true) details.push('제품 포함')
+    else if (extras.productIncluded === false) details.push('제품 미포함')
+    base.detailLines = details
+    return base
+  }
+
+  if (family === 'dent') {
+    base.titleLines = [String(extras.bodyPart || menu.name)]
+    if (['door_ding', 'bumper', 'scratch', 'panel', 'paint'].includes(formCategory)) {
+      base.durationLabel = duration > 0 ? `⏱ ${duration}분` : '⏱ 견적'
+      base.priceLabel = price > 0 ? `💰 ${won(price)}~` : base.priceLabel
     }
+    return base
   }
 
-  if (['dent_repair', 'dent'].includes(bizType)) {
-    switch (formCategory) {
-      case 'door_ding':
-        return `[문콕] ${extras.bodyPart || menu.name}`
-      case 'bumper':
-        return `[범퍼] ${extras.bodyPart || menu.name}`
-      case 'scratch':
-        return `[흠집 제거] ${extras.bodyPart || menu.name}`
-      default:
-        return menu.name
-    }
-  }
-
-  return menu.name
+  base.titleLines = [menu.name]
+  return base
 }
 
+/** @deprecated use buildMenuCardDisplay */
+export function buildMenuDisplayTitle(menu: MenuDisplaySource, bizType: string): string {
+  const card = buildMenuCardDisplay(menu, bizType)
+  return card.titleLines.join(' · ') || menu.name
+}
+
+/** @deprecated use buildMenuCardDisplay */
 export function buildMenuDisplaySubtitle(menu: MenuDisplaySource, bizType: string): string | null {
-  if (shouldShowVehiclePriceGrid(bizType)) return null
-
-  const meta = parseMenuMeta(menu.description)
-  const extras = publicExtras(meta)
-  const formCategory = resolveFormCategory(bizType, menu, meta)
-
-  if (formCategory === 'blackbox' && ['blackbox_navi', 'blackbox'].includes(bizType)) {
-    const parts: string[] = []
-    if (extras.productIncluded === true) parts.push('제품 포함')
-    else if (extras.productIncluded === false) parts.push('제품 미포함')
-    if (typeof extras.installFee === 'number' && extras.installFee > 0) {
-      parts.push(`장착비 ${won(extras.installFee)}`)
-    }
-    if (extras.balanceIncluded === true) parts.push('휠밸런스 포함')
-    return parts.length > 0 ? parts.join(' · ') : null
-  }
-
-  if (formCategory === 'tire_replace' && extras.balanceIncluded === true) {
-    return '휠밸런스 포함'
-  }
-
+  const card = buildMenuCardDisplay(menu, bizType)
+  if (card.detailLines.length > 0) return card.detailLines.join(' · ')
   const human = stripMetaBlock(menu.description)
-  if (human) return human
-
-  return null
+  return human || null
 }
 
 export function stripInternalMetaKeys(extras: MenuFormExtras): MenuFormExtras {

@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react'
 
-import { Plus, Pencil, Trash2, CloudRain } from 'lucide-react'
+import { Plus, CloudRain } from 'lucide-react'
 
 import Badge from '@/components/ui/Badge'
 
@@ -12,15 +12,13 @@ import { useMenus } from '@/lib/hooks/useMenus'
 
 import { useGroupedMenus } from '@/lib/hooks/useGroupedMenus'
 
-import { createMenu, updateMenu, type GroupedMenuItem } from '@/lib/store-api'
+import { createMenu, updateMenu } from '@/lib/store-api'
 
 import type { BusinessHours } from '@/types'
 
-import { CATEGORY_LABELS } from '@/types'
-
 import { getMenuNamePlaceholder } from '@/lib/business-types'
 
-import { CARD, BTN_PRIMARY, won, type PriceGrid } from '@/lib/dashboard-ui'
+import { CARD, BTN_PRIMARY, type PriceGrid } from '@/lib/dashboard-ui'
 
 import {
   applyMenuBasePrice,
@@ -39,11 +37,12 @@ import {
 
 import MenuFormBody from '@/components/menus/MenuFormBody'
 
+import MenuListCard from '@/components/menus/MenuListCard'
+
 import { buildMenuPayload, validateMenuPayload } from '@/lib/menu-payload'
 
 import {
-  buildMenuDisplaySubtitle,
-  buildMenuDisplayTitle,
+  buildMenuCardDisplay,
   parseMenuMeta,
   stripInternalMetaKeys,
 } from '@/lib/menu-display'
@@ -53,11 +52,21 @@ import { useDemoMode } from '@/components/providers/DemoModeProvider'
 import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
 
 import {
-  getListPriceSummaryLabel,
   shouldShowVehiclePriceGrid,
 } from '@/lib/pricing-label'
 
-
+type MenuListItem = {
+  apiId: string
+  name: string
+  description: string | null
+  category: string | null
+  duration_minutes: number
+  price: number
+  price_grid: PriceGrid
+  is_active: boolean
+  is_popular: boolean
+  localId?: number
+}
 
 type Tab = 'menus' | 'hours' | 'holidays'
 
@@ -73,52 +82,6 @@ const TABS: { key: Tab; label: string }[] = [
 
 ]
 
-
-
-const PRICE_LABELS: { key: keyof PriceGrid; label: string }[] = [
-
-  { key: 'domestic_small', label: '소형 국산' },
-
-  { key: 'domestic_medium', label: '중형 국산' },
-
-  { key: 'domestic_large', label: '대형 국산' },
-
-  { key: 'import_small', label: '소형 수입' },
-
-  { key: 'import_medium', label: '중형 수입' },
-
-  { key: 'import_large', label: '대형 수입' },
-
-]
-
-
-
-function PriceGridView({ grid }: { grid: PriceGrid }) {
-
-  return (
-
-    <div className="grid grid-cols-3 gap-2 mt-3">
-
-      {PRICE_LABELS.map(({ key, label }) => (
-
-        <div key={key} className="bg-gray-50 rounded-lg p-2 text-center">
-
-          <p className="text-[10px] text-gray-400">{label}</p>
-
-          <p className="text-xs font-medium mt-0.5">{won(grid[key])}</p>
-
-        </div>
-
-      ))}
-
-    </div>
-
-  )
-
-}
-
-
-
 export default function MenusPage() {
 
   const { isDemo } = useDemoMode()
@@ -130,8 +93,6 @@ export default function MenusPage() {
     groupedMenus,
 
     groupedCategories,
-
-    useGrouped,
 
     groupedLoading,
 
@@ -215,6 +176,41 @@ export default function MenusPage() {
     return map
   }, [apiMenus])
 
+  const menuListItems = useMemo((): MenuListItem[] => {
+    if (menus.length > 0) {
+      return menus.map((m) => ({
+        apiId: m.apiId,
+        name: m.name,
+        description: m.description,
+        category: m.category,
+        duration_minutes: m.duration_minutes,
+        price: getRepresentativeMenuPrice(m.price_grid, pricingBizType),
+        price_grid: m.price_grid,
+        is_active: m.is_active,
+        is_popular: m.is_popular,
+        localId: m.id,
+      }))
+    }
+    const items: MenuListItem[] = []
+    for (const cat of groupedCategories) {
+      for (const item of groupedMenus[cat] ?? []) {
+        const full = menuByApiId.get(item.id)
+        items.push({
+          apiId: item.id,
+          name: item.name,
+          description: full?.description ?? null,
+          category: item.category,
+          duration_minutes: item.duration_minutes,
+          price: item.price,
+          price_grid: applyMenuBasePrice(item.price, pricingBizType),
+          is_active: item.is_active,
+          is_popular: false,
+        })
+      }
+    }
+    return items
+  }, [menus, groupedCategories, groupedMenus, menuByApiId, pricingBizType])
+
 
 
   const hours = hoursDraft ?? apiHours
@@ -251,113 +247,35 @@ export default function MenusPage() {
 
 
 
-  const openEditGrouped = useCallback((item: GroupedMenuItem) => {
+  const openEditItem = useCallback(
+    (item: MenuListItem) => {
+      setEditId(item.localId ?? null)
+      setEditMenuApiId(item.apiId)
+      setFormName(item.name)
+      setFormDuration(item.duration_minutes)
 
-    setEditId(null)
-
-    setEditMenuApiId(item.id)
-
-    setFormName(item.name)
-
-    setFormDuration(item.duration_minutes)
-
-    const full = menuByApiId.get(item.id)
-
-    const description = full?.description ?? null
-
-    const meta = parseMenuMeta(description)
-
-    const extras = stripInternalMetaKeys(meta)
-
-    const formCat =
-
-      typeof meta._formCategory === 'string'
-
-        ? meta._formCategory
-
-        : inferFormCategoryFromApi(pricingBizType, item.category)
-
-    const config = getMenuFormConfig(pricingBizType, formCat)
-
-    const price = syncExtrasToBasePrice(config, extras, item.price)
-
-    setFormBasePrice(price)
-
-    setFormPrices(applyMenuBasePrice(price, pricingBizType))
-
-    setFormVisible(item.is_active)
-
-    setFormCategory(formCat)
-
-    setFormExtras(extras)
-
-    setFormExistingDescription(description)
-
-    setSaveError(null)
-
-    setModalOpen(true)
-
-  }, [pricingBizType, menuByApiId])
-
-
-
-  const openEdit = useCallback(
-
-    (id: number) => {
-
-      const m = menus.find((x) => x.id === id)
-
-      if (!m) return
-
-      setEditId(id)
-
-      setEditMenuApiId(m.apiId)
-
-      setFormName(m.name)
-
-      setFormDuration(m.duration_minutes)
-
-      const meta = parseMenuMeta(m.description)
-
+      const meta = parseMenuMeta(item.description)
       const extras = stripInternalMetaKeys(meta)
-
       const formCat =
-
         typeof meta._formCategory === 'string'
-
           ? meta._formCategory
-
-          : inferFormCategoryFromApi(pricingBizType, m.category)
-
-      setFormCategory(formCat)
-
-      setFormExtras(extras)
-
-      setFormExistingDescription(m.description)
-
-      const rep = getRepresentativeMenuPrice(m.price_grid, pricingBizType)
-
+          : inferFormCategoryFromApi(pricingBizType, item.category)
       const config = getMenuFormConfig(pricingBizType, formCat)
-
-      const price = syncExtrasToBasePrice(config, extras, rep)
+      const price = syncExtrasToBasePrice(config, extras, item.price)
 
       setFormBasePrice(price)
-
-      setFormPrices(showVehicleGrid ? m.price_grid : applyMenuBasePrice(price, pricingBizType))
-
-      setFormVisible(m.is_active)
-
+      setFormPrices(
+        showVehicleGrid ? item.price_grid : applyMenuBasePrice(price, pricingBizType),
+      )
+      setFormVisible(item.is_active)
+      setFormCategory(formCat)
+      setFormExtras(extras)
+      setFormExistingDescription(item.description)
       setSaveError(null)
-
       setModalOpen(true)
-
     },
-
-    [menus, pricingBizType, showVehicleGrid],
-
+    [pricingBizType, showVehicleGrid],
   )
-
-
 
   const handleCategoryChange = useCallback(
     (nextCategory: string) => {
@@ -421,10 +339,7 @@ export default function MenusPage() {
 
 
   const showMenusLoading =
-
-    (menusLoading && menus.length === 0 && !useGrouped) ||
-
-    (groupedLoading && !useGrouped && menus.length === 0 && !menusError)
+    (menusLoading || groupedLoading) && menuListItems.length === 0 && !menusError
 
 
 
@@ -496,121 +411,7 @@ export default function MenusPage() {
 
             <p className="text-sm text-gray-400 py-6 text-center">메뉴 불러오는 중...</p>
 
-          ) : useGrouped ? (
-
-            groupedCategories.map((category) => (
-
-              <div key={category}>
-
-                <h3 className="text-sm font-bold text-blue-600 mb-2">
-
-                  [{CATEGORY_LABELS[category] ?? category}]
-
-                </h3>
-
-                <div className="space-y-2">
-
-                  {(groupedMenus[category] ?? []).map((item) => {
-
-                    const full = menuByApiId.get(item.id)
-
-                    const displaySource = {
-
-                      name: item.name,
-
-                      description: full?.description ?? null,
-
-                      category: item.category,
-
-                      price: item.price,
-
-                    }
-
-                    const displayTitle = buildMenuDisplayTitle(displaySource, pricingBizType)
-
-                    const displaySubtitle = buildMenuDisplaySubtitle(displaySource, pricingBizType)
-
-                    return (
-
-                    <div
-
-                      key={item.id}
-
-                      className={`${CARD} flex items-center justify-between gap-3 ${!item.is_active ? 'opacity-50' : ''}`}
-
-                    >
-
-                      <div>
-
-                        <div className="flex items-center gap-2 flex-wrap">
-
-                          <p className="font-medium text-gray-900">{displayTitle}</p>
-
-                          {!item.is_active && (
-
-                            <Badge className="bg-gray-100 text-gray-500">비활성/견본</Badge>
-
-                          )}
-
-                        </div>
-
-                        {displaySubtitle ? (
-
-                          <p className="text-xs text-gray-500 mt-0.5">{displaySubtitle}</p>
-
-                        ) : null}
-
-                        <p className="text-xs text-gray-400 mt-1">
-
-                          {item.duration_minutes}분 · {won(item.price)}
-
-                        </p>
-
-                      </div>
-
-                      <div className="flex gap-1.5 shrink-0">
-
-                        <button
-
-                          type="button"
-
-                          onClick={() => openEditGrouped(item)}
-
-                          className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
-
-                        >
-
-                          <Pencil size={14} />
-
-                        </button>
-
-                        <button
-
-                          type="button"
-
-                          className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
-
-                        >
-
-                          <Trash2 size={14} />
-
-                        </button>
-
-                      </div>
-
-                    </div>
-
-                    )
-
-                  })}
-
-                </div>
-
-              </div>
-
-            ))
-
-          ) : menus.length === 0 && !menusLoading ? (
+          ) : menuListItems.length === 0 ? (
 
             <div className="rounded-xl border border-gray-200 bg-white px-4 py-8 text-center">
 
@@ -624,100 +425,33 @@ export default function MenusPage() {
 
           ) : (
 
-            <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
 
-              {menus.map((m) => {
-
-                const displaySource = {
-
-                  name: m.name,
-
-                  description: m.description,
-
-                  category: m.category,
-
-                }
-
-                const displayTitle = buildMenuDisplayTitle(displaySource, pricingBizType)
-
-                const displaySubtitle = buildMenuDisplaySubtitle(displaySource, pricingBizType)
-
-                return (
-
-                <div key={m.id} className={`${CARD} ${!m.is_active ? 'opacity-50' : ''}`}>
-
-                  <div className="flex items-start justify-between gap-2">
-
-                    <div className="flex-1 min-w-0">
-
-                      <div className="flex items-center gap-2 flex-wrap">
-
-                        <span className="font-medium text-gray-900">{displayTitle}</span>
-
-                        {m.is_popular && <Badge className="bg-orange-100 text-orange-700">인기</Badge>}
-
-                        <Badge className={m.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}>
-
-                          {m.is_active ? '노출중' : '비활성'}
-
-                        </Badge>
-
-                      </div>
-
-                      {displaySubtitle ? (
-
-                        <p className="text-xs text-gray-500 mt-0.5">{displaySubtitle}</p>
-
-                      ) : null}
-
-                      <p className="text-xs text-gray-400 mt-1">소요 {m.duration_minutes}분 · 이번달 예약 {m.monthly_bookings}건</p>
-
-                      {showVehicleGrid ? (
-                        <PriceGridView grid={m.price_grid} />
-                      ) : (
-                        <p className="text-xs text-gray-500 mt-2">
-                          {getListPriceSummaryLabel(pricingBizType)} · {won(getRepresentativeMenuPrice(m.price_grid, pricingBizType))}
-                        </p>
-                      )}
-
-                    </div>
-
-                    <div className="flex flex-col gap-1.5 shrink-0">
-
-                      <button type="button" onClick={() => openEdit(m.id)} className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
-
-                        <Pencil size={14} />
-
-                      </button>
-
-                      <button type="button" className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
-
-                        <Trash2 size={14} />
-
-                      </button>
-
-                      <button
-
-                        type="button"
-
-                        onClick={() => toggleMenu(m.id)}
-
-                        className={`text-[10px] px-2 py-1 rounded-lg border ${m.is_active ? 'border-gray-200 text-gray-500' : 'border-blue-200 text-blue-600 bg-blue-50'}`}
-
-                      >
-
-                        {m.is_active ? 'OFF' : 'ON'}
-
-                      </button>
-
-                    </div>
-
-                  </div>
-
-                </div>
-
+              {menuListItems.map((item) => {
+                const display = buildMenuCardDisplay(
+                  {
+                    name: item.name,
+                    description: item.description,
+                    category: item.category,
+                    price: item.price,
+                    duration_minutes: item.duration_minutes,
+                    price_grid: item.price_grid,
+                  },
+                  pricingBizType,
                 )
-
+                return (
+                  <MenuListCard
+                    key={item.apiId}
+                    display={display}
+                    isActive={item.is_active}
+                    isPopular={item.is_popular}
+                    onEdit={() => openEditItem(item)}
+                    showToggle={showVehicleGrid && item.localId !== undefined}
+                    onToggle={
+                      item.localId !== undefined ? () => toggleMenu(item.localId!) : undefined
+                    }
+                  />
+                )
               })}
 
             </div>

@@ -13,7 +13,6 @@ export type MenuFormField = {
   label: string
   placeholder?: string
   helpText?: string
-  /** 대표 가격(formBasePrice)에 매핑 */
   isPrimaryPrice?: boolean
 }
 
@@ -38,13 +37,13 @@ export type MenuFormExtras = Record<string, string | number | boolean>
 
 const META_PREFIX = 'AUTOON_MENU_META:'
 
-type BizFamily = 'wash' | 'tire' | 'tint' | 'bench' | 'dent'
+export type BizFamily = 'wash' | 'tire' | 'tint' | 'bench' | 'dent'
 
 function norm(bizType?: string | null): string {
   return (bizType ?? 'wash').trim().toLowerCase()
 }
 
-function getBizFamily(bizType?: string | null): BizFamily {
+export function getBizFamily(bizType?: string | null): BizFamily {
   const code = norm(bizType)
   if (shouldShowVehiclePriceGrid(code)) return 'wash'
   if (['tire', 'oil_maintenance', 'oil', 'maintenance', 'repair', 'battery'].includes(code)) {
@@ -56,42 +55,70 @@ function getBizFamily(bizType?: string | null): BizFamily {
   return 'wash'
 }
 
+const WASH_CATEGORIES: MenuCategoryOption[] = [
+  { value: 'hand_wash', label: '손세차', apiCategory: 'wash' },
+  { value: 'detailing', label: '디테일링', apiCategory: 'detailing' },
+  { value: 'polish', label: '광택', apiCategory: 'premium' },
+  { value: 'glass_coating', label: '유리막', apiCategory: 'coating' },
+  { value: 'interior', label: '실내크리닝', apiCategory: 'interior' },
+  { value: 'hydro_coating', label: '발수코팅', apiCategory: 'coating' },
+  { value: 'etc', label: '기타', apiCategory: 'wash' },
+]
+
 const TIRE_CATEGORIES: MenuCategoryOption[] = [
-  { value: 'all', label: '전상품', apiCategory: 'labor' },
   { value: 'tire_replace', label: '타이어 교체', apiCategory: 'tire_product' },
   { value: 'wheel_balance', label: '휠 밸런스', apiCategory: 'alignment' },
   { value: 'rotation', label: '위치교환', apiCategory: 'labor' },
+  { value: 'puncture', label: '펑크수리', apiCategory: 'labor' },
   { value: 'engine_oil', label: '엔진오일', apiCategory: 'oil' },
+  { value: 'brake', label: '브레이크', apiCategory: 'labor' },
+  { value: 'etc', label: '기타', apiCategory: 'labor' },
 ]
 
 const TINT_CATEGORIES: MenuCategoryOption[] = [
-  { value: 'all', label: '전상품', apiCategory: 'tinting' },
   { value: 'front', label: '전면', apiCategory: 'construction' },
   { value: 'side_rear', label: '측후면', apiCategory: 'construction' },
-  { value: 'full', label: '전체 시공', apiCategory: 'construction' },
+  { value: 'full', label: '전체', apiCategory: 'construction' },
+  { value: 'ppf', label: 'PPF', apiCategory: 'construction' },
+  { value: 'glass_coating', label: '유리막', apiCategory: 'tinting' },
+  { value: 'etc', label: '기타', apiCategory: 'tinting' },
 ]
 
 const BENCH_CATEGORIES: MenuCategoryOption[] = [
-  { value: 'all', label: '전상품', apiCategory: 'installation_labor' },
   { value: 'blackbox', label: '블랙박스', apiCategory: 'blackbox' },
   { value: 'navi', label: '내비게이션', apiCategory: 'navi' },
   { value: 'audio', label: '카오디오', apiCategory: 'audio' },
+  { value: 'rear_camera', label: '후방카메라', apiCategory: 'installation_labor' },
+  { value: 'etc', label: '기타', apiCategory: 'installation_labor' },
 ]
 
 const DENT_CATEGORIES: MenuCategoryOption[] = [
-  { value: 'all', label: '전상품', apiCategory: 'repair' },
   { value: 'door_ding', label: '문콕', apiCategory: 'dent' },
   { value: 'bumper', label: '범퍼', apiCategory: 'repair' },
-  { value: 'scratch', label: '흠집 제거', apiCategory: 'repair' },
+  { value: 'scratch', label: '흠집', apiCategory: 'repair' },
+  { value: 'panel', label: '판금', apiCategory: 'repair' },
+  { value: 'paint', label: '도색', apiCategory: 'repair' },
+  { value: 'etc', label: '기타', apiCategory: 'repair' },
 ]
 
-const WASH_CATEGORIES: MenuCategoryOption[] = [
-  { value: 'wash', label: '세차', apiCategory: 'wash' },
-  { value: 'premium', label: '프리미엄', apiCategory: 'premium' },
-  { value: 'detailing', label: '디테일링', apiCategory: 'detailing' },
-  { value: 'coating', label: '코팅', apiCategory: 'coating' },
-  { value: 'interior', label: '실내크리닝', apiCategory: 'interior' },
-]
+const LEGACY_FORM_CATEGORY: Record<string, string> = {
+  all: '',
+  wash: 'hand_wash',
+  premium: 'polish',
+  coating: 'glass_coating',
+  tire_product: 'tire_replace',
+  alignment: 'wheel_balance',
+  labor: 'rotation',
+  oil: 'engine_oil',
+  construction: 'front',
+  tinting: 'etc',
+  installation_labor: 'etc',
+  blackbox: 'blackbox',
+  navi: 'navi',
+  audio: 'audio',
+  dent: 'door_ding',
+  repair: 'bumper',
+}
 
 function field(
   key: string,
@@ -102,80 +129,120 @@ function field(
   return { key, type, label, ...opts }
 }
 
+function etcPriceFields(label = '가격'): MenuFormField[] {
+  return [field('salePrice', 'price', label, { isPrimaryPrice: true, placeholder: '0' })]
+}
+
 function tireFields(category: string): MenuFormField[] {
   switch (category) {
     case 'tire_replace':
       return [
-        field('tireInch', 'text', '타이어 인치', { placeholder: '예: 17, 18' }),
-        field('brandMaker', 'text', '브랜드/메이커', { placeholder: '예: 한국타이어, 넥센' }),
-        field('installFee', 'price', '장착비', { isPrimaryPrice: true, placeholder: '0' }),
+        field('tireWidth', 'text', '폭', { placeholder: '예: 235' }),
+        field('aspectRatio', 'text', '편평비', { placeholder: '예: 55' }),
+        field('tireInch', 'text', '인치', { placeholder: '예: 18' }),
+        field('brandMaker', 'text', '브랜드', { placeholder: '예: 미쉐린' }),
+        field('productName', 'text', '상품명', { placeholder: '예: 프라이머시4' }),
+        field('installFee', 'price', '장착비', { placeholder: '0' }),
+        field('salePrice', 'price', '판매가격', { isPrimaryPrice: true, placeholder: '0' }),
         field('balanceIncluded', 'checkbox', '휠밸런스 포함'),
       ]
     case 'wheel_balance':
       return [
-        field('tireInch', 'text', '인치', { placeholder: '예: 17' }),
-        field('workFee', 'price', '기본 작업비', { isPrimaryPrice: true }),
+        field('tireInch', 'text', '인치', { placeholder: '예: 18' }),
+        field('salePrice', 'price', '기본 작업비', { isPrimaryPrice: true }),
       ]
     case 'rotation':
-      return [field('workFee', 'price', '기본 작업비', { isPrimaryPrice: true })]
+    case 'puncture':
+      return [field('salePrice', 'price', '기본 작업비', { isPrimaryPrice: true })]
     case 'engine_oil':
       return [
-        field('vehicleOilType', 'text', '차종/오일 종류', {
-          placeholder: '예: 가솔린 5W-30, 디젤 5W-40',
-        }),
-        field('basePrice', 'price', '기본 가격', { isPrimaryPrice: true }),
+        field('oilType', 'text', '오일 종류', { placeholder: '예: 합성유 5W-30' }),
+        field('vehicleType', 'text', '차종', { placeholder: '예: SUV, 승용' }),
+        field('salePrice', 'price', '가격', { isPrimaryPrice: true }),
+      ]
+    case 'brake':
+      return [
+        field('brakeType', 'text', '작업 종류', { placeholder: '예: 패드 교환' }),
+        field('salePrice', 'price', '가격', { isPrimaryPrice: true }),
       ]
     default:
-      return [field('basePrice', 'price', '기본 가격', { isPrimaryPrice: true })]
+      return etcPriceFields()
   }
 }
 
 function tintFields(category: string): MenuFormField[] {
-  if (category === 'all') {
-    return [field('basePrice', 'price', '기본 가격', { isPrimaryPrice: true })]
+  switch (category) {
+    case 'front':
+    case 'side_rear':
+    case 'full':
+    case 'ppf':
+      return [
+        field('filmBrand', 'text', '필름 브랜드', { placeholder: '예: 레이노' }),
+        field('filmGrade', 'text', '필름 등급', { placeholder: '예: S9' }),
+        field('warrantyPeriod', 'text', '보증기간', { placeholder: '예: 5년' }),
+        field('salePrice', 'price', '가격', { isPrimaryPrice: true }),
+      ]
+    case 'glass_coating':
+      return [
+        field('coatingName', 'text', '유리막 제품명', { placeholder: '예: 세라믹 프로' }),
+        field('salePrice', 'price', '가격', { isPrimaryPrice: true }),
+      ]
+    default:
+      return etcPriceFields()
   }
-  return [
-    field('filmGrade', 'text', '필름 등급', { placeholder: '예: 루마 버텍스, 3M 크리스탈' }),
-    field(
-      'installPrice',
-      'price',
-      category === 'full' ? '전체 가격' : '시공 가격',
-      { isPrimaryPrice: true },
-    ),
-  ]
 }
 
 function benchFields(category: string): MenuFormField[] {
   switch (category) {
     case 'blackbox':
       return [
-        field('productModel', 'text', '제품명/모델명', { placeholder: '예: 파인뷰 X500 2채널' }),
-        field('installFee', 'price', '장착비', { isPrimaryPrice: true }),
+        field('brandMaker', 'text', '브랜드', { placeholder: '예: 아이나비' }),
+        field('productModel', 'text', '모델명', { placeholder: '예: QXD1' }),
+        field('mobileInstall', 'checkbox', '출장장착'),
+        field('salePrice', 'price', '가격', { isPrimaryPrice: true }),
         field('productIncluded', 'checkbox', '제품 포함'),
       ]
     case 'navi':
       return [
-        field('productModel', 'text', '제품명/모델명', { placeholder: '예: 네비 모델명' }),
-        field('installFee', 'price', '장착비', { isPrimaryPrice: true }),
+        field('brandMaker', 'text', '브랜드', { placeholder: '예: 파인뷰' }),
+        field('productModel', 'text', '모델명', { placeholder: '예: LX500' }),
+        field('mobileInstall', 'checkbox', '출장장착'),
+        field('salePrice', 'price', '가격', { isPrimaryPrice: true }),
       ]
     case 'audio':
       return [
         field('productWorkName', 'text', '제품/작업명', { placeholder: '예: 스피커 업그레이드' }),
-        field('installFee', 'price', '설치비', { isPrimaryPrice: true }),
+        field('salePrice', 'price', '가격', { isPrimaryPrice: true }),
+      ]
+    case 'rear_camera':
+      return [
+        field('brandMaker', 'text', '브랜드', { placeholder: '예: 아이나비' }),
+        field('productModel', 'text', '모델명', { placeholder: '예: 후방카메라' }),
+        field('salePrice', 'price', '가격', { isPrimaryPrice: true }),
       ]
     default:
-      return [field('basePrice', 'price', '기본 가격', { isPrimaryPrice: true })]
+      return etcPriceFields()
   }
 }
 
 function dentFields(category: string): MenuFormField[] {
-  if (category === 'all') {
-    return [field('estimateStart', 'price', '견적 시작가', { isPrimaryPrice: true })]
+  switch (category) {
+    case 'door_ding':
+    case 'bumper':
+    case 'scratch':
+      return [
+        field('bodyPart', 'text', '부위', { placeholder: '예: 운전석 앞문' }),
+        field('estimateStart', 'price', '견적 시작가', { isPrimaryPrice: true }),
+      ]
+    case 'panel':
+    case 'paint':
+      return [
+        field('bodyPart', 'text', '부위', { placeholder: '예: 전면 범퍼' }),
+        field('estimateStart', 'price', '견적 시작가', { isPrimaryPrice: true }),
+      ]
+    default:
+      return etcPriceFields('견적 시작가')
   }
-  return [
-    field('bodyPart', 'text', '부위', { placeholder: '예: 운전석 도어, 전면 범퍼' }),
-    field('unitOrStartPrice', 'price', '개당 가격 또는 시작가', { isPrimaryPrice: true }),
-  ]
 }
 
 export function getMenuCategoriesForBiz(bizType?: string | null): MenuCategoryOption[] {
@@ -195,8 +262,23 @@ export function getMenuCategoriesForBiz(bizType?: string | null): MenuCategoryOp
 
 export function getDefaultFormCategory(bizType?: string | null): string {
   const family = getBizFamily(bizType)
-  if (family === 'wash') return 'wash'
-  return 'all'
+  switch (family) {
+    case 'tire':
+      return 'tire_replace'
+    case 'tint':
+      return 'front'
+    case 'bench':
+      return 'blackbox'
+    case 'dent':
+      return 'door_ding'
+    default:
+      return 'hand_wash'
+  }
+}
+
+export function getCategoryLabel(bizType: string | null | undefined, formCategory: string): string {
+  const cats = getMenuCategoriesForBiz(bizType)
+  return cats.find((c) => c.value === formCategory)?.label ?? formCategory
 }
 
 export function toApiCategory(bizType: string | null | undefined, formCategory: string): string {
@@ -211,11 +293,24 @@ export function inferFormCategoryFromApi(
   const cats = getMenuCategoriesForBiz(bizType)
   const code = (apiCategory ?? '').trim()
   if (!code) return getDefaultFormCategory(bizType)
+
+  const legacy = LEGACY_FORM_CATEGORY[code]
+  if (legacy && cats.some((c) => c.value === legacy)) return legacy
+
   const exact = cats.find((c) => c.value === code)
   if (exact) return exact.value
+
   const byApi = cats.find((c) => c.apiCategory === code)
   if (byApi) return byApi.value
+
+  if (code === 'all') return getDefaultFormCategory(bizType)
+
   return getDefaultFormCategory(bizType)
+}
+
+function shouldShowMenuName(family: BizFamily, category: string): boolean {
+  if (family === 'wash') return true
+  return category === 'etc'
 }
 
 export function getMenuFormConfig(
@@ -225,7 +320,8 @@ export function getMenuFormConfig(
   const family = getBizFamily(bizType)
   const categories = getMenuCategoriesForBiz(bizType)
   const defaultCategory = getDefaultFormCategory(bizType)
-  const selected = category && categories.some((c) => c.value === category) ? category : defaultCategory
+  const selected =
+    category && categories.some((c) => c.value === category) ? category : defaultCategory
 
   if (family === 'wash') {
     return {
@@ -244,7 +340,7 @@ export function getMenuFormConfig(
     categories,
     defaultCategory,
     showVehicleGrid: false,
-    showName: true,
+    showName: shouldShowMenuName(family, selected),
     showDuration: true,
     priceHint: getBasePriceHint(bizType),
   }
@@ -254,7 +350,7 @@ export function getMenuFormConfig(
       return {
         ...base,
         fields: tireFields(selected),
-        priceSectionTitle: selected === 'engine_oil' ? '정비 기본 가격' : getPriceSectionTitle(bizType),
+        priceSectionTitle: getPriceSectionTitle(bizType),
       }
     case 'tint':
       return { ...base, fields: tintFields(selected), priceSectionTitle: getPriceSectionTitle(bizType) }
@@ -265,7 +361,7 @@ export function getMenuFormConfig(
     default:
       return {
         ...base,
-        fields: [field('basePrice', 'price', getBasePriceLabel(bizType), { isPrimaryPrice: true })],
+        fields: [field('salePrice', 'price', getBasePriceLabel(bizType), { isPrimaryPrice: true })],
         priceSectionTitle: getPriceSectionTitle(bizType),
       }
   }
@@ -282,10 +378,14 @@ export function resolvePrimaryPrice(
   extras: MenuFormExtras,
 ): number {
   const primary = config.fields.find((f) => f.isPrimaryPrice)
-  if (!primary) return formBasePrice
-  const raw = extras[primary.key]
-  if (typeof raw === 'number' && raw > 0) return raw
-  if (primary.key === 'basePrice' || primary.key === 'estimateStart') return formBasePrice
+  if (primary) {
+    const raw = extras[primary.key]
+    if (typeof raw === 'number' && raw > 0) return raw
+  }
+  for (const key of ['salePrice', 'installFee', 'installPrice', 'workFee', 'basePrice', 'estimateStart']) {
+    const raw = extras[key]
+    if (typeof raw === 'number' && raw > 0) return raw
+  }
   return formBasePrice
 }
 
@@ -299,6 +399,26 @@ export function syncExtrasToBasePrice(
   const raw = extras[primary.key]
   if (typeof raw === 'number') return raw
   return currentBase
+}
+
+export function resolveMenuName(
+  formName: string,
+  formExtras: MenuFormExtras,
+  bizType: string,
+): string {
+  const trimmed = formName.trim()
+  if (shouldShowVehiclePriceGrid(bizType)) return trimmed
+
+  const product =
+    formExtras.productName ??
+    formExtras.productModel ??
+    formExtras.productWorkName ??
+    formExtras.filmGrade ??
+    formExtras.coatingName
+
+  if (typeof product === 'string' && product.trim()) return product.trim()
+  if (trimmed) return trimmed
+  return '메뉴'
 }
 
 export function stripMetaBlock(description?: string | null): string {

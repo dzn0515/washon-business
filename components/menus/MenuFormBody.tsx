@@ -56,9 +56,10 @@ function renderExtraField(
   }
 
   if (f.type === 'price' || f.type === 'number') {
-    const isPrimaryBase = f.key === 'basePrice' || f.key === 'estimateStart'
-    const value = isPrimaryBase
-      ? formBasePrice
+    const value = f.isPrimaryPrice
+      ? typeof extras[f.key] === 'number'
+        ? (extras[f.key] as number)
+        : formBasePrice
       : typeof extras[f.key] === 'number'
         ? (extras[f.key] as number)
         : ''
@@ -72,7 +73,7 @@ function renderExtraField(
           placeholder={f.placeholder}
           onChange={(e) => {
             const n = Number(e.target.value)
-            if (isPrimaryBase || f.isPrimaryPrice) {
+            if (f.isPrimaryPrice) {
               onBasePriceChange(n)
             }
             onExtraChange(f.key, n)

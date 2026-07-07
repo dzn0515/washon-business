@@ -69,12 +69,13 @@ test('tire — add tire replace shows formatted list title', async ({ page }) =>
   const categorySelect = page.getByRole('dialog').locator('select[name="category"]')
   await categorySelect.selectOption('tire_replace')
 
-  await fillMenuName(page, menuName)
-
   const dialog = page.getByRole('dialog')
-  await dialog.locator('label:has-text("브랜드/메이커") + input').fill('미쉐린')
-  await dialog.locator('label:has-text("타이어 인치") + input').fill('18')
-  await dialog.locator('label:has-text("장착비") + input').fill('95000')
+  await dialog.locator('label:has-text("브랜드") + input').fill('미쉐린')
+  await dialog.locator('label:has-text("상품명") + input').fill(menuName)
+  await dialog.locator('label:has-text("인치") + input').fill('18')
+  await dialog.locator('label:has-text("폭") + input').fill('235')
+  await dialog.locator('label:has-text("편평비") + input').fill('55')
+  await dialog.locator('label:has-text("판매가격") + input').fill('180000')
 
   const [response] = await Promise.all([
     page.waitForResponse(
@@ -89,19 +90,16 @@ test('tire — add tire replace shows formatted list title', async ({ page }) =>
   expect(body.description).toContain('AUTOON_MENU_META:')
   expect(body.description).toContain('미쉐린')
 
-  await expect(page.getByText(`[타이어 교체] 미쉐린 ${menuName} 18인치`)).toBeVisible({
-    timeout: 15000,
-  })
+  await expect(page.getByText('235/55R18')).toBeVisible({ timeout: 15000 })
+  await expect(page.getByText(`미쉐린 ${menuName}`)).toBeVisible({ timeout: 15000 })
 
   await page.reload({ waitUntil: 'domcontentloaded' })
-  await expect(page.getByText(`[타이어 교체] 미쉐린 ${menuName} 18인치`)).toBeVisible({
-    timeout: 15000,
-  })
+  await expect(page.getByText('235/55R18')).toBeVisible({ timeout: 15000 })
 })
 
 test('tire — add all-products menu appears in list', async ({ page }) => {
   const stamp = Date.now()
-  const menuName = `QA타이어전상품-${stamp}`
+  const menuName = `QA타이어기타-${stamp}`
 
   try {
     await loginAs(page, 'qa-tire@test.autoon.kr')
@@ -111,8 +109,12 @@ test('tire — add all-products menu appears in list', async ({ page }) => {
   }
 
   await openAddMenu(page)
+
+  const categorySelect = page.getByRole('dialog').locator('select[name="category"]')
+  await categorySelect.selectOption('etc')
+
   await fillMenuName(page, menuName)
-  await page.getByRole('dialog').locator('input[type="number"]').first().fill('80000')
+  await page.getByRole('dialog').locator('label:has-text("가격") + input').fill('80000')
 
   const [response] = await Promise.all([
     page.waitForResponse(

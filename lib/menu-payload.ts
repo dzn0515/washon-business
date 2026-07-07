@@ -1,5 +1,6 @@
 import {
   getMenuFormConfig,
+  resolveMenuName,
   resolvePrimaryPrice,
   serializeMenuDescription,
   toApiCategory,
@@ -60,7 +61,7 @@ export function buildMenuPayload(input: {
   const description = serializeMenuDescription(metaPayload, input.existingDescription) || null
 
   return {
-    name: input.name.trim(),
+    name: resolveMenuName(input.name, input.formExtras, input.pricingBizType),
     description,
     category: toApiCategory(input.pricingBizType, input.formCategory),
     duration_minutes: Math.max(1, input.duration),
