@@ -1,15 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, Search } from 'lucide-react'
+import { ChevronLeft, Search, X } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { BUSINESS_TYPES, getBusinessTypeLabel, type BusinessTypeCode } from '@/lib/business-types'
 import { formatResourceCountLabel, formatResourceCountOption } from '@/lib/resource-label'
 import { register, type RegisterPayload } from '@/lib/api-client'
-import { composeStoreAddress, openDaumPostcode } from '@/lib/postcode'
+import { composeStoreAddress, embedDaumPostcode } from '@/lib/postcode'
 
 const STEPS = ['계정 정보', '매장 정보', '사업자 정보']
 
@@ -25,6 +25,7 @@ export default function RegisterPage() {
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [postcodeOpen, setPostcodeOpen] = useState(false)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -43,17 +44,51 @@ export default function RegisterPage() {
   const [bizType, setBizType] = useState<BusinessTypeCode>(BUSINESS_TYPES[0].code)
   const [phone, setPhone] = useState('')
 
-  const openAddressSearch = async () => {
-    setError(null)
-    try {
-      await openDaumPostcode((data) => {
-        setZipcode(data.zonecode)
-        setRoadAddress(data.roadAddress)
-        setJibunAddress(data.jibunAddress)
-      })
-    } catch (e) {
-      setError(e instanceof Error ? e.message : '주소 검색을 시작하지 못했습니다.')
+  const postcodeHostRef = useRef<HTMLDivElement>(null)
+  const detailAddressRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!postcodeOpen || !postcodeHostRef.current) return
+
+    let cancelled = false
+    void (async () => {
+      try {
+        await embedDaumPostcode(
+          postcodeHostRef.current!,
+          (data) => {
+            if (cancelled) return
+            setZipcode(data.zonecode)
+            setRoadAddress(data.roadAddress)
+            setJibunAddress(data.jibunAddress)
+            setPostcodeOpen(false)
+            setError(null)
+            requestAnimationFrame(() => {
+              detailAddressRef.current?.focus()
+            })
+          },
+          () => {
+            if (!cancelled) setPostcodeOpen(false)
+          },
+        )
+      } catch (e) {
+        if (cancelled) return
+        setPostcodeOpen(false)
+        setError(e instanceof Error ? e.message : '주소 검색을 시작하지 못했습니다.')
+      }
+    })()
+
+    return () => {
+      cancelled = true
     }
+  }, [postcodeOpen])
+
+  const openAddressSearch = () => {
+    setError(null)
+    setPostcodeOpen(true)
+  }
+
+  const closeAddressSearch = () => {
+    setPostcodeOpen(false)
   }
 
   const next = async () => {
@@ -182,7 +217,7 @@ export default function RegisterPage() {
                     <label className="text-xs text-gray-500 mb-1 block">우편번호</label>
                     <Input value={zipcode} readOnly placeholder="주소 검색 시 자동 입력" />
                   </div>
-                  <Button type="button" variant="secondary" className="shrink-0" onClick={() => void openAddressSearch()}>
+                  <Button type="button" variant="secondary" className="shrink-0" onClick={openAddressSearch}>
                     <Search size={16} className="mr-1" />
                     주소 검색
                   </Button>
@@ -198,6 +233,7 @@ export default function RegisterPage() {
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">상세주소</label>
                   <Input
+                    ref={detailAddressRef}
                     value={detailAddress}
                     onChange={(e) => setDetailAddress(e.target.value)}
                     placeholder="101호, 2층 등"
@@ -268,6 +304,25 @@ export default function RegisterPage() {
           <Link href="/login" className="text-[#1A6DFF] font-medium">로그인</Link>
         </p>
       </div>
+
+      {postcodeOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
+          <div className="flex h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:h-[70vh] sm:rounded-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+              <p className="text-sm font-semibold text-gray-900">주소 검색</p>
+              <button
+                type="button"
+                onClick={closeAddressSearch}
+                className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-50"
+                aria-label="주소 검색 닫기"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div ref={postcodeHostRef} className="min-h-0 flex-1" />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

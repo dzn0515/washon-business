@@ -4,9 +4,18 @@ export type DaumPostcodeResult = {
   jibunAddress: string
 }
 
-type DaumPostcodeConstructor = new (options: {
+type DaumPostcodeEmbedOptions = {
   oncomplete: (data: DaumPostcodeResult) => void
-}) => { open: () => void }
+  onclose?: (state: string) => void
+  width?: string
+  height?: string
+}
+
+type DaumPostcodeInstance = {
+  embed: (element: HTMLElement) => void
+}
+
+type DaumPostcodeConstructor = new (options: DaumPostcodeEmbedOptions) => DaumPostcodeInstance
 
 declare global {
   interface Window {
@@ -52,12 +61,25 @@ export function loadDaumPostcodeScript(): Promise<void> {
   return scriptLoading
 }
 
-export async function openDaumPostcode(onComplete: (data: DaumPostcodeResult) => void): Promise<void> {
+export async function embedDaumPostcode(
+  element: HTMLElement,
+  onComplete: (data: DaumPostcodeResult) => void,
+  onClose?: () => void,
+): Promise<void> {
   await loadDaumPostcodeScript()
   if (!window.daum?.Postcode) {
     throw new Error('주소 검색을 불러오지 못했습니다.')
   }
-  new window.daum.Postcode({ oncomplete: onComplete }).open()
+
+  element.innerHTML = ''
+  new window.daum.Postcode({
+    oncomplete: onComplete,
+    onclose: () => {
+      onClose?.()
+    },
+    width: '100%',
+    height: '100%',
+  }).embed(element)
 }
 
 export function composeStoreAddress(roadAddress: string, detailAddress: string): string {
