@@ -77,24 +77,6 @@ async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
-function mapBusinessItem(b: Record<string, unknown>): AdminBusinessListItem {
-  return {
-    id: String(b.id),
-    name: String(b.name ?? b.business_name ?? ''),
-    bizType: String(b.biz_type ?? b.bizType ?? b.business_type ?? 'wash'),
-    ownerName: String(b.owner_name ?? b.ownerName ?? ''),
-    phone: String(b.phone ?? ''),
-    status: String(b.status ?? 'pending'),
-    plan: b.plan ? String(b.plan) : null,
-    slug: b.slug ? String(b.slug) : null,
-    createdAt: String(b.created_at ?? b.createdAt ?? '').slice(0, 10),
-    lastLogin: b.last_login ? String(b.last_login).slice(0, 10) : null,
-    recentReservations: Number(b.recent_reservations ?? b.recentReservations ?? 0),
-    recentRevenue: Number(b.recent_revenue ?? b.recentRevenue ?? 0),
-    rating: b.rating != null ? Number(b.rating) : null,
-  }
-}
-
 const MOCK_BUSINESSES: AdminBusinessListItem[] = [
   {
     id: '1',
@@ -224,117 +206,151 @@ export async function fetchRecentReservations() {
 
 export async function fetchRecentBusinesses() {
   try {
-    const data = await adminFetch<{ businesses: Record<string, unknown>[] }>(
-      '/admin/businesses?limit=5&sort=created_at',
-    )
-    return data.businesses.map(mapBusinessItem)
+    const partners = await fetchAdminPartners()
+    return partners
+      .slice()
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 5)
   } catch {
     if (!isDev) throw new Error('최근 업체 조회 실패')
     return MOCK_BUSINESSES.slice(0, 3)
   }
 }
 
+// ── Admin Partners (입점심사 / 업체 승인) ─────────────────────
+
+export type AdminPartnerApiStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED' | 'INACTIVE'
+
+export type AdminPartnerItem = {
+  id: string
+  business_name: string
+  owner_name: string | null
+  email: string | null
+  phone: string | null
+  business_registration_no: string | null
+  address: string | null
+  biz_type: string
+  bay_count: number
+  status: string
+  slug: string
+  created_at: string
+}
+
+export type AdminPartnerListItem = AdminBusinessListItem & {
+  email: string
+  businessRegistrationNo: string
+  address: string
+  bayCount: number
+}
+
+function toPartnerStatusQuery(status?: string): AdminPartnerApiStatus | undefined {
+  if (!status || status === 'all') return undefined
+  const map: Record<string, AdminPartnerApiStatus> = {
+    pending: 'PENDING',
+    active: 'ACTIVE',
+    rejected: 'REJECTED',
+    suspended: 'SUSPENDED',
+    inactive: 'INACTIVE',
+  }
+  return map[status.toLowerCase()]
+}
+
+function mapPartnerItem(p: AdminPartnerItem): AdminPartnerListItem {
+  return {
+    id: p.id,
+    name: p.business_name,
+    bizType: p.biz_type,
+    ownerName: p.owner_name ?? '',
+    phone: p.phone ?? '',
+    status: p.status.toLowerCase(),
+    plan: null,
+    slug: p.slug,
+    createdAt: p.created_at.slice(0, 10),
+    lastLogin: null,
+    recentReservations: 0,
+    recentRevenue: 0,
+    rating: null,
+    email: p.email ?? '',
+    businessRegistrationNo: p.business_registration_no ?? '',
+    address: p.address ?? '',
+    bayCount: p.bay_count,
+  }
+}
+
+/** GET /api/v1/admin/partners?status=PENDING|ACTIVE|REJECTED */
+export async function fetchAdminPartners(
+  status?: AdminPartnerApiStatus,
+): Promise<AdminPartnerListItem[]> {
+  const qs = status ? `?status=${status}` : ''
+  const data = await adminFetch<{ partners: AdminPartnerItem[] }>(`/admin/partners${qs}`)
+  return data.partners.map(mapPartnerItem)
+}
+
+/** PUT /api/v1/admin/partners/{id}/approve — PENDING → ACTIVE */
+export async function approveAdminPartner(id: string): Promise<{ success: boolean }> {
+  await adminFetch(`/admin/partners/${id}/approve`, { method: 'PUT' })
+  return { success: true }
+}
+
+/** PUT /api/v1/admin/partners/{id}/reject — PENDING → REJECTED */
+export async function rejectAdminPartner(
+  id: string,
+  reason: string,
+): Promise<{ success: boolean }> {
+  await adminFetch(`/admin/partners/${id}/reject`, {
+    method: 'PUT',
+    body: JSON.stringify({ reason }),
+  })
+  return { success: true }
+}
+
 // ── Admin-03 ─────────────────────────────────────────────────
 
-// GET /api/v1/admin/businesses — 실제 존재 (status 필터 지원)
+// GET /api/v1/admin/partners — status 필터 지원
 export async function fetchAdminAllBusinesses(params?: {
   status?: string
   search?: string
   page?: number
   limit?: number
 }): Promise<AdminBusinessListItem[]> {
-  try {
-    const query = new URLSearchParams()
-    if (params?.status && params.status !== 'all') query.set('status', params.status)
-    const qs = query.toString()
-    const data = await adminFetch<{ businesses: Record<string, unknown>[] }>(
-      `/admin/businesses${qs ? `?${qs}` : ''}`,
+  const apiStatus = toPartnerStatusQuery(params?.status)
+  let list = await fetchAdminPartners(apiStatus)
+  if (params?.search) {
+    const q = params.search.trim().toLowerCase()
+    list = list.filter(
+      (b) =>
+        b.name.toLowerCase().includes(q) ||
+        b.ownerName.toLowerCase().includes(q) ||
+        b.phone.includes(q),
     )
-    let list = data.businesses.map(mapBusinessItem)
-    if (params?.search) {
-      const q = params.search.trim().toLowerCase()
-      list = list.filter(
-        (b) =>
-          b.name.toLowerCase().includes(q) ||
-          b.ownerName.toLowerCase().includes(q) ||
-          b.phone.includes(q),
-      )
-    }
-    return list
-  } catch {
-    if (!isDev) throw new Error('업체 목록 조회 실패')
-    console.warn('[Admin][Dev] fetchAdminAllBusinesses → mock')
-    let list = [...MOCK_BUSINESSES]
-    if (params?.status && params.status !== 'all') {
-      list = list.filter((b) => b.status === params.status)
-    }
-    if (params?.search) {
-      const q = params.search.trim().toLowerCase()
-      list = list.filter(
-        (b) =>
-          b.name.toLowerCase().includes(q) ||
-          b.ownerName.toLowerCase().includes(q) ||
-          b.phone.includes(q),
-      )
-    }
-    return list
   }
+  return list
 }
 
-// TODO: GET /api/v1/admin/businesses/{id} — 백엔드 미구현
+// 단건 조회 API 없음 — partners 목록에서 id 매칭
 export async function fetchAdminBusinessDetail(id: string): Promise<AdminBusinessDetail> {
-  try {
-    const data = await adminFetch<Record<string, unknown>>(`/admin/businesses/${id}`)
-    const base = mapBusinessItem(data)
-    return {
-      ...base,
-      email: String(data.email ?? ''),
-      address: String(data.address ?? ''),
-      memo: String(data.memo ?? ''),
-    }
-  } catch {
-    if (!isDev) throw new Error('업체 상세 조회 실패')
-    console.warn('[Admin][Dev] fetchAdminBusinessDetail → mock')
-    const found = MOCK_BUSINESSES.find((b) => b.id === id) ?? MOCK_BUSINESSES[0]
-    return {
-      ...found,
-      id,
-      email: 'owner@washon.kr',
-      address: '서울 강남구',
-      memo: '',
-    }
+  const partners = await fetchAdminPartners()
+  const found = partners.find((p) => p.id === id)
+  if (!found) throw new Error('업체를 찾을 수 없습니다.')
+  return {
+    ...found,
+    memo: '',
   }
 }
 
-// PUT /approve, /reject 실제 존재. PATCH /status 는 미구현 → approve/reject 우선 사용
+// PUT /admin/partners/{id}/approve|reject — 승인·거절만 지원
 export async function updateBusinessStatus(
   id: string,
   status: string,
   reason?: string,
 ): Promise<{ success: boolean }> {
-  try {
-    if (status === 'active') {
-      await adminFetch(`/admin/businesses/${id}/approve`, { method: 'PUT' })
-      return { success: true }
-    }
-    if (status === 'rejected') {
-      await adminFetch(`/admin/businesses/${id}/reject`, {
-        method: 'PUT',
-        body: JSON.stringify({ reason: reason || '관리자 거절' }),
-      })
-      return { success: true }
-    }
-    // TODO: PATCH /api/v1/admin/businesses/{id}/status — suspended 등 미구현
-    await adminFetch(`/admin/businesses/${id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    })
-    return { success: true }
-  } catch {
-    if (!isDev) throw new Error('상태 변경 실패')
-    console.warn('[Admin][Dev] updateBusinessStatus → mock success')
-    return { success: true }
+  if (status === 'active') {
+    return approveAdminPartner(id)
   }
+  if (status === 'rejected') {
+    return rejectAdminPartner(id, reason?.trim() || '관리자 거절')
+  }
+  throw new Error('지원하지 않는 상태 변경입니다.')
 }
 
 // TODO: PATCH /api/v1/admin/businesses/{id}/memo — 백엔드 미구현

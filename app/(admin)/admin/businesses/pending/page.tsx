@@ -1,54 +1,124 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { MapPin, Check, X } from 'lucide-react'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import Badge from '@/components/ui/Badge'
-import { mockPendingBusinesses, type MockBusiness } from '@/lib/mock/admin-data'
+import { useToast } from '@/components/admin/AdminToast'
+import {
+  approveAdminPartner,
+  fetchAdminPartners,
+  rejectAdminPartner,
+  type AdminPartnerListItem,
+} from '@/lib/admin-api'
+import { getAdminBizTypeLabel, PARTNER_ADMISSION_STATUS_LABEL } from '@/lib/admin-ui'
 import { getResourceLabel } from '@/lib/resource-label'
 
 type Tab = 'pending' | 'active' | 'rejected'
 
-export default function AdminPendingBusinessesPage() {
-  const [tab, setTab] = useState<Tab>('pending')
-  const [items, setItems] = useState<MockBusiness[]>(mockPendingBusinesses)
-  const [approved, setApproved] = useState<MockBusiness[]>([])
-  const [rejected, setRejected] = useState<MockBusiness[]>([])
+const TAB_API_STATUS = {
+  pending: 'PENDING',
+  active: 'ACTIVE',
+  rejected: 'REJECTED',
+} as const
 
-  const [approveTarget, setApproveTarget] = useState<MockBusiness | null>(null)
-  const [rejectTarget, setRejectTarget] = useState<MockBusiness | null>(null)
+export default function AdminPendingBusinessesPage() {
+  const router = useRouter()
+  const { showToast, ToastComponent } = useToast()
+  const [tab, setTab] = useState<Tab>('pending')
+  const [counts, setCounts] = useState({ pending: 0, active: 0, rejected: 0 })
+  const [list, setList] = useState<AdminPartnerListItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+  const [approveTarget, setApproveTarget] = useState<AdminPartnerListItem | null>(null)
+  const [rejectTarget, setRejectTarget] = useState<AdminPartnerListItem | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
+
+  const loadCounts = useCallback(async () => {
+    const [pending, active, rejected] = await Promise.all([
+      fetchAdminPartners('PENDING'),
+      fetchAdminPartners('ACTIVE'),
+      fetchAdminPartners('REJECTED'),
+    ])
+    setCounts({
+      pending: pending.length,
+      active: active.length,
+      rejected: rejected.length,
+    })
+  }, [])
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(false)
+    try {
+      const data = await fetchAdminPartners(TAB_API_STATUS[tab])
+      setList(data)
+    } catch {
+      setError(true)
+      setList([])
+    } finally {
+      setLoading(false)
+    }
+  }, [tab])
+
+  const refresh = useCallback(async () => {
+    await Promise.all([load(), loadCounts()])
+  }, [load, loadCounts])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  useEffect(() => {
+    loadCounts().catch(() => {})
+  }, [loadCounts])
 
   const tabs: { key: Tab; label: string; count: number }[] = [
-    { key: 'pending', label: '대기 중', count: items.length },
-    { key: 'active', label: '승인됨', count: approved.length + 281 },
-    { key: 'rejected', label: '거절됨', count: rejected.length + 12 },
+    { key: 'pending', label: '승인대기', count: counts.pending },
+    { key: 'active', label: '승인완료', count: counts.active },
+    { key: 'rejected', label: '거절', count: counts.rejected },
   ]
 
-  const list =
-    tab === 'pending' ? items : tab === 'active' ? approved : rejected
-
-  const handleApprove = () => {
+  const handleApprove = async () => {
     if (!approveTarget) return
-    setItems((prev) => prev.filter((b) => b.id !== approveTarget.id))
-    setApproved((prev) => [
-      ...prev,
-      { ...approveTarget, status: 'active', approvedAt: new Date().toISOString().slice(0, 10) },
-    ])
-    setApproveTarget(null)
+    setActionLoading(true)
+    try {
+      await approveAdminPartner(approveTarget.id)
+      showToast('업체가 승인되었습니다.', 'success')
+      setApproveTarget(null)
+      await refresh()
+    } catch {
+      showToast('승인 처리에 실패했습니다.', 'error')
+    } finally {
+      setActionLoading(false)
+    }
   }
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!rejectTarget || !rejectReason.trim()) return
-    setItems((prev) => prev.filter((b) => b.id !== rejectTarget.id))
-    setRejected((prev) => [...prev, { ...rejectTarget, status: 'rejected' }])
-    setRejectTarget(null)
-    setRejectReason('')
+    setActionLoading(true)
+    try {
+      await rejectAdminPartner(rejectTarget.id, rejectReason.trim())
+      showToast('업체 가입이 거절되었습니다.', 'success')
+      setRejectTarget(null)
+      setRejectReason('')
+      await refresh()
+    } catch {
+      showToast('거절 처리에 실패했습니다.', 'error')
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   return (
     <div className="space-y-4">
+      {ToastComponent}
+      <AdminPageHeader title="입점심사" description="신규 업체 가입 승인 및 거절 처리" />
+
       <div className="flex gap-2 overflow-x-auto">
         {tabs.map((t) => (
           <button
@@ -56,7 +126,9 @@ export default function AdminPendingBusinessesPage() {
             type="button"
             onClick={() => setTab(t.key)}
             className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium border ${
-              tab === t.key ? 'bg-[#1A6DFF] text-white border-[#1A6DFF]' : 'bg-white text-gray-600 border-gray-200'
+              tab === t.key
+                ? 'bg-[#1A6DFF] text-white border-[#1A6DFF]'
+                : 'bg-white text-gray-600 border-gray-200'
             }`}
           >
             {t.label} {t.count}
@@ -64,22 +136,33 @@ export default function AdminPendingBusinessesPage() {
         ))}
       </div>
 
-      {tab === 'pending' && items.length > 0 && (
+      {tab === 'pending' && counts.pending > 0 && !error && (
         <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-          ⚠️ 승인 대기 {items.length}건 — 빠른 처리가 필요합니다
+          승인 대기 {counts.pending}건 — 빠른 처리가 필요합니다
         </p>
       )}
 
-      {list.length === 0 && tab !== 'pending' && tab === 'active' && approved.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-12">
-          이번 세션에서 승인한 업체가 없습니다. (전체 승인 281건)
-        </p>
-      ) : list.length === 0 && tab === 'rejected' && rejected.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-12">
-          이번 세션에서 거절한 업체가 없습니다. (전체 거절 12건)
-        </p>
+      {error ? (
+        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
+          <p className="text-sm text-gray-500 mb-4">업체 목록을 불러오지 못했습니다.</p>
+          <button
+            type="button"
+            onClick={refresh}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+          >
+            다시 시도
+          </button>
+        </div>
+      ) : loading ? (
+        <p className="text-sm text-gray-400 text-center py-12">불러오는 중...</p>
       ) : list.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-12">승인 대기 업체가 없습니다.</p>
+        <p className="text-sm text-gray-400 text-center py-12">
+          {tab === 'pending'
+            ? '승인 대기 업체가 없습니다.'
+            : tab === 'active'
+              ? '승인 완료된 업체가 없습니다.'
+              : '거절된 업체가 없습니다.'}
+        </p>
       ) : (
         <div className="space-y-3">
           {list.map((b) => (
@@ -91,14 +174,14 @@ export default function AdminPendingBusinessesPage() {
                   onReject={() => setRejectTarget(b)}
                 />
               ) : (
-                <ApprovedCard business={b} tab={tab} />
+                <ReviewedCard business={b} tab={tab} onDetail={() => router.push(`/admin/businesses/${b.id}`)} />
               )}
             </div>
           ))}
         </div>
       )}
 
-      <Modal open={!!approveTarget} onClose={() => setApproveTarget(null)} title="업체 승인" size="sm">
+      <Modal open={!!approveTarget} onClose={() => !actionLoading && setApproveTarget(null)} title="업체 승인" size="sm">
         <div className="space-y-4">
           <div className="text-center">
             <div className="text-3xl mb-2">✅</div>
@@ -108,20 +191,20 @@ export default function AdminPendingBusinessesPage() {
                 {approveTarget.name} ({approveTarget.ownerName})
               </p>
             )}
-            <p className="text-xs text-gray-400 mt-2">승인 시 사장님에게 알림톡이 발송됩니다.</p>
+            <p className="text-xs text-gray-400 mt-2">승인 시 업체 상태가 운영중(ACTIVE)으로 변경됩니다.</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="secondary" className="flex-1" onClick={() => setApproveTarget(null)}>
+            <Button variant="secondary" className="flex-1" disabled={actionLoading} onClick={() => setApproveTarget(null)}>
               취소
             </Button>
-            <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={handleApprove}>
-              승인하기
+            <Button className="flex-1 bg-green-600 hover:bg-green-700" disabled={actionLoading} onClick={handleApprove}>
+              {actionLoading ? '처리 중...' : '승인하기'}
             </Button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={!!rejectTarget} onClose={() => setRejectTarget(null)} title="업체 거절" size="sm">
+      <Modal open={!!rejectTarget} onClose={() => !actionLoading && setRejectTarget(null)} title="업체 거절" size="sm">
         <div className="space-y-4">
           <div className="text-center">
             <div className="text-3xl mb-2">❌</div>
@@ -135,15 +218,15 @@ export default function AdminPendingBusinessesPage() {
             className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 resize-none"
           />
           <div className="flex gap-2">
-            <Button variant="secondary" className="flex-1" onClick={() => setRejectTarget(null)}>
+            <Button variant="secondary" className="flex-1" disabled={actionLoading} onClick={() => setRejectTarget(null)}>
               취소
             </Button>
             <Button
               className="flex-1 bg-red-600 hover:bg-red-700"
-              disabled={!rejectReason.trim()}
+              disabled={!rejectReason.trim() || actionLoading}
               onClick={handleReject}
             >
-              거절하기
+              {actionLoading ? '처리 중...' : '거절하기'}
             </Button>
           </div>
         </div>
@@ -157,7 +240,7 @@ function PendingCard({
   onApprove,
   onReject,
 }: {
-  business: MockBusiness
+  business: AdminPartnerListItem
   onApprove: () => void
   onReject: () => void
 }) {
@@ -165,20 +248,20 @@ function PendingCard({
     <>
       <div className="flex justify-between items-start gap-2">
         <h3 className="font-semibold text-gray-900">{b.name}</h3>
-        <span className="text-xs text-gray-400 shrink-0">{b.appliedAt.replace(/-/g, '.')}</span>
+        <span className="text-xs text-gray-400 shrink-0">{b.createdAt.replace(/-/g, '.')}</span>
       </div>
       <p className="text-sm text-gray-500 mt-1">
-        {b.ownerName} · {b.email}
+        {b.ownerName} · {b.email || '-'}
       </p>
       <p className="text-sm text-gray-500">
-        {b.phone} · 사업자번호: {b.businessNumber}
+        {b.phone || '-'} · 사업자번호: {b.businessRegistrationNo || '-'}
       </p>
       <p className="text-sm text-gray-500 mt-1 flex items-start gap-1">
         <MapPin size={14} className="shrink-0 mt-0.5" />
-        {b.address}
+        {b.address || '-'}
       </p>
       <p className="text-xs text-gray-400 mt-2">
-        업종: {b.type} · {getResourceLabel(b.bizType)}: {b.bays}개
+        업종: {getAdminBizTypeLabel(b.bizType)} · {getResourceLabel(b.bizType)}: {b.bayCount}개
       </p>
       <div className="flex gap-2 mt-4">
         <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700" onClick={onApprove}>
@@ -192,33 +275,33 @@ function PendingCard({
   )
 }
 
-function ApprovedCard({ business: b, tab }: { business: MockBusiness; tab: Tab }) {
+function ReviewedCard({
+  business: b,
+  tab,
+  onDetail,
+}: {
+  business: AdminPartnerListItem
+  tab: 'active' | 'rejected'
+  onDetail: () => void
+}) {
+  const label = PARTNER_ADMISSION_STATUS_LABEL[b.status] ?? b.status
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="font-semibold text-gray-900">{b.name}</h3>
         <Badge className={tab === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'}>
-          {tab === 'active' ? '승인됨' : '거절됨'}
+          {label}
         </Badge>
-        <span className="text-xs text-gray-400">{b.approvedAt ?? b.appliedAt}</span>
+        <span className="text-xs text-gray-400">{b.createdAt.replace(/-/g, '.')}</span>
       </div>
       <p className="text-sm text-gray-500 mt-2">
-        {b.ownerName}
-        {tab === 'active' && ' · 앱 노출 유지비 정상'}
+        {b.ownerName} · {b.phone || '-'}
       </p>
-      {tab === 'active' && (
-        <div className="flex flex-wrap gap-2 mt-3">
-          <Button size="sm" variant="secondary">
-            상세보기
-          </Button>
-          <Button size="sm" variant="secondary">
-            노출 중지
-          </Button>
-          <Button size="sm" variant="danger">
-            탈퇴 처리
-          </Button>
-        </div>
-      )}
+      <div className="mt-3">
+        <Button size="sm" variant="secondary" onClick={onDetail}>
+          상세보기
+        </Button>
+      </div>
     </>
   )
 }

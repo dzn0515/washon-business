@@ -38,6 +38,13 @@ export const BUSINESS_STATUS_LABEL: Record<string, string> = {
   rejected: '거절',
 }
 
+/** 입점심사 화면 — ACTIVE는 승인완료로 표시 */
+export const PARTNER_ADMISSION_STATUS_LABEL: Record<string, string> = {
+  pending: '승인대기',
+  active: '승인완료',
+  rejected: '거절',
+}
+
 export const BUSINESS_STATUS_VARIANT: Record<
   string,
   'success' | 'warning' | 'error' | 'info' | 'neutral'

@@ -48,8 +48,8 @@ export const ADMIN_MENUS: { group: string; items: AdminMenuItem[] }[] = [
       {
         icon: '📋',
         label: '입점심사',
-        href: '/admin/screening',
-        ready: false,
+        href: '/admin/businesses/pending',
+        ready: true,
         permission: 'screening.read',
       },
     ],
