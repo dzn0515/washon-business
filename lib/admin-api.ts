@@ -315,13 +315,22 @@ function mapPartnerItem(p: AdminPartnerItem): AdminPartnerListItem {
   }
 }
 
-/** GET /api/v1/admin/partners?status=PENDING|ACTIVE|REJECTED */
+/** GET /api/v1/admin/partners — status/keyword/bizType/page 지원 */
+export type AdminPartnerListResponse = {
+  partners: AdminPartnerItem[]
+  items: AdminPartnerItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 export async function fetchAdminPartners(
   status?: AdminPartnerApiStatus,
 ): Promise<AdminPartnerListItem[]> {
   const qs = status ? `?status=${status}` : ''
-  const data = await adminFetch<{ partners: AdminPartnerItem[] }>(`/admin/partners${qs}`)
-  return data.partners.map(mapPartnerItem)
+  const data = await adminFetch<AdminPartnerListResponse>(`/admin/partners${qs}`)
+  const rows = data.items?.length ? data.items : data.partners
+  return rows.map(mapPartnerItem)
 }
 
 /** PUT /api/v1/admin/partners/{id}/approve — PENDING → ACTIVE */
@@ -342,27 +351,50 @@ export async function rejectAdminPartner(
   return { success: true }
 }
 
+/** PUT /api/v1/admin/partners/{id}/suspend — ACTIVE → SUSPENDED */
+export async function suspendAdminPartner(id: string): Promise<{ success: boolean }> {
+  await adminFetch(`/admin/partners/${id}/suspend`, { method: 'PUT' })
+  return { success: true }
+}
+
+/** PUT /api/v1/admin/partners/{id}/restore — SUSPENDED → ACTIVE */
+export async function restoreAdminPartner(id: string): Promise<{ success: boolean }> {
+  await adminFetch(`/admin/partners/${id}/restore`, { method: 'PUT' })
+  return { success: true }
+}
+
 // ── Admin-03 ─────────────────────────────────────────────────
 
-// GET /api/v1/admin/partners — status 필터 지원
+export type AdminBusinessListResult = {
+  items: AdminBusinessListItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+// GET /api/v1/admin/partners — 검색·필터·페이징
 export async function fetchAdminAllBusinesses(params?: {
   status?: string
   search?: string
+  bizType?: string
   page?: number
-  limit?: number
-}): Promise<AdminBusinessListItem[]> {
+  pageSize?: number
+}): Promise<AdminBusinessListResult> {
+  const qs = new URLSearchParams()
   const apiStatus = toPartnerStatusQuery(params?.status)
-  let list = await fetchAdminPartners(apiStatus)
-  if (params?.search) {
-    const q = params.search.trim().toLowerCase()
-    list = list.filter(
-      (b) =>
-        b.name.toLowerCase().includes(q) ||
-        b.ownerName.toLowerCase().includes(q) ||
-        b.phone.includes(q),
-    )
+  if (apiStatus) qs.set('status', apiStatus)
+  if (params?.search?.trim()) qs.set('keyword', params.search.trim())
+  if (params?.bizType && params.bizType !== 'all') qs.set('bizType', params.bizType)
+  qs.set('page', String(params?.page ?? 1))
+  qs.set('pageSize', String(params?.pageSize ?? 20))
+  const data = await adminFetch<AdminPartnerListResponse>(`/admin/partners?${qs}`)
+  const rows = data.items?.length ? data.items : data.partners
+  return {
+    items: rows.map(mapPartnerItem),
+    total: data.total ?? rows.length,
+    page: data.page ?? 1,
+    pageSize: data.pageSize ?? rows.length,
   }
-  return list
 }
 
 // 단건 조회 API 없음 — partners 목록에서 id 매칭
@@ -376,12 +408,19 @@ export async function fetchAdminBusinessDetail(id: string): Promise<AdminBusines
   }
 }
 
-// PUT /admin/partners/{id}/approve|reject — 승인·거절만 지원
+// PUT /admin/partners/{id}/approve|reject|suspend|restore
 export async function updateBusinessStatus(
   id: string,
   status: string,
   reason?: string,
+  currentStatus?: string,
 ): Promise<{ success: boolean }> {
+  if (status === 'suspended') {
+    return suspendAdminPartner(id)
+  }
+  if (status === 'active' && currentStatus === 'suspended') {
+    return restoreAdminPartner(id)
+  }
   if (status === 'active') {
     return approveAdminPartner(id)
   }

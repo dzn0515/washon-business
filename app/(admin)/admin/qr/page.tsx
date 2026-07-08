@@ -23,8 +23,8 @@ export default function AdminQRPage() {
     setLoading(true)
     setError(false)
     try {
-      const data = await fetchAdminAllBusinesses()
-      setBusinesses(data)
+      const data = await fetchAdminAllBusinesses({ status: 'active', pageSize: 100 })
+      setBusinesses(data.items)
     } catch {
       setError(true)
       setBusinesses([])

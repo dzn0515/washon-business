@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import AdminTable from '@/components/admin/AdminTable'
@@ -45,6 +45,9 @@ export default function AdminBusinessesPage() {
   const [search, setSearch] = useState('')
   const [searchInput, setSearchInput] = useState('')
   const [businesses, setBusinesses] = useState<AdminBusinessListItem[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [pageSize] = useState(20)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null)
@@ -55,32 +58,29 @@ export default function AdminBusinessesPage() {
     setLoading(true)
     setError(false)
     try {
-      const data = await fetchAdminAllBusinesses({ status: statusTab, search })
-      setBusinesses(data)
+      const data = await fetchAdminAllBusinesses({
+        status: statusTab,
+        search,
+        bizType: bizTypeTab,
+        page,
+        pageSize,
+      })
+      setBusinesses(data.items)
+      setTotal(data.total)
     } catch {
       setError(true)
       setBusinesses([])
+      setTotal(0)
     } finally {
       setLoading(false)
     }
-  }, [statusTab, search])
+  }, [statusTab, search, bizTypeTab, page, pageSize])
 
   useEffect(() => {
     load()
   }, [load])
 
-  const bizTypeCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: businesses.length }
-    for (const b of businesses) {
-      counts[b.bizType] = (counts[b.bizType] ?? 0) + 1
-    }
-    return counts
-  }, [businesses])
-
-  const filteredBusinesses = useMemo(() => {
-    if (bizTypeTab === 'all') return businesses
-    return businesses.filter((b) => b.bizType === bizTypeTab)
-  }, [businesses, bizTypeTab])
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
   const handleStatusAction = async () => {
     if (!confirm) return
@@ -91,6 +91,7 @@ export default function AdminBusinessesPage() {
         confirm.business.id,
         confirm.nextStatus,
         confirm.needsReason ? rejectReason : undefined,
+        confirm.business.status,
       )
       showToast('상태가 변경되었습니다.', 'success')
       setConfirm(null)
@@ -118,7 +119,10 @@ export default function AdminBusinessesPage() {
           <button
             key={tab.key}
             type="button"
-            onClick={() => setStatusTab(tab.key)}
+            onClick={() => {
+              setStatusTab(tab.key)
+              setPage(1)
+            }}
             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
               statusTab === tab.key
                 ? 'bg-blue-50 text-blue-600 border-blue-200'
@@ -131,23 +135,23 @@ export default function AdminBusinessesPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {ADMIN_BIZ_TYPE_FILTERS.map((tab) => {
-          const count = bizTypeCounts[tab.key] ?? 0
-          return (
+        {ADMIN_BIZ_TYPE_FILTERS.map((tab) => (
             <button
               key={tab.key}
               type="button"
-              onClick={() => setBizTypeTab(tab.key)}
+              onClick={() => {
+                setBizTypeTab(tab.key)
+                setPage(1)
+              }}
               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                 bizTypeTab === tab.key
                   ? 'bg-indigo-50 text-indigo-600 border-indigo-200'
                   : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
               }`}
             >
-              {tab.label} {count}
+              {tab.label}
             </button>
-          )
-        })}
+        ))}
       </div>
 
       <div className="flex gap-2">
@@ -161,7 +165,10 @@ export default function AdminBusinessesPage() {
         />
         <button
           type="button"
-          onClick={() => setSearch(searchInput)}
+          onClick={() => {
+            setSearch(searchInput)
+            setPage(1)
+          }}
           className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700"
         >
           검색
@@ -195,7 +202,7 @@ export default function AdminBusinessesPage() {
               { key: 'rating', label: '평점' },
               { key: 'actions', label: '액션', width: '160px' },
             ]}
-            data={filteredBusinesses.map((b) => ({
+            data={businesses.map((b) => ({
               ...b,
               bizType: getAdminBizTypeLabel(b.bizType),
               plan: b.plan ?? '-',
@@ -275,6 +282,29 @@ export default function AdminBusinessesPage() {
             onRowClick={(row) => router.push(`/admin/businesses/${row.id}`)}
             emptyMessage="등록된 업체가 없습니다."
           />
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm text-gray-500">
+            <span>
+              총 {total.toLocaleString()}건 · {page}/{totalPages}페이지
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
+              >
+                이전
+              </button>
+              <button
+                type="button"
+                disabled={page >= totalPages || loading}
+                onClick={() => setPage((p) => p + 1)}
+                className="px-3 py-1.5 border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-50"
+              >
+                다음
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
