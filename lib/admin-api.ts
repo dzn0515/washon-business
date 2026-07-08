@@ -217,6 +217,44 @@ export async function fetchRecentBusinesses() {
   }
 }
 
+export type AdminDashboardStats = {
+  totalBusinesses: number
+  activeBusinesses: number
+  pendingBusinesses: number
+  todayReservations: number
+  ongoingReservations: number
+  todayRevenue: number
+  monthRevenue: number
+  newBusinesses: number
+}
+
+export type AdminDashboardRecentReservation = {
+  id: string
+  businessName: string
+  customerName: string
+  menu: string
+  status: string
+}
+
+export type AdminDashboardRecentPartner = {
+  id: string
+  name: string
+  bizType: string
+  status: string
+  createdAt: string
+}
+
+export type AdminDashboardResponse = {
+  stats: AdminDashboardStats
+  recentReservations: AdminDashboardRecentReservation[]
+  recentPartners: AdminDashboardRecentPartner[]
+}
+
+/** GET /api/v1/admin/dashboard — 플랫폼 대시보드 집계 */
+export async function fetchAdminDashboard(): Promise<AdminDashboardResponse> {
+  return adminFetch<AdminDashboardResponse>('/admin/dashboard')
+}
+
 // ── Admin Partners (입점심사 / 업체 승인) ─────────────────────
 
 export type AdminPartnerApiStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED' | 'INACTIVE'

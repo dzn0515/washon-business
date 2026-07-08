@@ -1,15 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import AdminStatCard from '@/components/admin/AdminStatCard'
 import AdminTable from '@/components/admin/AdminTable'
 import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import AdminBadge from '@/components/admin/AdminBadge'
 import {
-  fetchAdminStats,
-  fetchRecentReservations,
-  fetchRecentBusinesses,
-  type AdminBusinessListItem,
+  fetchAdminDashboard,
+  type AdminDashboardRecentPartner,
+  type AdminDashboardRecentReservation,
+  type AdminDashboardStats,
 } from '@/lib/admin-api'
 import { BUSINESS_TYPE_LABELS } from '@/lib/business-types'
 
@@ -39,20 +39,51 @@ const BOOKING_STATUS_LABEL: Record<string, string> = {
 }
 
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState<Record<string, number> | null>(null)
-  const [reservations, setReservations] = useState<Record<string, string>[]>([])
-  const [businesses, setBusinesses] = useState<AdminBusinessListItem[]>([])
+  const [stats, setStats] = useState<AdminDashboardStats | null>(null)
+  const [reservations, setReservations] = useState<AdminDashboardRecentReservation[]>([])
+  const [businesses, setBusinesses] = useState<AdminDashboardRecentPartner[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(false)
+    try {
+      const data = await fetchAdminDashboard()
+      setStats(data.stats)
+      setReservations(data.recentReservations)
+      setBusinesses(data.recentPartners)
+    } catch {
+      setError(true)
+      setStats(null)
+      setReservations([])
+      setBusinesses([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    Promise.all([fetchAdminStats(), fetchRecentReservations(), fetchRecentBusinesses()])
-      .then(([s, r, b]) => {
-        setStats(s)
-        setReservations(r)
-        setBusinesses(b)
-      })
-      .finally(() => setLoading(false))
-  }, [])
+    load()
+  }, [load])
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <AdminPageHeader title="대시보드" description="AUTOON 플랫폼 전체 현황" />
+        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
+          <p className="text-sm text-gray-500 mb-4">대시보드 데이터를 불러오지 못했습니다.</p>
+          <button
+            type="button"
+            onClick={load}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+          >
+            다시 시도
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -180,6 +211,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* 실제 system status API 연동 전 임시 표시 */}
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm px-6 py-4">
         <h3 className="text-sm font-semibold text-gray-900 mb-3">서버 상태</h3>
         <div className="flex flex-wrap gap-6">
