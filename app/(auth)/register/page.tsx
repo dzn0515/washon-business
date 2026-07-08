@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, Search } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { BUSINESS_TYPES, getBusinessTypeLabel, type BusinessTypeCode } from '@/lib/business-types'
 import { formatResourceCountLabel, formatResourceCountOption } from '@/lib/resource-label'
 import { register, type RegisterPayload } from '@/lib/api-client'
+import { composeStoreAddress, openDaumPostcode } from '@/lib/postcode'
 
 const STEPS = ['계정 정보', '매장 정보', '사업자 정보']
 
@@ -32,12 +33,28 @@ export default function RegisterPage() {
 
   const [businessName, setBusinessName] = useState('')
   const [phoneBusiness, setPhoneBusiness] = useState('')
-  const [address, setAddress] = useState('')
+  const [zipcode, setZipcode] = useState('')
+  const [roadAddress, setRoadAddress] = useState('')
+  const [jibunAddress, setJibunAddress] = useState('')
+  const [detailAddress, setDetailAddress] = useState('')
   const [bayCount, setBayCount] = useState(1)
 
   const [businessNumber, setBusinessNumber] = useState('')
   const [bizType, setBizType] = useState<BusinessTypeCode>(BUSINESS_TYPES[0].code)
   const [phone, setPhone] = useState('')
+
+  const openAddressSearch = async () => {
+    setError(null)
+    try {
+      await openDaumPostcode((data) => {
+        setZipcode(data.zonecode)
+        setRoadAddress(data.roadAddress)
+        setJibunAddress(data.jibunAddress)
+      })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '주소 검색을 시작하지 못했습니다.')
+    }
+  }
 
   const next = async () => {
     setError(null)
@@ -54,8 +71,16 @@ export default function RegisterPage() {
       return
     }
     if (step === 1) {
-      if (!businessName || !phoneBusiness || !address) {
+      if (!businessName || !phoneBusiness) {
         setError('매장 정보를 입력해주세요.')
+        return
+      }
+      if (!roadAddress) {
+        setError('주소 검색을 통해 도로명주소를 입력해주세요.')
+        return
+      }
+      if (!detailAddress.trim()) {
+        setError('상세주소를 입력해주세요.')
         return
       }
       setStep(2)
@@ -68,6 +93,7 @@ export default function RegisterPage() {
       }
       setLoading(true)
       try {
+        const address = composeStoreAddress(roadAddress, detailAddress)
         const payload: RegisterPayload = {
           email,
           password,
@@ -77,6 +103,10 @@ export default function RegisterPage() {
           biz_type: bizType,
           business_number: businessNumber,
           address,
+          zipcode,
+          road_address: roadAddress,
+          jibun_address: jibunAddress,
+          detail_address: detailAddress.trim(),
           phone_business: phoneBusiness,
           bay_count: bayCount,
           business_category: getBusinessTypeLabel(bizType),
@@ -145,10 +175,36 @@ export default function RegisterPage() {
                 <label className="text-xs text-gray-500 mb-1 block">대표 전화번호</label>
                 <Input value={phoneBusiness} onChange={(e) => setPhoneBusiness(e.target.value)} placeholder="033-123-4567" />
               </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">주소</label>
-                <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="강원도 원주시 무실로 42" />
+
+              <div className="space-y-3">
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <label className="text-xs text-gray-500 mb-1 block">우편번호</label>
+                    <Input value={zipcode} readOnly placeholder="주소 검색 시 자동 입력" />
+                  </div>
+                  <Button type="button" variant="secondary" className="shrink-0" onClick={() => void openAddressSearch()}>
+                    <Search size={16} className="mr-1" />
+                    주소 검색
+                  </Button>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">도로명주소</label>
+                  <Input value={roadAddress} readOnly placeholder="주소 검색 시 자동 입력" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">지번주소</label>
+                  <Input value={jibunAddress} readOnly placeholder="주소 검색 시 자동 입력" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">상세주소</label>
+                  <Input
+                    value={detailAddress}
+                    onChange={(e) => setDetailAddress(e.target.value)}
+                    placeholder="101호, 2층 등"
+                  />
+                </div>
               </div>
+
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">업종</label>
                 <select

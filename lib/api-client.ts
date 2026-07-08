@@ -118,6 +118,10 @@ export type RegisterPayload = {
   biz_type: string
   business_number: string
   address: string
+  zipcode?: string
+  road_address?: string
+  jibun_address?: string
+  detail_address?: string
   phone_business: string
   bay_count: number
   business_category?: string
