@@ -43,16 +43,40 @@ export type AdminReservationItem = {
   id: string
   businessName: string
   customerName: string
+  phone?: string
   menuName: string
   bookingDate: string
   startTime: string
   status: string
   source: string | null
+  price?: number
+  createdAt?: string
+  partnerId?: string
   vehicle: {
     licensePlate: string
     brand?: string
     model?: string
   } | null
+}
+
+export type AdminReservationDetail = AdminReservationItem & {
+  bookingNumber?: string
+  endTime?: string | null
+  note?: string | null
+  paymentMethod?: string | null
+  paymentStatus?: string | null
+  paidAmount?: number
+  paidAt?: string | null
+  startedAt?: string | null
+  completedAt?: string | null
+  cancelledAt?: string | null
+}
+
+export type AdminReservationListResult = {
+  items: AdminReservationItem[]
+  total: number
+  page: number
+  pageSize: number
 }
 
 function getAdminToken(): string {
@@ -445,92 +469,115 @@ export async function saveBusinessMemo(id: string, memo: string): Promise<{ succ
   }
 }
 
-// TODO: GET /api/v1/admin/reservations — 백엔드 미구현
+// GET /api/v1/admin/reservations — 검색·필터·페이징
 export async function fetchAdminAllReservations(params?: {
   businessId?: string
+  partnerId?: string
   status?: string
   dateFrom?: string
   dateTo?: string
   search?: string
+  keyword?: string
   page?: number
+  pageSize?: number
   limit?: number
-}): Promise<AdminReservationItem[]> {
-  try {
-    const query = new URLSearchParams()
-    if (params?.businessId) query.set('business_id', params.businessId)
-    if (params?.status && params.status !== 'all') query.set('status', params.status)
-    if (params?.dateFrom) query.set('date_from', params.dateFrom)
-    if (params?.dateTo) query.set('date_to', params.dateTo)
-    if (params?.search) query.set('search', params.search)
-    query.set('limit', String(params?.limit ?? 20))
-    if (params?.page) query.set('page', String(params.page))
+}): Promise<AdminReservationListResult> {
+  const query = new URLSearchParams()
+  const partnerId = params?.partnerId ?? params?.businessId
+  if (partnerId) query.set('partnerId', partnerId)
+  if (params?.status && params.status !== 'all') query.set('status', params.status)
+  if (params?.dateFrom) query.set('dateFrom', params.dateFrom)
+  if (params?.dateTo) query.set('dateTo', params.dateTo)
+  const keyword = params?.keyword ?? params?.search
+  if (keyword?.trim()) query.set('keyword', keyword.trim())
+  query.set('page', String(params?.page ?? 1))
+  query.set('pageSize', String(params?.pageSize ?? params?.limit ?? 20))
 
-    const data = await adminFetch<unknown>(`/admin/reservations?${query}`)
-    const list = Array.isArray(data)
-      ? data
-      : (data as { reservations?: Record<string, unknown>[] }).reservations ??
-        (data as { items?: Record<string, unknown>[] }).items ??
-        []
-    return list.map(mapReservationItem)
-  } catch {
-    if (!isDev) throw new Error('예약 목록 조회 실패')
-    console.warn('[Admin][Dev] fetchAdminAllReservations → mock')
-    let list = [...MOCK_RESERVATIONS]
-    if (params?.businessId) {
-      list = list.filter((r) => r.businessName.includes(params.businessId!))
-    }
-    if (params?.status && params.status !== 'all') {
-      list = list.filter((r) => r.status === params.status)
-    }
-    if (params?.search) {
-      const q = params.search.trim().toLowerCase()
-      list = list.filter(
-        (r) =>
-          r.businessName.toLowerCase().includes(q) ||
-          r.customerName.toLowerCase().includes(q),
-      )
-    }
-    return list
+  const data = await adminFetch<AdminReservationListResult>(`/admin/reservations?${query}`)
+  return {
+    items: (data.items ?? []).map(mapReservationItem),
+    total: data.total ?? data.items?.length ?? 0,
+    page: data.page ?? 1,
+    pageSize: data.pageSize ?? data.items?.length ?? 20,
+  }
+}
+
+export async function fetchAdminReservationDetail(id: string): Promise<AdminReservationDetail> {
+  const data = await adminFetch<Record<string, unknown>>(`/admin/reservations/${id}`)
+  return mapReservationDetail(data)
+}
+
+export async function updateAdminReservationStatus(
+  id: string,
+  status: string,
+  reason?: string,
+): Promise<{ success: boolean; status: string }> {
+  const data = await adminFetch<{ success: boolean; status: string }>(
+    `/admin/reservations/${id}/status`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ status, reason }),
+    },
+  )
+  return data
+}
+
+function mapReservationDetail(r: Record<string, unknown>): AdminReservationDetail {
+  const base = mapReservationItem(r)
+  return {
+    ...base,
+    bookingNumber: r.bookingNumber ? String(r.bookingNumber) : undefined,
+    endTime: r.endTime ? String(r.endTime) : null,
+    note: r.note ? String(r.note) : null,
+    paymentMethod: r.paymentMethod ? String(r.paymentMethod) : null,
+    paymentStatus: r.paymentStatus ? String(r.paymentStatus) : null,
+    paidAmount: typeof r.paidAmount === 'number' ? r.paidAmount : undefined,
+    paidAt: r.paidAt ? String(r.paidAt) : null,
+    startedAt: r.startedAt ? String(r.startedAt) : null,
+    completedAt: r.completedAt ? String(r.completedAt) : null,
+    cancelledAt: r.cancelledAt ? String(r.cancelledAt) : null,
   }
 }
 
 function mapReservationItem(r: Record<string, unknown>): AdminReservationItem {
-  const vehicle = r.vehicle as Record<string, string> | null | undefined
+  const vehicle = r.vehicle as Record<string, string> | string | null | undefined
+  const vehicleObj =
+    typeof vehicle === 'string'
+      ? vehicle
+        ? { licensePlate: vehicle }
+        : null
+      : vehicle
+        ? {
+            licensePlate: String(vehicle.licensePlate ?? vehicle.license_plate ?? ''),
+            brand: vehicle.brand,
+            model: vehicle.model ?? vehicle.modelName,
+          }
+        : null
   return {
     id: String(r.id),
     businessName: String(r.businessName ?? r.business_name ?? ''),
     customerName: String(r.customerName ?? r.customer_name ?? ''),
+    phone: String(r.phone ?? r.customer_phone ?? ''),
     menuName: String(r.menuName ?? r.menu_name ?? r.menu ?? ''),
     bookingDate: String(r.bookingDate ?? r.booking_date ?? r.date ?? '').slice(0, 10),
-    startTime: String(r.startTime ?? r.start_time ?? r.time ?? ''),
+    startTime: String(
+      r.startTime ?? r.bookingTime ?? r.start_time ?? r.booking_time ?? r.time ?? '',
+    ).slice(0, 5),
     status: String(r.status ?? 'pending'),
     source: r.source ? String(r.source) : null,
-    vehicle: vehicle
-      ? {
-          licensePlate: String(vehicle.licensePlate ?? vehicle.license_plate ?? ''),
-          brand: vehicle.brand,
-          model: vehicle.model,
-        }
-      : null,
+    price: typeof r.price === 'number' ? r.price : undefined,
+    createdAt: r.createdAt ? String(r.createdAt) : undefined,
+    partnerId: r.partnerId ? String(r.partnerId) : undefined,
+    vehicle: vehicleObj,
   }
 }
 
-// TODO: POST /api/v1/admin/reservations/{id}/cancel — 백엔드 미구현
 export async function forceCancelReservation(
   id: string,
   reason: string,
 ): Promise<{ success: boolean }> {
-  try {
-    await adminFetch(`/admin/reservations/${id}/cancel`, {
-      method: 'POST',
-      body: JSON.stringify({ reason }),
-    })
-    return { success: true }
-  } catch {
-    if (!isDev) throw new Error('강제취소 실패')
-    console.warn('[Admin][Dev] forceCancelReservation → mock success')
-    return { success: true }
-  }
+  await updateAdminReservationStatus(id, 'cancelled', reason)
+  return { success: true }
 }
 
 // ── Admin-04 ─────────────────────────────────────────────────

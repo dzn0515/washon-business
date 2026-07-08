@@ -62,8 +62,8 @@ export default function AdminBusinessDetailPage() {
   useEffect(() => {
     if (tab !== '예약내역') return
     setResLoading(true)
-    fetchAdminAllReservations({ businessId: id, limit: 10 })
-      .then((data) => setReservations(data))
+    fetchAdminAllReservations({ businessId: id, pageSize: 10 })
+      .then((data) => setReservations(data.items))
       .catch(() => setReservations([]))
       .finally(() => setResLoading(false))
   }, [tab, id])
