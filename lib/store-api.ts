@@ -28,6 +28,11 @@ export type BusinessMe = {
   logo_url?: string
   banner_url?: string
   monthly_fee?: number
+  platform_fee_rate?: number | null
+  trial_ends_at?: string | null
+  subscription_status?: string | null
+  next_payment_at?: string | null
+  auto_renewal?: boolean | null
 }
 
 export async function fetchBusinessMe(): Promise<BusinessMe> {

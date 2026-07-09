@@ -7,12 +7,23 @@ import { LogOut } from 'lucide-react'
 import { useDemoMode } from '@/components/providers/DemoModeProvider'
 import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
 import { getUserEmail } from '@/lib/api-client'
+import { SUBSCRIPTION_PLANS } from '@/lib/billing/catalog'
+
+function planDisplayName(plan?: string | null): string {
+  const id = (plan || 'basic').toLowerCase()
+  return SUBSCRIPTION_PLANS.find((p) => p.id === id)?.name ?? plan ?? 'Basic'
+}
+
+function formatPlanDate(iso?: string | null): string {
+  if (!iso) return '-'
+  return iso.slice(0, 10).replace(/-/g, '.')
+}
 
 export default function SettingsPage() {
   const router = useRouter()
   const { logout } = useAuthStore()
   const { isDemo } = useDemoMode()
-  const { display, loading, error } = useBusinessMe()
+  const { display, business, loading, error } = useBusinessMe()
   const userEmail = getUserEmail()
 
   function handleLogout() {
@@ -20,18 +31,36 @@ export default function SettingsPage() {
     router.push('/login')
   }
 
+  const planName = isDemo ? 'Standard' : planDisplayName(business?.plan)
+  const trialEnds = isDemo ? '2026.07.24' : formatPlanDate(business?.trial_ends_at)
+  const nextPayment = isDemo ? '2026.07.24' : formatPlanDate(business?.next_payment_at)
+  const monthlyFee = isDemo ? 59_000 : (business?.monthly_fee ?? 28_000)
+  const isTrial =
+    !isDemo &&
+    (business?.subscription_status === 'FREE_TRIAL' ||
+      business?.subscription_status === 'free_trial')
+
   return (
     <div className="space-y-4">
       <div className="bg-blue-600 text-white rounded-xl p-5">
         <p className="text-sm opacity-80">현재 플랜</p>
-        <p className="text-xl font-bold mt-1">{isDemo ? 'Standard' : '기본 노출'}</p>
+        <p className="text-xl font-bold mt-1">{planName}</p>
         <p className="text-sm mt-3 opacity-90">
-          {isDemo ? '첫 1개월 무료 체험 중 · 2026.07.24 종료' : '3개월 무료 체험 중 · 2026.09.24 종료'}
+          {isDemo
+            ? '첫 1개월 무료 체험 중 · 2026.07.24 종료'
+            : isTrial
+              ? `무료 체험 중 · ${trialEnds} 종료`
+              : business?.subscription_status
+                ? `구독 상태: ${business.subscription_status}`
+                : '구독 정보'}
         </p>
         <div className="mt-4 pt-4 border-t border-white/20 text-sm">
-          <p>{isDemo ? '다음 결제 2026.07.24' : '다음 결제 2026.09.24'}</p>
+          <p>다음 결제 {nextPayment}</p>
           <p className="mt-1 font-medium">
-            {isDemo ? 'AUTOON Business 이용료 59,000원/월' : '앱 노출 유지비 28,000원/월'}
+            AUTOON Business 이용료 {monthlyFee.toLocaleString()}원/월
+            {business?.platform_fee_rate != null
+              ? ` · 수수료 ${business.platform_fee_rate}%`
+              : ''}
           </p>
         </div>
       </div>

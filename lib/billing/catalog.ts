@@ -8,6 +8,8 @@ export type SubscriptionStatus =
   | 'expired'
   | 'pending'
   | 'payment_failed'
+  | 'cancelled'
+  | 'terminated'
 
 export const SUBSCRIPTION_STATUS_LABEL: Record<SubscriptionStatus, string> = {
   free_trial: '무료 체험',
@@ -17,6 +19,8 @@ export const SUBSCRIPTION_STATUS_LABEL: Record<SubscriptionStatus, string> = {
   expired: '만료',
   pending: '신청 대기',
   payment_failed: '결제 실패',
+  cancelled: '해지',
+  terminated: '강제 종료',
 }
 
 export const SUBSCRIPTION_STATUS_STYLE: Record<SubscriptionStatus, string> = {
@@ -27,6 +31,8 @@ export const SUBSCRIPTION_STATUS_STYLE: Record<SubscriptionStatus, string> = {
   expired: 'bg-gray-100 text-gray-500',
   pending: 'bg-purple-100 text-purple-700',
   payment_failed: 'bg-red-100 text-red-700',
+  cancelled: 'bg-gray-100 text-gray-600',
+  terminated: 'bg-red-100 text-red-800',
 }
 
 export const SUBSCRIPTION_PLANS = [

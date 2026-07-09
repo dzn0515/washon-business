@@ -1075,7 +1075,37 @@ function unwrapAdApplication(data: unknown): AdminAdApplication {
 
 export type AdminSubscriptionPlanTier = 'BASIC' | 'STANDARD' | 'PREMIUM'
 
+export type AdminSubscriptionApiStatus =
+  | 'FREE_TRIAL'
+  | 'ACTIVE'
+  | 'EXPIRING'
+  | 'EXPIRED'
+  | 'PAYMENT_FAILED'
+  | 'CANCELLED'
+  | 'TERMINATED'
+
+export type AdminSubscriptionApiPaymentStatus =
+  | 'NONE'
+  | 'PENDING'
+  | 'PAID'
+  | 'FAILED'
+  | 'OVERDUE'
+
+export type AdminSubscriptionEventItem = {
+  id: number
+  eventType: string
+  fromPlanTier: string | null
+  toPlanTier: string | null
+  fromStatus: string | null
+  toStatus: string | null
+  actorType: string
+  actorId: number | null
+  reason: string | null
+  createdAt: string
+}
+
 export type AdminSubscriptionItem = {
+  id: number
   partnerId: number
   businessName: string
   ownerName: string | null
@@ -1084,8 +1114,19 @@ export type AdminSubscriptionItem = {
   monthlyFee: number
   platformFeeRate: number
   status: string
+  paymentStatus: string
+  trialStartedAt: string | null
+  trialEndsAt: string | null
+  currentPeriodStartedAt: string | null
+  currentPeriodEndsAt: string | null
+  nextPaymentAt: string | null
+  autoRenewal: boolean
+  adminMemo: string
   createdAt: string
+  updatedAt: string | null
+  partnerCreatedAt?: string | null
   isFreeTrial: boolean
+  events?: AdminSubscriptionEventItem[]
 }
 
 export type AdminSubscriptionListResult = {
@@ -1095,11 +1136,18 @@ export type AdminSubscriptionListResult = {
   pageSize: number
 }
 
+export type AdminSubscriptionActionResult = {
+  success: boolean
+  message: string
+  subscription: AdminSubscriptionItem
+}
+
 /** GET /admin/subscriptions */
 export async function fetchAdminSubscriptions(params?: {
   keyword?: string
   planTier?: string
   status?: string
+  paymentStatus?: string
   page?: number
   pageSize?: number
 }): Promise<AdminSubscriptionListResult> {
@@ -1107,6 +1155,9 @@ export async function fetchAdminSubscriptions(params?: {
   if (params?.keyword?.trim()) query.set('keyword', params.keyword.trim())
   if (params?.planTier && params.planTier !== 'all') query.set('planTier', params.planTier)
   if (params?.status && params.status !== 'all') query.set('status', params.status)
+  if (params?.paymentStatus && params.paymentStatus !== 'all') {
+    query.set('paymentStatus', params.paymentStatus)
+  }
   query.set('page', String(params?.page ?? 1))
   query.set('pageSize', String(params?.pageSize ?? 20))
   const data = await adminFetch<AdminSubscriptionListResult>(`/admin/subscriptions?${query}`)
@@ -1118,22 +1169,79 @@ export async function fetchAdminSubscriptions(params?: {
   }
 }
 
-/** PUT /admin/subscriptions/{partnerId}/plan */
+/** GET /admin/subscriptions/{partnerId} */
+export async function fetchAdminSubscriptionDetail(
+  partnerId: number,
+): Promise<AdminSubscriptionItem> {
+  return adminFetch(`/admin/subscriptions/${partnerId}`)
+}
+
+/** PATCH /admin/subscriptions/{partnerId}/plan */
 export async function updateAdminSubscriptionPlan(
   partnerId: number,
   planTier: AdminSubscriptionPlanTier,
   reason?: string,
-): Promise<{
-  success: boolean
-  partnerId: number
-  planTier: string
-  monthlyFee: number
-  platformFeeRate: number
-  message: string
-}> {
+): Promise<AdminSubscriptionActionResult> {
   return adminFetch(`/admin/subscriptions/${partnerId}/plan`, {
-    method: 'PUT',
+    method: 'PATCH',
     body: JSON.stringify({ planTier, reason: reason ?? '' }),
+  })
+}
+
+/** PATCH /admin/subscriptions/{partnerId}/trial */
+export async function updateAdminSubscriptionTrial(
+  partnerId: number,
+  trialEndsAt: string,
+  reason?: string,
+): Promise<AdminSubscriptionActionResult> {
+  return adminFetch(`/admin/subscriptions/${partnerId}/trial`, {
+    method: 'PATCH',
+    body: JSON.stringify({ trialEndsAt, reason: reason ?? '' }),
+  })
+}
+
+/** PATCH /admin/subscriptions/{partnerId}/status */
+export async function updateAdminSubscriptionStatus(
+  partnerId: number,
+  status: AdminSubscriptionApiStatus | string,
+  reason?: string,
+): Promise<AdminSubscriptionActionResult> {
+  return adminFetch(`/admin/subscriptions/${partnerId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, reason: reason ?? '' }),
+  })
+}
+
+/** PATCH /admin/subscriptions/{partnerId}/memo */
+export async function updateAdminSubscriptionMemo(
+  partnerId: number,
+  adminMemo: string,
+): Promise<AdminSubscriptionActionResult> {
+  return adminFetch(`/admin/subscriptions/${partnerId}/memo`, {
+    method: 'PATCH',
+    body: JSON.stringify({ adminMemo }),
+  })
+}
+
+/** PATCH /admin/subscriptions/{partnerId}/auto-renewal */
+export async function updateAdminSubscriptionAutoRenewal(
+  partnerId: number,
+  autoRenewal: boolean,
+): Promise<AdminSubscriptionActionResult> {
+  return adminFetch(`/admin/subscriptions/${partnerId}/auto-renewal`, {
+    method: 'PATCH',
+    body: JSON.stringify({ autoRenewal }),
+  })
+}
+
+/** POST /admin/subscriptions/{partnerId}/terminate */
+export async function terminateAdminSubscription(
+  partnerId: number,
+  reason?: string,
+): Promise<AdminSubscriptionActionResult> {
+  return adminFetch(`/admin/subscriptions/${partnerId}/terminate`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason ?? '' }),
   })
 }
 

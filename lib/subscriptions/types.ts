@@ -39,7 +39,7 @@ export type BusinessSubscription = {
   paymentHistory: BusinessPaymentRecord[]
 }
 
-export type AdminSubscriptionPaymentStatus = 'paid' | 'pending' | 'failed' | 'none'
+export type AdminSubscriptionPaymentStatus = 'paid' | 'pending' | 'failed' | 'none' | 'overdue'
 
 export type AdminSubscription = {
   id: string
@@ -54,6 +54,21 @@ export type AdminSubscription = {
   autoRenewal: boolean
   paymentStatus: AdminSubscriptionPaymentStatus
   adminMemo: string
+  monthlyFee?: number
+  platformFeeRate?: number
+  events?: AdminSubscriptionEvent[]
+}
+
+export type AdminSubscriptionEvent = {
+  id: string
+  eventType: string
+  fromPlanTier: string | null
+  toPlanTier: string | null
+  fromStatus: string | null
+  toStatus: string | null
+  actorType: string
+  reason: string | null
+  createdAt: string
 }
 
 export const SUBSCRIPTION_NOTIFICATION_LABEL: Record<SubscriptionNotificationType, string> = {
@@ -67,4 +82,5 @@ export const ADMIN_PAYMENT_STATUS_LABEL: Record<AdminSubscriptionPaymentStatus, 
   pending: '결제 대기',
   failed: '결제 실패',
   none: '-',
+  overdue: '연체',
 }
