@@ -200,12 +200,19 @@ export default function AdminAdApplicationsPage() {
       />
 
       {error && (
-        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-          광고 신청 목록을 불러오지 못했습니다. API 연결 상태를 확인해 주세요.
-        </p>
+        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
+          <p className="text-sm text-gray-500 mb-4">광고 신청 목록을 불러오지 못했습니다.</p>
+          <button
+            type="button"
+            onClick={load}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+          >
+            다시 시도
+          </button>
+        </div>
       )}
 
-      {pendingCount > 0 && !error && (
+      {!error && pendingCount > 0 && (
         <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
           신청 대기 {pendingCount}건 — 확인 후 승인 또는 반려 처리해 주세요.
         </p>
@@ -234,32 +241,34 @@ export default function AdminAdApplicationsPage() {
         })}
       </div>
 
-      <div className="bg-white border border-gray-100 rounded-xl shadow-sm">
-        {loading ? (
-          <p className="text-sm text-gray-400 py-10 text-center">불러오는 중...</p>
-        ) : (
-          <AdminTable
-            columns={[
-              { key: 'businessName', label: '업체명' },
-              { key: 'productName', label: '상품명' },
-              { key: 'productType', label: '상품 유형' },
-              { key: 'billingType', label: '결제 유형' },
-              { key: 'amount', label: '금액' },
-              { key: 'status', label: '상태' },
-              { key: 'appliedAt', label: '신청일' },
-              { key: 'startDate', label: '시작일' },
-              { key: 'endDate', label: '종료일' },
-              { key: 'remaining', label: '남은 기간' },
-            ]}
-            data={tableData}
-            emptyMessage="해당 상태의 신청이 없습니다."
-            onRowClick={(row) => {
-              const app = applications.find((a) => a.id === row.id)
-              if (app) openDetail(app)
-            }}
-          />
-        )}
-      </div>
+      {!error && (
+        <div className="bg-white border border-gray-100 rounded-xl shadow-sm">
+          {loading ? (
+            <p className="text-sm text-gray-400 py-10 text-center">불러오는 중...</p>
+          ) : (
+            <AdminTable
+              columns={[
+                { key: 'businessName', label: '업체명' },
+                { key: 'productName', label: '상품명' },
+                { key: 'productType', label: '상품 유형' },
+                { key: 'billingType', label: '결제 유형' },
+                { key: 'amount', label: '금액' },
+                { key: 'status', label: '상태' },
+                { key: 'appliedAt', label: '신청일' },
+                { key: 'startDate', label: '시작일' },
+                { key: 'endDate', label: '종료일' },
+                { key: 'remaining', label: '남은 기간' },
+              ]}
+              data={tableData}
+              emptyMessage="해당 상태의 신청이 없습니다."
+              onRowClick={(row) => {
+                const app = applications.find((a) => a.id === row.id)
+                if (app) openDetail(app)
+              }}
+            />
+          )}
+        </div>
+      )}
 
       <AdminModal
         open={!!detail}

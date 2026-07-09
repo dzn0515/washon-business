@@ -1071,7 +1071,75 @@ function unwrapAdApplication(data: unknown): AdminAdApplication {
   throw new Error('광고 신청 응답 형식이 올바르지 않습니다.')
 }
 
-/** GET /admin/ad-applications */
+// ── Admin Subscriptions ──────────────────────────────────────
+
+export type AdminSubscriptionPlanTier = 'BASIC' | 'STANDARD' | 'PREMIUM'
+
+export type AdminSubscriptionItem = {
+  partnerId: number
+  businessName: string
+  ownerName: string | null
+  phone: string | null
+  planTier: AdminSubscriptionPlanTier | string
+  monthlyFee: number
+  platformFeeRate: number
+  status: string
+  createdAt: string
+  isFreeTrial: boolean
+}
+
+export type AdminSubscriptionListResult = {
+  items: AdminSubscriptionItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+/** GET /admin/subscriptions */
+export async function fetchAdminSubscriptions(params?: {
+  keyword?: string
+  planTier?: string
+  status?: string
+  page?: number
+  pageSize?: number
+}): Promise<AdminSubscriptionListResult> {
+  const query = new URLSearchParams()
+  if (params?.keyword?.trim()) query.set('keyword', params.keyword.trim())
+  if (params?.planTier && params.planTier !== 'all') query.set('planTier', params.planTier)
+  if (params?.status && params.status !== 'all') query.set('status', params.status)
+  query.set('page', String(params?.page ?? 1))
+  query.set('pageSize', String(params?.pageSize ?? 20))
+  const data = await adminFetch<AdminSubscriptionListResult>(`/admin/subscriptions?${query}`)
+  return {
+    items: data.items ?? [],
+    total: data.total ?? 0,
+    page: data.page ?? 1,
+    pageSize: data.pageSize ?? 20,
+  }
+}
+
+/** PUT /admin/subscriptions/{partnerId}/plan */
+export async function updateAdminSubscriptionPlan(
+  partnerId: number,
+  planTier: AdminSubscriptionPlanTier,
+  reason?: string,
+): Promise<{
+  success: boolean
+  partnerId: number
+  planTier: string
+  monthlyFee: number
+  platformFeeRate: number
+  message: string
+}> {
+  return adminFetch(`/admin/subscriptions/${partnerId}/plan`, {
+    method: 'PUT',
+    body: JSON.stringify({ planTier, reason: reason ?? '' }),
+  })
+}
+
+/**
+ * 광고 신청 API
+ */
 export async function fetchAdAppApplications(params?: {
   status?: AdApplicationStatus | 'all'
 }): Promise<AdminAdApplication[]> {

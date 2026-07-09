@@ -1,12 +1,19 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import MetricCard from '@/components/ads/MetricCard'
 import ProductCard from '@/components/ads/ProductCard'
 import Modal from '@/components/ui/Modal'
 import SlideUpSheet from '@/components/ui/SlideUpSheet'
 import { useDemoMode } from '@/components/providers/DemoModeProvider'
 import type { BusinessProductDisplayStatus } from '@/lib/ad-applications/types'
+import {
+  applicationsToProductStates,
+  computeBusinessAdSummary,
+  fetchBusinessAdApplications,
+  getProductState,
+  type BusinessAdApplicationRow,
+} from '@/lib/ad-applications/business-api'
 import { formatDisplayDate } from '@/lib/ad-applications/utils'
 import {
   AD_PRODUCTS,
@@ -17,11 +24,6 @@ import {
 } from '@/lib/billing/catalog'
 import { handleApplyAdProduct } from '@/lib/billing/handleApplyAdProduct'
 import { useAdProductSelection } from '@/lib/hooks/useAdProductSelection'
-import {
-  computeBusinessAdSummary,
-  getBusinessProductState,
-  getBusinessProductStates,
-} from '@/lib/mock/business-ad-products'
 import { BTN_PRIMARY, SECTION_LABEL, won } from '@/lib/dashboard-ui'
 
 function formatCompactSummary(count: number, monthly: number, oneTime: number): string {
@@ -44,6 +46,7 @@ function productUnitLabel(product: AdProduct): string {
 
 type ProductGridProps = {
   products: AdProduct[]
+  productStates: ReturnType<typeof applicationsToProductStates>
   getDisplayStatus: (id: string) => BusinessProductDisplayStatus
   isProductDisabled: (product: AdProduct) => boolean
   isProductSelected: (id: string) => boolean
@@ -52,6 +55,7 @@ type ProductGridProps = {
 
 function ProductGrid({
   products,
+  productStates,
   getDisplayStatus,
   isProductDisabled,
   isProductSelected,
@@ -60,7 +64,7 @@ function ProductGrid({
   return (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
       {products.map((product) => {
-        const state = getBusinessProductState(product.id)
+        const state = getProductState(productStates, product.id)
         const displayStatus = getDisplayStatus(product.id)
         const periodText =
           state?.startDate && (displayStatus === 'active' || displayStatus === 'ended')
@@ -91,9 +95,10 @@ function ProductGrid({
 
 export default function AdsPage() {
   const { isDemo } = useDemoMode()
-  const [summary, setSummary] = useState(() =>
-    computeBusinessAdSummary(getBusinessProductStates()),
-  )
+  const [productStates, setProductStates] = useState(() => applicationsToProductStates([]))
+  const [summary, setSummary] = useState(() => computeBusinessAdSummary([]))
+  const [loadError, setLoadError] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -105,10 +110,35 @@ export default function AdsPage() {
   } | null>(null)
   const [gridEpoch, setGridEpoch] = useState(0)
 
+  const refreshApplications = useCallback(async () => {
+    setLoading(true)
+    setLoadError(false)
+    try {
+      const rows: BusinessAdApplicationRow[] = await fetchBusinessAdApplications()
+      const states = applicationsToProductStates(rows)
+      setProductStates(states)
+      setSummary(computeBusinessAdSummary(states))
+    } catch {
+      setLoadError(true)
+      setProductStates([])
+      setSummary(computeBusinessAdSummary([]))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isDemo) {
+      refreshApplications()
+    } else {
+      setLoading(false)
+    }
+  }, [isDemo, refreshApplications])
+
   const getDisplayStatus = useCallback(
     (productId: string): BusinessProductDisplayStatus =>
-      getBusinessProductState(productId)?.displayStatus ?? 'available',
-    [],
+      getProductState(productStates, productId)?.displayStatus ?? 'available',
+    [productStates],
   )
 
   const {
@@ -142,7 +172,7 @@ export default function AdsPage() {
         oneTime: paymentTotals.oneTime,
       })
       clearSelection()
-      setSummary(computeBusinessAdSummary(getBusinessProductStates()))
+      await refreshApplications()
       setGridEpoch((v) => v + 1)
       setCheckoutOpen(false)
       setModalOpen(true)
@@ -160,6 +190,7 @@ export default function AdsPage() {
         <ProductGrid
           key={`${title}-${gridEpoch}`}
           products={products}
+          productStates={productStates}
           getDisplayStatus={getDisplayStatus}
           isProductDisabled={isProductDisabled}
           isProductSelected={isProductSelected}
@@ -193,6 +224,19 @@ export default function AdsPage() {
         />
         <MetricCard label="자동화 이용 상태" value={summary.automationStatus} />
       </div>
+
+      {loadError && !isDemo && (
+        <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-700">
+          광고 신청 내역을 불러오지 못했습니다.{' '}
+          <button type="button" className="underline" onClick={refreshApplications}>
+            다시 시도
+          </button>
+        </p>
+      )}
+
+      {loading && !isDemo ? (
+        <p className="text-sm text-gray-400">불러오는 중...</p>
+      ) : null}
 
       {isDemo && (
         <p className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">
