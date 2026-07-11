@@ -129,3 +129,42 @@ export function formatAdminCouponDateRange(from: string, until: string): string 
   const b = until?.slice(0, 10) || '-'
   return `${a} ~ ${b}`
 }
+
+/** Admin 배너 CMS */
+export const ADMIN_BANNER_STATUS_LABEL: Record<string, string> = {
+  DRAFT: '임시저장',
+  SCHEDULED: '예정',
+  ACTIVE: '활성',
+  PAUSED: '일시정지',
+  ENDED: '종료',
+}
+
+export const ADMIN_BANNER_PLACEMENT_LABEL: Record<string, string> = {
+  HOME_TOP: '홈 상단',
+  CATEGORY_LIST: '카테고리 목록',
+  STORE_DETAIL: '매장 상세',
+  EVENT: '이벤트',
+  WEB_MAIN: '웹 메인',
+}
+
+export const ADMIN_BANNER_LINK_TYPE_LABEL: Record<string, string> = {
+  STORE: '매장 이동',
+  EXTERNAL_URL: '외부 링크',
+  NONE: '링크 없음',
+}
+
+export function formatAdminBannerDateTime(iso: string | null | undefined): string {
+  if (!iso) return '-'
+  try {
+    return new Date(iso).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
+  } catch {
+    return iso
+  }
+}
+
+export function formatAdminBannerPeriod(
+  startAt: string | null | undefined,
+  endAt: string | null | undefined,
+): string {
+  return `${formatAdminBannerDateTime(startAt)} ~ ${formatAdminBannerDateTime(endAt)}`
+}

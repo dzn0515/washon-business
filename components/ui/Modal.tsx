@@ -8,7 +8,7 @@ interface ModalProps {
   onClose: () => void
   title: string
   children: React.ReactNode
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
 export default function Modal({ open, onClose, title, children, size = 'md' }: ModalProps) {
@@ -31,6 +31,7 @@ export default function Modal({ open, onClose, title, children, size = 'md' }: M
           'relative bg-white rounded-2xl shadow-xl w-full max-h-[90vh] overflow-y-auto p-5',
           size === 'sm' && 'max-w-sm',
           size === 'lg' && 'max-w-lg',
+          size === 'xl' && 'max-w-2xl',
           size === 'md' && 'max-w-md',
         )}
         role="dialog"

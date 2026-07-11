@@ -1388,3 +1388,221 @@ export async function fetchAdminCouponMetrics(params?: {
   const qs = query.toString()
   return adminFetch<AdminCouponMetrics>(`/admin/coupons/metrics${qs ? `?${qs}` : ''}`)
 }
+
+// ── Admin Banners (platform CMS) ─────────────────────────────
+
+export type BannerPlacement =
+  | 'HOME_TOP'
+  | 'CATEGORY_LIST'
+  | 'STORE_DETAIL'
+  | 'EVENT'
+  | 'WEB_MAIN'
+
+export type BannerLinkType = 'STORE' | 'EXTERNAL_URL' | 'NONE'
+
+export type BannerStatus = 'DRAFT' | 'SCHEDULED' | 'ACTIVE' | 'PAUSED' | 'ENDED'
+
+export type AdminBanner = {
+  id: number
+  title: string
+  subtitle: string | null
+  imageUrl: string | null
+  placement: BannerPlacement | string
+  linkType: BannerLinkType | string
+  linkValue: string | null
+  partnerId: number | null
+  adApplicationId: number | null
+  startAt: string | null
+  endAt: string | null
+  displayOrder: number
+  status: BannerStatus | string
+  effectiveStatus: BannerStatus | string
+  impressionCount: number
+  clickCount: number
+  createdBy: number
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type BannerListResponse = {
+  items: AdminBanner[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export type BannerMetrics = {
+  total: number
+  active: number
+  scheduled: number
+  paused: number
+  ended: number
+  totalImpressions: number
+  totalClicks: number
+  criteria?: string
+}
+
+export type AdminBannerCreateInput = {
+  title: string
+  subtitle?: string | null
+  placement: string
+  linkType?: string
+  linkValue?: string | null
+  partnerId?: number | null
+  adApplicationId?: number | null
+  startAt?: string | null
+  endAt?: string | null
+  displayOrder?: number
+  status?: string
+}
+
+export type AdminBannerUpdateInput = {
+  title?: string
+  subtitle?: string | null
+  placement?: string
+  linkType?: string
+  linkValue?: string | null
+  partnerId?: number | null
+  adApplicationId?: number | null
+  startAt?: string | null
+  endAt?: string | null
+  displayOrder?: number
+  clearSubtitle?: boolean
+  clearLinkValue?: boolean
+  clearPartnerId?: boolean
+  clearAdApplicationId?: boolean
+  clearStartAt?: boolean
+  clearEndAt?: boolean
+}
+
+async function adminFetchDetail<T>(path: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${getAdminToken()}`,
+    ...(options?.headers as Record<string, string> | undefined),
+  }
+  // Only set JSON content-type when body is a string (not FormData)
+  if (options?.body != null && !(options.body instanceof FormData) && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json'
+  }
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers,
+  })
+  if (!res.ok) {
+    let detail = `API error: ${res.status}`
+    try {
+      const body = await res.json()
+      if (typeof body.detail === 'string') detail = body.detail
+      else if (Array.isArray(body.detail)) {
+        detail = body.detail
+          .map((d: { msg?: string }) => d?.msg)
+          .filter(Boolean)
+          .join(', ')
+      }
+    } catch {
+      /* ignore */
+    }
+    const err = new Error(detail) as Error & { status?: number }
+    err.status = res.status
+    throw err
+  }
+  if (res.status === 204) return undefined as T
+  return res.json() as Promise<T>
+}
+
+/** GET /admin/banners */
+export async function getAdminBanners(params?: {
+  placement?: string
+  status?: string
+  partnerId?: number
+  keyword?: string
+  page?: number
+  pageSize?: number
+}): Promise<BannerListResponse> {
+  const query = new URLSearchParams()
+  if (params?.placement && params.placement !== 'all') query.set('placement', params.placement)
+  if (params?.status && params.status !== 'all') query.set('status', params.status)
+  if (params?.partnerId != null && !Number.isNaN(params.partnerId)) {
+    query.set('partnerId', String(params.partnerId))
+  }
+  if (params?.keyword?.trim()) query.set('keyword', params.keyword.trim())
+  query.set('page', String(params?.page ?? 1))
+  query.set('pageSize', String(params?.pageSize ?? 20))
+  const data = await adminFetchDetail<BannerListResponse>(`/admin/banners?${query}`)
+  return {
+    items: data.items ?? [],
+    total: data.total ?? 0,
+    page: data.page ?? 1,
+    pageSize: data.pageSize ?? 20,
+    totalPages: data.totalPages ?? 0,
+  }
+}
+
+/** GET /admin/banners/{id} */
+export async function getAdminBanner(id: number): Promise<AdminBanner> {
+  return adminFetchDetail<AdminBanner>(`/admin/banners/${id}`)
+}
+
+/** GET /admin/banners/metrics */
+export async function getBannerMetrics(): Promise<BannerMetrics> {
+  return adminFetchDetail<BannerMetrics>('/admin/banners/metrics')
+}
+
+/** POST /admin/banners */
+export async function createBanner(payload: AdminBannerCreateInput): Promise<AdminBanner> {
+  return adminFetchDetail<AdminBanner>('/admin/banners', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+/** PUT /admin/banners/{id} */
+export async function updateBanner(
+  id: number,
+  payload: AdminBannerUpdateInput,
+): Promise<AdminBanner> {
+  return adminFetchDetail<AdminBanner>(`/admin/banners/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+/** PATCH /admin/banners/{id}/status */
+export async function updateBannerStatus(
+  id: number,
+  status: BannerStatus | string,
+): Promise<AdminBanner> {
+  return adminFetchDetail<AdminBanner>(`/admin/banners/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+/** PATCH /admin/banners/reorder — same placement only */
+export async function reorderBanners(
+  items: { id: number; displayOrder: number }[],
+): Promise<AdminBanner[]> {
+  return adminFetchDetail<AdminBanner[]>('/admin/banners/reorder', {
+    method: 'PATCH',
+    body: JSON.stringify({ items }),
+  })
+}
+
+/** DELETE /admin/banners/{id} */
+export async function deleteBanner(id: number): Promise<void> {
+  await adminFetchDetail<void>(`/admin/banners/${id}`, { method: 'DELETE' })
+}
+
+/** POST /admin/banners/{id}/image — multipart field name: file */
+export async function uploadBannerImage(
+  id: number,
+  file: File,
+): Promise<{ id: number; imageUrl: string; updatedAt: string | null }> {
+  const form = new FormData()
+  form.append('file', file)
+  return adminFetchDetail(`/admin/banners/${id}/image`, {
+    method: 'POST',
+    body: form,
+  })
+}

@@ -123,6 +123,13 @@ export const ADMIN_MENUS: { group: string; items: AdminMenuItem[] }[] = [
       },
       { icon: '🔗', label: 'QR관리', href: '/admin/qr', ready: true, permission: 'qr.read' },
       {
+        icon: '🪧',
+        label: '배너 관리',
+        href: '/admin/banners',
+        ready: true,
+        permission: 'content.read',
+      },
+      {
         icon: '🖼️',
         label: '콘텐츠',
         href: '/admin/contents',
