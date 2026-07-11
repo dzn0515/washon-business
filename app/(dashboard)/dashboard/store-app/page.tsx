@@ -125,20 +125,14 @@ export default function StoreAppPage() {
               <Input value={store.brandColor} onChange={(e) => setStore({ brandColor: e.target.value })} />
             </div>
           </Field>
-          <Field label="로고 이미지 URL">
-            <Input
-              value={store.logoUrl}
-              onChange={(e) => setStore({ logoUrl: e.target.value })}
-              placeholder="https://..."
-            />
-          </Field>
-          <Field label="대표 이미지 URL" className="sm:col-span-2">
-            <Input
-              value={store.bannerUrl}
-              onChange={(e) => setStore({ bannerUrl: e.target.value })}
-              placeholder="https://..."
-            />
-          </Field>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          로고·대표 이미지·시공사진은{' '}
+          <a href="/dashboard/settings" className="underline font-medium">
+            설정 → 매장 이미지
+          </a>
+          에서 파일로 업로드하세요. (URL 직접 입력은 더 이상 사용하지 않습니다)
         </div>
 
         {(store.bannerUrl || store.logoUrl) && (

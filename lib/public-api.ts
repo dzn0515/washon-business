@@ -16,6 +16,13 @@ export async function publicFetch<T = unknown>(path: string, options?: RequestIn
   return res.json() as Promise<T>
 }
 
+export type PublicGalleryImage = {
+  id: string
+  image_url: string
+  caption: string
+  sort_order: number
+}
+
 export type PublicBusiness = {
   id: string
   name: string
@@ -27,6 +34,7 @@ export type PublicBusiness = {
   brand_color: string
   lat: number | null
   lng: number | null
+  gallery_images?: PublicGalleryImage[]
 }
 
 export type PublicMenu = {

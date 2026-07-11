@@ -1,6 +1,8 @@
 'use client'
 import { useRouter } from 'next/navigation'
 import BookingReminderSettingsPanel from '@/components/features/bookings/BookingReminderSettingsPanel'
+import BusinessRegistrationUploader from '@/components/features/store/BusinessRegistrationUploader'
+import StoreImagesManager from '@/components/features/store/StoreImagesManager'
 import { CARD } from '@/lib/dashboard-ui'
 import { useAuthStore } from '@/store/auth'
 import { LogOut } from 'lucide-react'
@@ -64,6 +66,10 @@ export default function SettingsPage() {
           </p>
         </div>
       </div>
+
+      <StoreImagesManager />
+
+      <BusinessRegistrationUploader />
 
       <div className={CARD}>
         <p className="text-[12px] text-gray-400 font-medium mb-3">매장 정보</p>
