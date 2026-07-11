@@ -105,3 +105,27 @@ export type AdminBizTypeFilterKey = (typeof ADMIN_BIZ_TYPE_FILTERS)[number]['key
 export function getAdminBizTypeLabel(bizType: string): string {
   return ADMIN_BIZ_TYPE_LABEL[bizType] ?? bizType
 }
+
+/** Admin 쿠폰 모니터링 */
+export const ADMIN_COUPON_SOURCE_LABEL: Record<string, string> = {
+  manual: '수동',
+  birthday_auto: '생일자동',
+}
+
+export const ADMIN_COUPON_STATUS_LABEL: Record<string, string> = {
+  issued: '발급',
+  used: '사용',
+  expired: '만료',
+  cancelled: '취소',
+}
+
+export function formatAdminCouponDiscount(type: string, value: number): string {
+  if (type === 'percent') return `${value}%`
+  return `${value.toLocaleString('ko-KR')}원`
+}
+
+export function formatAdminCouponDateRange(from: string, until: string): string {
+  const a = from?.slice(0, 10) || '-'
+  const b = until?.slice(0, 10) || '-'
+  return `${a} ~ ${b}`
+}

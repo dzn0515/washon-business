@@ -101,7 +101,7 @@ export const ADMIN_MENUS: { group: string; items: AdminMenuItem[] }[] = [
         ready: true,
         permission: 'subscription.read',
       },
-      { icon: '🎁', label: '쿠폰', href: '/admin/coupons', ready: false, permission: 'coupon.read' },
+      { icon: '🎁', label: '쿠폰', href: '/admin/coupons', ready: true, permission: 'coupon.read' },
     ],
   },
   {

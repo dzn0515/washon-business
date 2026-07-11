@@ -1305,3 +1305,86 @@ export async function endAdApp(
   })
   return unwrapAdApplication(data)
 }
+
+// ── Admin Coupons (read-only monitoring) ─────────────────────
+
+export type AdminCouponItem = {
+  id: number
+  partnerId: number
+  businessName: string
+  bizType: string | null
+  name: string
+  discountType: 'amount' | 'percent' | string
+  discountValue: number
+  minOrderAmount: number
+  validFrom: string
+  validUntil: string
+  isActive: boolean
+  source: 'manual' | 'birthday_auto' | string
+  status: 'issued' | 'used' | 'expired' | 'cancelled' | null
+  issuedCount: number
+  usedCount: number
+  createdAt: string
+}
+
+export type AdminCouponListResult = {
+  items: AdminCouponItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export type AdminCouponMetrics = {
+  totalCoupons: number
+  activeCoupons: number
+  totalIssued: number
+  totalUsed: number
+  usageRate: number
+  bySource: { source: string; count: number }[]
+  byStatus: { status: string; count: number }[]
+}
+
+/** GET /admin/coupons */
+export async function fetchAdminCoupons(params?: {
+  partnerId?: number
+  source?: string
+  status?: string
+  isActive?: boolean | 'all'
+  dateFrom?: string
+  dateTo?: string
+  keyword?: string
+  page?: number
+  pageSize?: number
+}): Promise<AdminCouponListResult> {
+  const query = new URLSearchParams()
+  if (params?.partnerId != null) query.set('partnerId', String(params.partnerId))
+  if (params?.source && params.source !== 'all') query.set('source', params.source)
+  if (params?.status && params.status !== 'all') query.set('status', params.status)
+  if (params?.isActive === true || params?.isActive === false) {
+    query.set('isActive', String(params.isActive))
+  }
+  if (params?.dateFrom) query.set('dateFrom', params.dateFrom)
+  if (params?.dateTo) query.set('dateTo', params.dateTo)
+  if (params?.keyword?.trim()) query.set('keyword', params.keyword.trim())
+  query.set('page', String(params?.page ?? 1))
+  query.set('pageSize', String(params?.pageSize ?? 20))
+  const data = await adminFetch<AdminCouponListResult>(`/admin/coupons?${query}`)
+  return {
+    items: data.items ?? [],
+    total: data.total ?? 0,
+    page: data.page ?? 1,
+    pageSize: data.pageSize ?? 20,
+  }
+}
+
+/** GET /admin/coupons/metrics */
+export async function fetchAdminCouponMetrics(params?: {
+  dateFrom?: string
+  dateTo?: string
+}): Promise<AdminCouponMetrics> {
+  const query = new URLSearchParams()
+  if (params?.dateFrom) query.set('dateFrom', params.dateFrom)
+  if (params?.dateTo) query.set('dateTo', params.dateTo)
+  const qs = query.toString()
+  return adminFetch<AdminCouponMetrics>(`/admin/coupons/metrics${qs ? `?${qs}` : ''}`)
+}
