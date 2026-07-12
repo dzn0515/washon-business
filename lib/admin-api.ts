@@ -2376,3 +2376,71 @@ export async function fetchAdminSalesCommissionPreview(params?: {
   }
   return adminFetchDetail('/admin/sales/commission-preview')
 }
+
+export type AdminSalesLead = {
+  id: string
+  salesAgentId: string
+  salesAgentName: string | null
+  companyName: string
+  ownerName: string
+  phone: string
+  email: string
+  businessType: string
+  address: string | null
+  memo: string | null
+  status: string
+  partnerId: string | null
+  partnerCreated: boolean
+  partnerName?: string | null
+  partnerSlug?: string | null
+  ownerLoginEmail?: string | null
+  rejectionReason: string | null
+  reviewedBy: string | null
+  reviewedAt: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export async function fetchAdminSalesLeads(params?: {
+  keyword?: string
+  status?: string
+  agentId?: string | number
+  businessType?: string
+  page?: number
+  pageSize?: number
+}): Promise<AdminSalesListResponse<AdminSalesLead>> {
+  return adminFetchDetail(
+    `/admin/sales/leads${salesQs({
+      keyword: params?.keyword,
+      status: params?.status,
+      agentId: params?.agentId,
+      businessType: params?.businessType,
+      page: params?.page,
+      pageSize: params?.pageSize,
+    })}`,
+  )
+}
+
+export async function fetchAdminSalesLead(id: string): Promise<AdminSalesLead> {
+  return adminFetchDetail(`/admin/sales/leads/${id}`)
+}
+
+export async function approveAdminSalesLead(
+  id: string,
+  body: { ownerEmail: string; temporaryPassword: string; adminMemo?: string | null },
+): Promise<AdminSalesLead & { message?: string; ownerLoginEmail?: string | null }> {
+  return adminFetchDetail(`/admin/sales/leads/${id}/approve`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function rejectAdminSalesLead(
+  id: string,
+  reason: string,
+): Promise<AdminSalesLead> {
+  return adminFetchDetail(`/admin/sales/leads/${id}/reject`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
+  })
+}

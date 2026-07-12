@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 
 const LINKS: Array<{ href: string; label: string; exact?: boolean }> = [
   { href: '/admin/sales', label: '대시보드', exact: true },
+  { href: '/admin/sales/leads', label: '입점 신청' },
   { href: '/admin/sales/distributors', label: '총판' },
   { href: '/admin/sales/agencies', label: '영업점' },
   { href: '/admin/sales/agents', label: '영업사원' },

@@ -124,9 +124,42 @@ export type SalesApplyRequest = {
 }
 
 export type SalesApplyResponse = {
-  partnerId: string
+  leadId: string
+  partnerId: string | null
   status: string
   message: string
+}
+
+export type SalesLead = {
+  id: string
+  salesAgentId: string
+  salesAgentName: string | null
+  companyName: string
+  ownerName: string
+  phone: string
+  email: string
+  businessType: string
+  address: string | null
+  memo: string | null
+  status: string
+  partnerId: string | null
+  partnerCreated: boolean
+  partnerName?: string | null
+  partnerSlug?: string | null
+  ownerLoginEmail?: string | null
+  rejectionReason: string | null
+  reviewedBy: string | null
+  reviewedAt: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type SalesLeadListResponse = {
+  items: SalesLead[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
 }
 
 export type SalesPerformancePeriod = 'month' | 'quarter' | 'year'
@@ -193,6 +226,37 @@ export async function fetchSalesPartnerDetail(id: string): Promise<SalesPartnerD
 /** POST /sales/apply */
 export async function submitSalesApply(body: SalesApplyRequest): Promise<SalesApplyResponse> {
   return salesFetchDetail('/sales/apply', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/** GET /sales/leads */
+export async function fetchSalesLeads(params?: {
+  status?: string
+  page?: number
+  pageSize?: number
+}): Promise<SalesLeadListResponse> {
+  return salesFetchDetail(
+    `/sales/leads${qs({
+      status: params?.status,
+      page: params?.page,
+      pageSize: params?.pageSize,
+    })}`,
+  )
+}
+
+/** POST /sales/leads */
+export async function createSalesLead(body: {
+  companyName: string
+  ownerName: string
+  phone: string
+  email: string
+  businessType?: string
+  address?: string | null
+  memo?: string | null
+}): Promise<SalesLead> {
+  return salesFetchDetail('/sales/leads', {
     method: 'POST',
     body: JSON.stringify(body),
   })

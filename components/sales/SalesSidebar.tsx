@@ -7,6 +7,7 @@ import { clearAuthSession } from '@/lib/api-client'
 const NAV = [
   { href: '/sales', label: 'Dashboard', exact: true },
   { href: '/sales/partners', label: '내 업체' },
+  { href: '/sales/leads', label: '내 신청' },
   { href: '/sales/apply', label: '입점 신청' },
   { href: '/sales/performance', label: '실적' },
   { href: '/sales/commission', label: '수수료' },
