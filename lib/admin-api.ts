@@ -1606,3 +1606,90 @@ export async function uploadBannerImage(
     body: form,
   })
 }
+
+// --- Admin Notifications ---
+
+export type AdminNotificationType =
+  | 'ENTRY_APPLICATION'
+  | 'AD_APPLICATION'
+  | 'NEW_RESERVATION'
+  | 'NEW_MEMBER'
+  | 'BANNER'
+  | 'COUPON'
+  | 'SYSTEM'
+
+export type AdminNotificationItem = {
+  id: string
+  type: AdminNotificationType | string
+  title: string
+  message: string
+  linkPath: string | null
+  entityType: string | null
+  entityId: string | null
+  isRead: boolean
+  createdAt: string
+  readAt: string | null
+}
+
+export type AdminNotificationListResponse = {
+  items: AdminNotificationItem[]
+  total: number
+  unreadCount: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+/** Safe internal Admin path only (no external URLs). */
+export function resolveAdminNotificationPath(linkPath: string | null | undefined): string | null {
+  if (!linkPath) return null
+  const path = linkPath.trim()
+  if (!path.startsWith('/admin/')) return null
+  if (path.includes('://') || path.includes('\\') || path.includes('..')) return null
+  return path
+}
+
+/** GET /admin/notifications */
+export async function fetchAdminNotifications(params?: {
+  page?: number
+  pageSize?: number
+  unreadOnly?: boolean
+  type?: string
+}): Promise<AdminNotificationListResponse> {
+  const q = new URLSearchParams()
+  if (params?.page) q.set('page', String(params.page))
+  if (params?.pageSize) q.set('pageSize', String(params.pageSize))
+  if (params?.unreadOnly) q.set('unreadOnly', 'true')
+  if (params?.type) q.set('type', params.type)
+  const qs = q.toString()
+  return adminFetchDetail<AdminNotificationListResponse>(
+    `/admin/notifications${qs ? `?${qs}` : ''}`,
+  )
+}
+
+/** GET /admin/notifications/unread-count */
+export async function fetchAdminNotificationsUnreadCount(): Promise<number> {
+  const data = await adminFetchDetail<{ unreadCount: number }>(
+    '/admin/notifications/unread-count',
+  )
+  return data.unreadCount
+}
+
+/** PATCH /admin/notifications/{id}/read */
+export async function markAdminNotificationRead(
+  id: string,
+): Promise<AdminNotificationItem> {
+  const data = await adminFetchDetail<{ item: AdminNotificationItem }>(
+    `/admin/notifications/${id}/read`,
+    { method: 'PATCH' },
+  )
+  return data.item
+}
+
+/** PATCH /admin/notifications/read-all */
+export async function markAllAdminNotificationsRead(): Promise<{
+  updated: number
+  unreadCount: number
+}> {
+  return adminFetchDetail('/admin/notifications/read-all', { method: 'PATCH' })
+}

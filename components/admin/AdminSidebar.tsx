@@ -24,7 +24,7 @@ export const ADMIN_MENUS: { group: string; items: AdminMenuItem[] }[] = [
         ready: true,
         permission: 'dashboard.read',
       },
-      { icon: '🔔', label: '알림센터', href: '/admin/alerts', ready: false, permission: 'alerts.read' },
+      { icon: '🔔', label: '알림센터', href: '/admin/alerts', ready: true, permission: 'alerts.read' },
     ],
   },
   {

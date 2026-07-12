@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import AdminBreadcrumb from './AdminBreadcrumb'
+import AdminNotificationBell from './AdminNotificationBell'
 import { useAdmin } from '@/context/AdminContext'
 import { clearAuthSession } from '@/lib/api-client'
 
@@ -19,6 +20,7 @@ export default function AdminHeader() {
     <header className="fixed top-0 left-64 right-0 h-16 bg-white border-b border-gray-200 z-30 flex items-center justify-between px-6">
       <AdminBreadcrumb />
       <div className="flex items-center gap-4">
+        <AdminNotificationBell />
         <button
           type="button"
           onClick={toggleTheme}
