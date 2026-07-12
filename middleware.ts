@@ -14,6 +14,7 @@ const PUBLIC_PREFIXES = [
   '/demo',
   '/store',
   '/admin/login',
+  '/sales/login',
 ]
 
 const PROTECTED_PREFIXES = [
@@ -26,6 +27,7 @@ const PROTECTED_PREFIXES = [
   '/settlements',
   '/brand',
   '/admin',
+  '/sales',
 ]
 
 function isPublicPath(pathname: string): boolean {
@@ -41,6 +43,12 @@ function isProtectedPath(pathname: string): boolean {
   )
 }
 
+function loginPathFor(pathname: string): string {
+  if (pathname.startsWith('/admin')) return '/admin/login'
+  if (pathname.startsWith('/sales')) return '/sales/login'
+  return '/login'
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -53,9 +61,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const loginPath = pathname.startsWith('/admin') ? '/admin/login' : '/login'
   const loginUrl = request.nextUrl.clone()
-  loginUrl.pathname = loginPath
+  loginUrl.pathname = loginPathFor(pathname)
   loginUrl.searchParams.set('next', pathname)
   return NextResponse.redirect(loginUrl)
 }
@@ -71,5 +78,7 @@ export const config = {
     '/settlements/:path*',
     '/brand/:path*',
     '/admin/:path*',
+    '/sales',
+    '/sales/:path*',
   ],
 }

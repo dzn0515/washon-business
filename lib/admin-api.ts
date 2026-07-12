@@ -16,7 +16,7 @@ import type {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 const isDev = process.env.NODE_ENV !== 'production'
 
-// TODO: 추후 타입 분리 — AdminBusiness, AdminReservation 등 전용 타입 정의
+// TODO: ?? ?? ?? ? AdminBusiness, AdminReservation ? ?? ?? ??
 export type AdminBusinessListItem = {
   id: string
   name: string
@@ -104,9 +104,9 @@ async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
 const MOCK_BUSINESSES: AdminBusinessListItem[] = [
   {
     id: '1',
-    name: '반짝반짝 세차장',
+    name: '???? ???',
     bizType: 'wash',
-    ownerName: '김민수',
+    ownerName: '???',
     phone: '010-1234-5678',
     status: 'active',
     plan: 'basic',
@@ -119,9 +119,9 @@ const MOCK_BUSINESSES: AdminBusinessListItem[] = [
   },
   {
     id: '2',
-    name: '클린카 디테일링',
+    name: '??? ????',
     bizType: 'detailing',
-    ownerName: '이지영',
+    ownerName: '???',
     phone: '010-9876-5432',
     status: 'active',
     plan: 'pro',
@@ -134,9 +134,9 @@ const MOCK_BUSINESSES: AdminBusinessListItem[] = [
   },
   {
     id: '3',
-    name: '타이어킹',
+    name: '????',
     bizType: 'tire',
-    ownerName: '박준호',
+    ownerName: '???',
     phone: '010-5555-1234',
     status: 'pending',
     plan: null,
@@ -152,20 +152,20 @@ const MOCK_BUSINESSES: AdminBusinessListItem[] = [
 const MOCK_RESERVATIONS: AdminReservationItem[] = [
   {
     id: 'r1',
-    businessName: '반짝반짝 세차장',
-    customerName: '김민수',
-    menuName: '기본세차',
+    businessName: '???? ???',
+    customerName: '???',
+    menuName: '????',
     bookingDate: '2026-06-28',
     startTime: '10:00',
     status: 'confirmed',
     source: 'app',
-    vehicle: { licensePlate: '12가3456', brand: 'BMW', model: '520d' },
+    vehicle: { licensePlate: '12?3456', brand: 'BMW', model: '520d' },
   },
   {
     id: 'r2',
-    businessName: '클린카',
-    customerName: '이지영',
-    menuName: '실내크리닝',
+    businessName: '???',
+    customerName: '???',
+    menuName: '?????',
     bookingDate: '2026-06-28',
     startTime: '11:30',
     status: 'in_progress',
@@ -174,24 +174,24 @@ const MOCK_RESERVATIONS: AdminReservationItem[] = [
   },
   {
     id: 'r3',
-    businessName: '스파클링',
-    customerName: '박준호',
-    menuName: '광택',
+    businessName: '????',
+    customerName: '???',
+    menuName: '??',
     bookingDate: '2026-06-28',
     startTime: '14:00',
     status: 'pending',
     source: 'app',
-    vehicle: { licensePlate: '34나5678', brand: '현대', model: '아반떼' },
+    vehicle: { licensePlate: '34?5678', brand: '??', model: '???' },
   },
 ]
 
-// ── 기존 (Admin-02) ──────────────────────────────────────────
+// ?? ?? (Admin-02) ??????????????????????????????????????????
 
 export async function fetchAdminStats() {
   try {
     return await adminFetch<Record<string, number>>('/admin/stats')
   } catch {
-    if (!isDev) throw new Error('통계 조회 실패')
+    if (!isDev) throw new Error('?? ?? ??')
     return {
       totalBusinesses: 3,
       activeBusinesses: 2,
@@ -215,7 +215,7 @@ export async function fetchRecentReservations() {
         []
     return list as Record<string, string>[]
   } catch {
-    if (!isDev) throw new Error('최근 예약 조회 실패')
+    if (!isDev) throw new Error('?? ?? ?? ??')
     return MOCK_RESERVATIONS.map((r) => ({
       id: r.id,
       businessName: r.businessName,
@@ -236,7 +236,7 @@ export async function fetchRecentBusinesses() {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, 5)
   } catch {
-    if (!isDev) throw new Error('최근 업체 조회 실패')
+    if (!isDev) throw new Error('?? ?? ?? ??')
     return MOCK_BUSINESSES.slice(0, 3)
   }
 }
@@ -274,12 +274,12 @@ export type AdminDashboardResponse = {
   recentPartners: AdminDashboardRecentPartner[]
 }
 
-/** GET /api/v1/admin/dashboard — 플랫폼 대시보드 집계 */
+/** GET /api/v1/admin/dashboard ? ??? ???? ?? */
 export async function fetchAdminDashboard(): Promise<AdminDashboardResponse> {
   return adminFetch<AdminDashboardResponse>('/admin/dashboard')
 }
 
-// ── Admin Partners (입점심사 / 업체 승인) ─────────────────────
+// ?? Admin Partners (???? / ?? ??) ?????????????????????
 
 export type AdminPartnerApiStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED' | 'INACTIVE'
 
@@ -339,7 +339,7 @@ function mapPartnerItem(p: AdminPartnerItem): AdminPartnerListItem {
   }
 }
 
-/** GET /api/v1/admin/partners — status/keyword/bizType/page 지원 */
+/** GET /api/v1/admin/partners ? status/keyword/bizType/page ?? */
 export type AdminPartnerListResponse = {
   partners: AdminPartnerItem[]
   items: AdminPartnerItem[]
@@ -357,13 +357,13 @@ export async function fetchAdminPartners(
   return rows.map(mapPartnerItem)
 }
 
-/** PUT /api/v1/admin/partners/{id}/approve — PENDING → ACTIVE */
+/** PUT /api/v1/admin/partners/{id}/approve ? PENDING ? ACTIVE */
 export async function approveAdminPartner(id: string): Promise<{ success: boolean }> {
   await adminFetch(`/admin/partners/${id}/approve`, { method: 'PUT' })
   return { success: true }
 }
 
-/** PUT /api/v1/admin/partners/{id}/reject — PENDING → REJECTED */
+/** PUT /api/v1/admin/partners/{id}/reject ? PENDING ? REJECTED */
 export async function rejectAdminPartner(
   id: string,
   reason: string,
@@ -375,19 +375,19 @@ export async function rejectAdminPartner(
   return { success: true }
 }
 
-/** PUT /api/v1/admin/partners/{id}/suspend — ACTIVE → SUSPENDED */
+/** PUT /api/v1/admin/partners/{id}/suspend ? ACTIVE ? SUSPENDED */
 export async function suspendAdminPartner(id: string): Promise<{ success: boolean }> {
   await adminFetch(`/admin/partners/${id}/suspend`, { method: 'PUT' })
   return { success: true }
 }
 
-/** PUT /api/v1/admin/partners/{id}/restore — SUSPENDED → ACTIVE */
+/** PUT /api/v1/admin/partners/{id}/restore ? SUSPENDED ? ACTIVE */
 export async function restoreAdminPartner(id: string): Promise<{ success: boolean }> {
   await adminFetch(`/admin/partners/${id}/restore`, { method: 'PUT' })
   return { success: true }
 }
 
-// ── Admin-03 ─────────────────────────────────────────────────
+// ?? Admin-03 ?????????????????????????????????????????????????
 
 export type AdminBusinessListResult = {
   items: AdminBusinessListItem[]
@@ -396,7 +396,7 @@ export type AdminBusinessListResult = {
   pageSize: number
 }
 
-// GET /api/v1/admin/partners — 검색·필터·페이징
+// GET /api/v1/admin/partners ? ?????????
 export async function fetchAdminAllBusinesses(params?: {
   status?: string
   search?: string
@@ -421,11 +421,11 @@ export async function fetchAdminAllBusinesses(params?: {
   }
 }
 
-// 단건 조회 API 없음 — partners 목록에서 id 매칭
+// ?? ?? API ?? ? partners ???? id ??
 export async function fetchAdminBusinessDetail(id: string): Promise<AdminBusinessDetail> {
   const partners = await fetchAdminPartners()
   const found = partners.find((p) => p.id === id)
-  if (!found) throw new Error('업체를 찾을 수 없습니다.')
+  if (!found) throw new Error('??? ?? ? ????.')
   return {
     ...found,
     memo: '',
@@ -449,12 +449,12 @@ export async function updateBusinessStatus(
     return approveAdminPartner(id)
   }
   if (status === 'rejected') {
-    return rejectAdminPartner(id, reason?.trim() || '관리자 거절')
+    return rejectAdminPartner(id, reason?.trim() || '??? ??')
   }
-  throw new Error('지원하지 않는 상태 변경입니다.')
+  throw new Error('???? ?? ?? ?????.')
 }
 
-// TODO: PATCH /api/v1/admin/businesses/{id}/memo — 백엔드 미구현
+// TODO: PATCH /api/v1/admin/businesses/{id}/memo ? ??? ???
 export async function saveBusinessMemo(id: string, memo: string): Promise<{ success: boolean }> {
   try {
     await adminFetch(`/admin/businesses/${id}/memo`, {
@@ -463,13 +463,13 @@ export async function saveBusinessMemo(id: string, memo: string): Promise<{ succ
     })
     return { success: true }
   } catch {
-    if (!isDev) throw new Error('메모 저장 실패')
-    console.warn('[Admin][Dev] saveBusinessMemo → mock success', { id, memo })
+    if (!isDev) throw new Error('?? ?? ??')
+    console.warn('[Admin][Dev] saveBusinessMemo ? mock success', { id, memo })
     return { success: true }
   }
 }
 
-// GET /api/v1/admin/reservations — 검색·필터·페이징
+// GET /api/v1/admin/reservations ? ?????????
 export async function fetchAdminAllReservations(params?: {
   businessId?: string
   partnerId?: string
@@ -580,9 +580,9 @@ export async function forceCancelReservation(
   return { success: true }
 }
 
-// ── Admin-04 ─────────────────────────────────────────────────
+// ?? Admin-04 ?????????????????????????????????????????????????
 
-// TODO: 추후 타입 분리 — AdminCSInquiry, AdminNotice 등
+// TODO: ?? ?? ?? ? AdminCSInquiry, AdminNotice ?
 export type AdminCSInquiry = {
   id: string
   type: string
@@ -634,38 +634,38 @@ const MOCK_CS: AdminCSInquiry[] = [
   {
     id: 'cs1',
     type: 'customer',
-    title: '예약 취소 환불 문의',
-    customerName: '김민수',
+    title: '?? ?? ?? ??',
+    customerName: '???',
     status: 'pending',
     assignee: null,
     createdAt: '2026-06-28T10:00:00',
-    content: '어제 예약을 취소했는데 환불이 아직 처리되지 않았습니다.',
+    content: '?? ??? ????? ??? ?? ???? ?????.',
     replies: [],
   },
   {
     id: 'cs2',
     type: 'business',
-    title: '정산 오류 문의',
-    businessName: '반짝반짝 세차장',
+    title: '?? ?? ??',
+    businessName: '???? ???',
     status: 'in_progress',
-    assignee: '운영자1',
+    assignee: '???1',
     createdAt: '2026-06-27T15:30:00',
-    content: '6월 정산 금액이 실제 매출과 다릅니다.',
+    content: '6? ?? ??? ?? ??? ????.',
     replies: [
-      { content: '확인 중입니다.', createdAt: '2026-06-27T16:00:00', author: '운영자1' },
+      { content: '?? ????.', createdAt: '2026-06-27T16:00:00', author: '???1' },
     ],
   },
   {
     id: 'cs3',
     type: 'report',
-    title: '허위 리뷰 신고',
-    customerName: '이지영',
+    title: '?? ?? ??',
+    customerName: '???',
     status: 'completed',
-    assignee: '운영자2',
+    assignee: '???2',
     createdAt: '2026-06-26T09:00:00',
-    content: '실제 방문하지 않은 고객의 허위 리뷰입니다.',
+    content: '?? ???? ?? ??? ?? ?????.',
     replies: [
-      { content: '리뷰 삭제 처리 완료했습니다.', createdAt: '2026-06-26T11:00:00', author: '운영자2' },
+      { content: '?? ?? ?? ??????.', createdAt: '2026-06-26T11:00:00', author: '???2' },
     ],
   },
 ]
@@ -673,7 +673,7 @@ const MOCK_CS: AdminCSInquiry[] = [
 const MOCK_NOTICES: AdminNotice[] = [
   {
     id: 'n1',
-    title: '시스템 점검 안내',
+    title: '??? ?? ??',
     target: 'all',
     channels: ['push'],
     sendType: 'immediate',
@@ -682,7 +682,7 @@ const MOCK_NOTICES: AdminNotice[] = [
   },
   {
     id: 'n2',
-    title: '업체 정산 안내',
+    title: '?? ?? ??',
     target: 'business',
     channels: ['email'],
     sendType: 'scheduled',
@@ -703,7 +703,7 @@ function parseList<T>(data: unknown, keys = ['items', 'inquiries', 'notices', 'd
   return []
 }
 
-// TODO: GET /api/v1/admin/cs/inquiries — 백엔드 미구현
+// TODO: GET /api/v1/admin/cs/inquiries ? ??? ???
 export async function fetchAdminCSInquiries(params?: {
   type?: string
   status?: string
@@ -721,8 +721,8 @@ export async function fetchAdminCSInquiries(params?: {
     const data = await adminFetch<unknown>(`/admin/cs/inquiries?${query}`)
     return parseList<AdminCSInquiry>(data, ['inquiries', 'items'])
   } catch {
-    if (!isDev) throw new Error('CS 목록 조회 실패')
-    console.warn('[Admin][Dev] fetchAdminCSInquiries → mock')
+    if (!isDev) throw new Error('CS ?? ?? ??')
+    console.warn('[Admin][Dev] fetchAdminCSInquiries ? mock')
     let list = [...MOCK_CS]
     if (params?.type && params.type !== 'all') list = list.filter((i) => i.type === params.type)
     if (params?.status && params.status !== 'all') list = list.filter((i) => i.status === params.status)
@@ -734,7 +734,7 @@ export async function fetchAdminCSInquiries(params?: {
   }
 }
 
-// TODO: POST /api/v1/admin/cs/inquiries/{id}/reply — 백엔드 미구현
+// TODO: POST /api/v1/admin/cs/inquiries/{id}/reply ? ??? ???
 export async function replyAdminCSInquiry(
   id: string,
   reply: string,
@@ -746,13 +746,13 @@ export async function replyAdminCSInquiry(
     })
     return { success: true }
   } catch {
-    if (!isDev) throw new Error('답변 등록 실패')
-    console.warn('[Admin][Dev] replyAdminCSInquiry → mock')
+    if (!isDev) throw new Error('?? ?? ??')
+    console.warn('[Admin][Dev] replyAdminCSInquiry ? mock')
     return { success: true }
   }
 }
 
-// TODO: GET /api/v1/admin/notices — 백엔드 미구현
+// TODO: GET /api/v1/admin/notices ? ??? ???
 export async function fetchAdminNotices(params?: {
   page?: number
   limit?: number
@@ -764,13 +764,13 @@ export async function fetchAdminNotices(params?: {
     const data = await adminFetch<unknown>(`/admin/notices?${query}`)
     return parseList<AdminNotice>(data, ['notices', 'items'])
   } catch {
-    if (!isDev) throw new Error('공지 목록 조회 실패')
-    console.warn('[Admin][Dev] fetchAdminNotices → mock')
+    if (!isDev) throw new Error('?? ?? ?? ??')
+    console.warn('[Admin][Dev] fetchAdminNotices ? mock')
     return MOCK_NOTICES
   }
 }
 
-// TODO: POST /api/v1/admin/notices — 백엔드 미구현
+// TODO: POST /api/v1/admin/notices ? ??? ???
 export async function sendAdminNotice(data: NoticePayload): Promise<{ success: boolean; id?: string }> {
   try {
     const res = await adminFetch<{ id?: string }>('/admin/notices', {
@@ -779,13 +779,13 @@ export async function sendAdminNotice(data: NoticePayload): Promise<{ success: b
     })
     return { success: true, id: res?.id }
   } catch {
-    if (!isDev) throw new Error('공지 발송 실패')
-    console.warn('[Admin][Dev] sendAdminNotice → mock')
+    if (!isDev) throw new Error('?? ?? ??')
+    console.warn('[Admin][Dev] sendAdminNotice ? mock')
     return { success: true, id: 'mock-notice-1' }
   }
 }
 
-// TODO: POST /api/v1/admin/roles/{role}/permissions — 백엔드 미구현
+// TODO: POST /api/v1/admin/roles/{role}/permissions ? ??? ???
 export async function saveRolePermissions(data: RolePermissions): Promise<{ success: boolean }> {
   try {
     await adminFetch(`/admin/roles/${data.role}/permissions`, {
@@ -797,16 +797,16 @@ export async function saveRolePermissions(data: RolePermissions): Promise<{ succ
     if (!isDev) {
       const err = e as Error & { status?: number }
       if (err.status === 404 || err.status === 405) {
-        throw new Error('권한 저장 API가 연결되지 않았습니다.')
+        throw new Error('?? ?? API? ???? ?????.')
       }
-      throw new Error('권한 저장에 실패했습니다.')
+      throw new Error('?? ??? ??????.')
     }
-    console.warn('[Admin][Dev] saveRolePermissions → mock')
+    console.warn('[Admin][Dev] saveRolePermissions ? mock')
     return { success: true }
   }
 }
 
-// ── Admin-05 ─────────────────────────────────────────────────
+// ?? Admin-05 ?????????????????????????????????????????????????
 
 const MOCK_PLATFORM_SETTINGS: PlatformSettings = {
   platformName: 'AUTOON',
@@ -851,24 +851,24 @@ let mockBlockedIps: BlockedIp[] = [
   {
     id: 'ip1',
     ip: '192.0.2.100',
-    reason: '비정상 로그인 시도',
+    reason: '??? ??? ??',
     blockedAt: '2026-06-26T10:00:00Z',
     blockedBy: 'admin@washon.kr',
   },
 ]
 
-// TODO: GET /api/v1/admin/settings/platform — 백엔드 미구현
+// TODO: GET /api/v1/admin/settings/platform ? ??? ???
 export async function fetchPlatformSettings(): Promise<PlatformSettings> {
   try {
     return await adminFetch<PlatformSettings>('/admin/settings/platform')
   } catch {
-    if (!isDev) throw new Error('운영설정 조회 실패')
-    console.warn('[Admin][Dev] fetchPlatformSettings → mock')
+    if (!isDev) throw new Error('???? ?? ??')
+    console.warn('[Admin][Dev] fetchPlatformSettings ? mock')
     return { ...MOCK_PLATFORM_SETTINGS }
   }
 }
 
-// TODO: PATCH /api/v1/admin/settings/platform — 백엔드 미구현
+// TODO: PATCH /api/v1/admin/settings/platform ? ??? ???
 export async function savePlatformSettings(data: Partial<PlatformSettings>): Promise<void> {
   try {
     await adminFetch('/admin/settings/platform', {
@@ -876,23 +876,23 @@ export async function savePlatformSettings(data: Partial<PlatformSettings>): Pro
       body: JSON.stringify(data),
     })
   } catch {
-    if (!isDev) throw new Error('운영설정 저장 실패')
-    console.warn('[Admin][Dev] savePlatformSettings → mock', data)
+    if (!isDev) throw new Error('???? ?? ??')
+    console.warn('[Admin][Dev] savePlatformSettings ? mock', data)
   }
 }
 
-// TODO: GET /api/v1/admin/system/status — 백엔드 미구현
+// TODO: GET /api/v1/admin/system/status ? ??? ???
 export async function fetchSystemStatus(): Promise<SystemStatus> {
   try {
     return await adminFetch<SystemStatus>('/admin/system/status')
   } catch {
-    if (!isDev) throw new Error('시스템 상태 API 미연결')
-    console.warn('[Admin][Dev] fetchSystemStatus → mock')
+    if (!isDev) throw new Error('??? ?? API ???')
+    console.warn('[Admin][Dev] fetchSystemStatus ? mock')
     return { ...MOCK_SYSTEM_STATUS }
   }
 }
 
-// TODO: GET /api/v1/admin/security/login-logs — 백엔드 미구현
+// TODO: GET /api/v1/admin/security/login-logs ? ??? ???
 export async function fetchAdminLoginLogs(params?: {
   page?: number
   limit?: number
@@ -904,25 +904,25 @@ export async function fetchAdminLoginLogs(params?: {
     const data = await adminFetch<unknown>(`/admin/security/login-logs?${query}`)
     return parseList<AdminLoginLog>(data, ['logs', 'items'])
   } catch {
-    if (!isDev) throw new Error('로그인 이력 조회 실패')
-    console.warn('[Admin][Dev] fetchAdminLoginLogs → mock')
+    if (!isDev) throw new Error('??? ?? ?? ??')
+    console.warn('[Admin][Dev] fetchAdminLoginLogs ? mock')
     return MOCK_LOGIN_LOGS
   }
 }
 
-// TODO: GET /api/v1/admin/security/blocked-ips — 백엔드 미구현
+// TODO: GET /api/v1/admin/security/blocked-ips ? ??? ???
 export async function fetchBlockedIps(): Promise<BlockedIp[]> {
   try {
     const data = await adminFetch<unknown>('/admin/security/blocked-ips')
     return parseList<BlockedIp>(data, ['ips', 'items'])
   } catch {
-    if (!isDev) throw new Error('차단 IP 목록 조회 실패')
-    console.warn('[Admin][Dev] fetchBlockedIps → mock')
+    if (!isDev) throw new Error('?? IP ?? ?? ??')
+    console.warn('[Admin][Dev] fetchBlockedIps ? mock')
     return [...mockBlockedIps]
   }
 }
 
-// TODO: POST /api/v1/admin/security/blocked-ips — 백엔드 미구현 (목록 저장만, 실제 차단 미적용)
+// TODO: POST /api/v1/admin/security/blocked-ips ? ??? ??? (?? ???, ?? ?? ???)
 export async function blockIp(ip: string, reason: string): Promise<void> {
   try {
     await adminFetch('/admin/security/blocked-ips', {
@@ -930,8 +930,8 @@ export async function blockIp(ip: string, reason: string): Promise<void> {
       body: JSON.stringify({ ip, reason }),
     })
   } catch {
-    if (!isDev) throw new Error('IP 차단 저장 실패')
-    console.warn('[Admin][Dev] blockIp → mock', { ip, reason })
+    if (!isDev) throw new Error('IP ?? ?? ??')
+    console.warn('[Admin][Dev] blockIp ? mock', { ip, reason })
     mockBlockedIps = [
       {
         id: `ip-${Date.now()}`,
@@ -945,7 +945,7 @@ export async function blockIp(ip: string, reason: string): Promise<void> {
   }
 }
 
-// TODO: DELETE /api/v1/admin/security/blocked-ips — 백엔드 미구현
+// TODO: DELETE /api/v1/admin/security/blocked-ips ? ??? ???
 export async function unblockIp(ip: string): Promise<void> {
   try {
     await adminFetch('/admin/security/blocked-ips', {
@@ -953,13 +953,13 @@ export async function unblockIp(ip: string): Promise<void> {
       body: JSON.stringify({ ip }),
     })
   } catch {
-    if (!isDev) throw new Error('IP 차단 해제 실패')
-    console.warn('[Admin][Dev] unblockIp → mock', ip)
+    if (!isDev) throw new Error('IP ?? ?? ??')
+    console.warn('[Admin][Dev] unblockIp ? mock', ip)
     mockBlockedIps = mockBlockedIps.filter((b) => b.ip !== ip)
   }
 }
 
-// ── Admin Ad Applications (실 API, mock fallback 없음) ─────────
+// ?? Admin Ad Applications (? API, mock fallback ??) ?????????
 
 const AD_APPLICATION_STATUSES: AdApplicationStatus[] = [
   'PENDING_REVIEW',
@@ -1068,10 +1068,10 @@ function unwrapAdApplication(data: unknown): AdminAdApplication {
       return mapAdApplication(obj)
     }
   }
-  throw new Error('광고 신청 응답 형식이 올바르지 않습니다.')
+  throw new Error('?? ?? ?? ??? ???? ????.')
 }
 
-// ── Admin Subscriptions ──────────────────────────────────────
+// ?? Admin Subscriptions ??????????????????????????????????????
 
 export type AdminSubscriptionPlanTier = 'BASIC' | 'STANDARD' | 'PREMIUM'
 
@@ -1246,7 +1246,7 @@ export async function terminateAdminSubscription(
 }
 
 /**
- * 광고 신청 API
+ * ?? ?? API
  */
 export async function fetchAdAppApplications(params?: {
   status?: AdApplicationStatus | 'all'
@@ -1306,7 +1306,7 @@ export async function endAdApp(
   return unwrapAdApplication(data)
 }
 
-// ── Admin Coupons (read-only monitoring) ─────────────────────
+// ?? Admin Coupons (read-only monitoring) ?????????????????????
 
 export type AdminCouponItem = {
   id: number
@@ -1389,7 +1389,7 @@ export async function fetchAdminCouponMetrics(params?: {
   return adminFetch<AdminCouponMetrics>(`/admin/coupons/metrics${qs ? `?${qs}` : ''}`)
 }
 
-// ── Admin Banners (platform CMS) ─────────────────────────────
+// ?? Admin Banners (platform CMS) ?????????????????????????????
 
 export type BannerPlacement =
   | 'HOME_TOP'
@@ -1579,7 +1579,7 @@ export async function updateBannerStatus(
   })
 }
 
-/** PATCH /admin/banners/reorder — same placement only */
+/** PATCH /admin/banners/reorder ? same placement only */
 export async function reorderBanners(
   items: { id: number; displayOrder: number }[],
 ): Promise<AdminBanner[]> {
@@ -1594,7 +1594,7 @@ export async function deleteBanner(id: number): Promise<void> {
   await adminFetchDetail<void>(`/admin/banners/${id}`, { method: 'DELETE' })
 }
 
-/** POST /admin/banners/{id}/image — multipart field name: file */
+/** POST /admin/banners/{id}/image ? multipart field name: file */
 export async function uploadBannerImage(
   id: number,
   file: File,
@@ -1938,6 +1938,8 @@ export type AdminSalesAgency = {
   updatedAt: string | null
 }
 
+export type AdminSalesAgentAccountStatus = 'NONE' | 'ACTIVE' | 'INACTIVE'
+
 export type AdminSalesAgent = {
   id: string
   name: string
@@ -1956,6 +1958,18 @@ export type AdminSalesAgent = {
   memo: string | null
   createdAt: string
   updatedAt: string | null
+  hasAccount?: boolean
+  accountStatus?: AdminSalesAgentAccountStatus | string
+  accountEmail?: string | null
+}
+
+export type AdminSalesAgentAccount = {
+  hasAccount: boolean
+  userId: string | null
+  email: string | null
+  isActive: boolean | null
+  lastLoginAt: string | null
+  createdAt: string | null
 }
 
 export type AdminSalesAssignment = {
@@ -2238,6 +2252,42 @@ export async function updateAdminSalesAgentStatus(
 
 export async function deleteAdminSalesAgent(id: string): Promise<void> {
   await adminFetchDetail(`/admin/sales/agents/${id}`, { method: 'DELETE' })
+}
+
+export async function fetchAdminSalesAgentAccount(
+  id: string,
+): Promise<AdminSalesAgentAccount> {
+  return adminFetchDetail(`/admin/sales/agents/${id}/account`)
+}
+
+export async function createAdminSalesAgentAccount(
+  id: string,
+  body: { email: string; temporaryPassword: string; isActive?: boolean },
+): Promise<AdminSalesAgentAccount> {
+  return adminFetchDetail(`/admin/sales/agents/${id}/account`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateAdminSalesAgentAccountStatus(
+  id: string,
+  isActive: boolean,
+): Promise<AdminSalesAgentAccount> {
+  return adminFetchDetail(`/admin/sales/agents/${id}/account/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isActive }),
+  })
+}
+
+export async function resetAdminSalesAgentAccountPassword(
+  id: string,
+  temporaryPassword: string,
+): Promise<AdminSalesAgentAccount> {
+  return adminFetchDetail(`/admin/sales/agents/${id}/account/reset-password`, {
+    method: 'POST',
+    body: JSON.stringify({ temporaryPassword }),
+  })
 }
 
 export async function fetchAdminSalesAssignments(params?: {
