@@ -1693,3 +1693,196 @@ export async function markAllAdminNotificationsRead(): Promise<{
 }> {
   return adminFetchDetail('/admin/notifications/read-all', { method: 'PATCH' })
 }
+// --- Admin Franchises ---
+
+export type FranchiseStatus = 'ACTIVE' | 'PAUSED' | 'ENDED'
+export type FranchisePartnerRole = 'HEADQUARTERS' | 'BRANCH'
+
+export type AdminFranchiseListItem = {
+  id: string
+  name: string
+  logoUrl: string | null
+  status: FranchiseStatus | string
+  headquartersPartnerId: string | null
+  headquartersName: string | null
+  partnerCount: number
+  activePartnerCount: number
+  todayReservations: number
+  monthReservations: number
+  todayRevenue: number
+  monthRevenue: number
+  contractStartDate: string | null
+  contractEndDate: string | null
+  createdAt: string
+}
+
+export type AdminFranchiseDetail = AdminFranchiseListItem & {
+  businessNumber: string | null
+  representativeName: string | null
+  contactPhone: string | null
+  contactEmail: string | null
+  memo: string | null
+  updatedAt: string | null
+  partners: AdminFranchisePartnerItem[]
+}
+
+export type AdminFranchisePartnerItem = {
+  id: string
+  partnerId: string
+  businessName: string
+  bizType: string | null
+  region: string | null
+  partnerStatus: string
+  role: FranchisePartnerRole | string
+  joinedAt: string
+  leftAt: string | null
+  isActive: boolean
+  todayReservations: number
+  monthReservations: number
+  monthRevenue: number
+}
+
+export type AdminFranchiseMetrics = {
+  totalFranchises: number
+  activeFranchises: number
+  totalPartners: number
+  activePartners: number
+  todayReservations: number
+  monthRevenue: number
+}
+
+export type AdminFranchiseSummary = {
+  franchiseId: string
+  totalPartners: number
+  activePartners: number
+  todayReservations: number
+  monthReservations: number
+  todayRevenue: number
+  monthRevenue: number
+}
+
+export type AdminFranchiseDetailBundle = {
+  franchise: AdminFranchiseDetail
+  summary: AdminFranchiseSummary
+  recentReservations: Array<{
+    id: string
+    partnerId: string
+    businessName: string
+    customerName: string | null
+    bookingDate: string
+    startTime: string | null
+    status: string
+    price: number
+  }>
+}
+
+export type AdminFranchiseListResponse = {
+  items: AdminFranchiseListItem[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export async function fetchAdminFranchiseMetrics(): Promise<AdminFranchiseMetrics> {
+  return adminFetchDetail('/admin/franchises/metrics')
+}
+
+export async function fetchAdminFranchises(params?: {
+  keyword?: string
+  status?: string
+  page?: number
+  pageSize?: number
+}): Promise<AdminFranchiseListResponse> {
+  const q = new URLSearchParams()
+  if (params?.keyword) q.set('keyword', params.keyword)
+  if (params?.status && params.status !== 'all') q.set('status', params.status)
+  q.set('page', String(params?.page ?? 1))
+  q.set('pageSize', String(params?.pageSize ?? 20))
+  return adminFetchDetail(`/admin/franchises?${q}`)
+}
+
+export async function fetchAdminFranchiseDetail(
+  id: string,
+): Promise<AdminFranchiseDetailBundle> {
+  return adminFetchDetail(`/admin/franchises/${id}`)
+}
+
+export async function createAdminFranchise(body: {
+  name: string
+  businessNumber?: string | null
+  representativeName?: string | null
+  contactPhone?: string | null
+  contactEmail?: string | null
+  logoUrl?: string | null
+  status?: FranchiseStatus
+  contractStartDate?: string | null
+  contractEndDate?: string | null
+  memo?: string | null
+  headquartersPartnerId?: number | null
+}): Promise<AdminFranchiseDetail> {
+  return adminFetchDetail('/admin/franchises', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateAdminFranchise(
+  id: string,
+  body: Record<string, unknown>,
+): Promise<AdminFranchiseDetail> {
+  return adminFetchDetail(`/admin/franchises/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateAdminFranchiseStatus(
+  id: string,
+  status: FranchiseStatus,
+): Promise<AdminFranchiseDetail> {
+  return adminFetchDetail(`/admin/franchises/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+export async function deleteAdminFranchise(id: string): Promise<void> {
+  await adminFetchDetail(`/admin/franchises/${id}`, { method: 'DELETE' })
+}
+
+export async function fetchAdminFranchisePartners(
+  id: string,
+  params?: { keyword?: string; page?: number; pageSize?: number },
+): Promise<{
+  items: AdminFranchisePartnerItem[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}> {
+  const q = new URLSearchParams()
+  if (params?.keyword) q.set('keyword', params.keyword)
+  q.set('page', String(params?.page ?? 1))
+  q.set('pageSize', String(params?.pageSize ?? 20))
+  return adminFetchDetail(`/admin/franchises/${id}/partners?${q}`)
+}
+
+export async function linkAdminFranchisePartner(
+  id: string,
+  body: { partnerId: number; role?: FranchisePartnerRole; joinedAt?: string },
+): Promise<AdminFranchisePartnerItem> {
+  return adminFetchDetail(`/admin/franchises/${id}/partners`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function unlinkAdminFranchisePartner(
+  id: string,
+  partnerId: string,
+): Promise<void> {
+  await adminFetchDetail(`/admin/franchises/${id}/partners/${partnerId}`, {
+    method: 'DELETE',
+  })
+}

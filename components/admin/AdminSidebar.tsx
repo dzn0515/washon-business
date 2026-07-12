@@ -40,8 +40,8 @@ export const ADMIN_MENUS: { group: string; items: AdminMenuItem[] }[] = [
       {
         icon: '🏢',
         label: '프랜차이즈',
-        href: '/admin/franchise',
-        ready: false,
+        href: '/admin/franchises',
+        ready: true,
         permission: 'franchise.read',
       },
       { icon: '💼', label: '영업조직', href: '/admin/sales', ready: false, permission: 'sales.read' },
