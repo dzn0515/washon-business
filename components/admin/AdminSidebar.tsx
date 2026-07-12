@@ -44,7 +44,48 @@ export const ADMIN_MENUS: { group: string; items: AdminMenuItem[] }[] = [
         ready: true,
         permission: 'franchise.read',
       },
-      { icon: '💼', label: '영업조직', href: '/admin/sales', ready: false, permission: 'sales.read' },
+      {
+        icon: '💼',
+        label: '영업 대시보드',
+        href: '/admin/sales',
+        ready: true,
+        permission: 'sales.read',
+      },
+      {
+        icon: '🏬',
+        label: '총판 관리',
+        href: '/admin/sales/distributors',
+        ready: true,
+        permission: 'sales.read',
+      },
+      {
+        icon: '🏪',
+        label: '영업점 관리',
+        href: '/admin/sales/agencies',
+        ready: true,
+        permission: 'sales.read',
+      },
+      {
+        icon: '👤',
+        label: '영업사원 관리',
+        href: '/admin/sales/agents',
+        ready: true,
+        permission: 'sales.read',
+      },
+      {
+        icon: '🔗',
+        label: '업체 배정',
+        href: '/admin/sales/assignments',
+        ready: true,
+        permission: 'sales.read',
+      },
+      {
+        icon: '💹',
+        label: '수수료 정책',
+        href: '/admin/sales/commission',
+        ready: true,
+        permission: 'sales.read',
+      },
       {
         icon: '📋',
         label: '입점심사',
@@ -206,7 +247,14 @@ export default function AdminSidebar() {
   const renderItem = (item: AdminMenuItem) => {
     const isActive =
       pathname === item.href ||
-      (item.href !== '/admin/dashboard' && pathname.startsWith(item.href))
+      (item.href !== '/admin/dashboard' &&
+        pathname.startsWith(`${item.href}/`) &&
+        !ALL_ITEMS.some(
+          (other) =>
+            other.href !== item.href &&
+            other.href.length > item.href.length &&
+            (pathname === other.href || pathname.startsWith(`${other.href}/`)),
+        ))
 
     return (
       <li key={item.href} className="group relative">

@@ -1886,3 +1886,443 @@ export async function unlinkAdminFranchisePartner(
     method: 'DELETE',
   })
 }
+
+// --- Admin Sales ---
+export type SalesOrgStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'
+export type SalesEmploymentType = 'FREELANCER' | 'AGENCY' | 'DISTRIBUTOR' | 'DIRECT'
+
+export type AdminSalesMetrics = {
+  distributorCount: number
+  agencyCount: number
+  agentCount: number
+  assignedPartnerCount: number
+  unassignedPartnerCount: number
+  estimatedMonthlyCommission: number
+  activeCommissionPartnerCount: number
+}
+
+export type AdminSalesDistributor = {
+  id: string
+  name: string
+  code: string
+  representativeName: string | null
+  phone: string | null
+  email: string | null
+  region: string | null
+  status: SalesOrgStatus | string
+  memo: string | null
+  agencyCount: number
+  agentCount: number
+  partnerCount: number
+  estimatedMonthlyCommission: number
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type AdminSalesAgency = {
+  id: string
+  distributorId: string
+  distributorName: string | null
+  name: string
+  code: string
+  representativeName: string | null
+  phone: string | null
+  email: string | null
+  region: string | null
+  status: SalesOrgStatus | string
+  memo: string | null
+  agentCount: number
+  partnerCount: number
+  estimatedMonthlyCommission: number
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type AdminSalesAgent = {
+  id: string
+  name: string
+  code: string
+  phone: string | null
+  email: string | null
+  status: SalesOrgStatus | string
+  employmentType: SalesEmploymentType | string
+  distributorId: string | null
+  distributorName: string | null
+  agencyId: string | null
+  agencyName: string | null
+  partnerCount: number
+  estimatedMonthlyCommission: number
+  joinedAt: string | null
+  memo: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type AdminSalesAssignment = {
+  id: string
+  partnerId: string
+  partnerName: string
+  bizType: string | null
+  planTier: string | null
+  salesAgentId: string
+  salesAgentName: string
+  agencyId: string | null
+  agencyName: string | null
+  distributorId: string | null
+  distributorName: string | null
+  assignedAt: string
+  memo: string | null
+  estimatedMonthlyCommission: number
+}
+
+export type AdminSalesUnassignedPartner = {
+  partnerId: string
+  partnerName: string
+  bizType: string | null
+  planTier: string | null
+  status: string
+  region: string | null
+}
+
+export type AdminSalesListResponse<T> = {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export type AdminSalesCommissionPolicy = {
+  id: string
+  name: string
+  isDefault: boolean
+  agentRate: number | string
+  agencyRate: number | string
+  distributorRate: number | string
+  totalRate: number | string
+  durationMonths: number
+  basis: string
+  status: string
+  appliesToPlan: string | null
+  startsAt: string
+  endsAt: string | null
+  updatedAt: string | null
+}
+
+export type AdminSalesPlanExample = {
+  planTier: string
+  baseAmount?: number
+  monthlyFee?: number
+  agentCommission: number
+  agencyCommission: number
+  distributorCommission: number
+  totalCommission: number
+  annualTotal: number
+  vatExcluded?: boolean
+}
+
+export type AdminSalesCommissionPreviewItem = {
+  partnerId: string
+  partnerName: string
+  planTier: string
+  estimated: boolean
+  baseAmount: number
+  agentCommission: number
+  agencyCommission: number
+  distributorCommission: number
+  totalCommission: number
+  commissionMonth: number
+  remainingMonths: number
+  salesAgentId: string | null
+  salesAgentName: string | null
+  agencyName: string | null
+  distributorName: string | null
+  note: string | null
+}
+
+export type AdminSalesCommissionPreview = {
+  items: AdminSalesCommissionPreviewItem[]
+  totalEstimatedMonthlyCommission: number
+  policy: AdminSalesCommissionPolicy
+  planExamples: AdminSalesPlanExample[]
+}
+
+function salesQs(params: Record<string, string | number | undefined | null>) {
+  const q = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === '' || v === 'all') continue
+    q.set(k, String(v))
+  }
+  const s = q.toString()
+  return s ? `?${s}` : ''
+}
+
+export async function fetchAdminSalesMetrics(): Promise<AdminSalesMetrics> {
+  return adminFetchDetail('/admin/sales/metrics')
+}
+
+export async function fetchAdminSalesDistributors(params?: {
+  keyword?: string
+  status?: string
+  page?: number
+  pageSize?: number
+}): Promise<AdminSalesListResponse<AdminSalesDistributor>> {
+  return adminFetchDetail(
+    `/admin/sales/distributors${salesQs({
+      keyword: params?.keyword,
+      status: params?.status,
+      page: params?.page,
+      pageSize: params?.pageSize,
+    })}`,
+  )
+}
+
+export async function createAdminSalesDistributor(body: {
+  name: string
+  code: string
+  representativeName?: string | null
+  phone?: string | null
+  email?: string | null
+  region?: string | null
+  status?: SalesOrgStatus
+  memo?: string | null
+}): Promise<AdminSalesDistributor> {
+  return adminFetchDetail('/admin/sales/distributors', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateAdminSalesDistributor(
+  id: string,
+  body: Record<string, unknown>,
+): Promise<AdminSalesDistributor> {
+  return adminFetchDetail(`/admin/sales/distributors/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateAdminSalesDistributorStatus(
+  id: string,
+  status: SalesOrgStatus,
+): Promise<AdminSalesDistributor> {
+  return adminFetchDetail(`/admin/sales/distributors/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+export async function deleteAdminSalesDistributor(id: string): Promise<void> {
+  await adminFetchDetail(`/admin/sales/distributors/${id}`, { method: 'DELETE' })
+}
+
+export async function fetchAdminSalesAgencies(params?: {
+  keyword?: string
+  status?: string
+  distributorId?: string | number
+  page?: number
+  pageSize?: number
+}): Promise<AdminSalesListResponse<AdminSalesAgency>> {
+  return adminFetchDetail(
+    `/admin/sales/agencies${salesQs({
+      keyword: params?.keyword,
+      status: params?.status,
+      distributorId: params?.distributorId,
+      page: params?.page,
+      pageSize: params?.pageSize,
+    })}`,
+  )
+}
+
+export async function createAdminSalesAgency(body: {
+  distributorId: number
+  name: string
+  code: string
+  representativeName?: string | null
+  phone?: string | null
+  email?: string | null
+  region?: string | null
+  status?: SalesOrgStatus
+  memo?: string | null
+}): Promise<AdminSalesAgency> {
+  return adminFetchDetail('/admin/sales/agencies', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateAdminSalesAgency(
+  id: string,
+  body: Record<string, unknown>,
+): Promise<AdminSalesAgency> {
+  return adminFetchDetail(`/admin/sales/agencies/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateAdminSalesAgencyStatus(
+  id: string,
+  status: SalesOrgStatus,
+): Promise<AdminSalesAgency> {
+  return adminFetchDetail(`/admin/sales/agencies/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+export async function deleteAdminSalesAgency(id: string): Promise<void> {
+  await adminFetchDetail(`/admin/sales/agencies/${id}`, { method: 'DELETE' })
+}
+
+export async function fetchAdminSalesAgents(params?: {
+  keyword?: string
+  status?: string
+  distributorId?: string | number
+  agencyId?: string | number
+  employmentType?: string
+  page?: number
+  pageSize?: number
+}): Promise<AdminSalesListResponse<AdminSalesAgent>> {
+  return adminFetchDetail(
+    `/admin/sales/agents${salesQs({
+      keyword: params?.keyword,
+      status: params?.status,
+      distributorId: params?.distributorId,
+      agencyId: params?.agencyId,
+      employmentType: params?.employmentType,
+      page: params?.page,
+      pageSize: params?.pageSize,
+    })}`,
+  )
+}
+
+export async function createAdminSalesAgent(body: {
+  name: string
+  code: string
+  phone?: string | null
+  email?: string | null
+  status?: SalesOrgStatus
+  employmentType?: SalesEmploymentType
+  distributorId?: number | null
+  agencyId?: number | null
+  joinedAt?: string | null
+  memo?: string | null
+}): Promise<AdminSalesAgent> {
+  return adminFetchDetail('/admin/sales/agents', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateAdminSalesAgent(
+  id: string,
+  body: Record<string, unknown>,
+): Promise<AdminSalesAgent> {
+  return adminFetchDetail(`/admin/sales/agents/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateAdminSalesAgentStatus(
+  id: string,
+  status: SalesOrgStatus,
+): Promise<AdminSalesAgent> {
+  return adminFetchDetail(`/admin/sales/agents/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+}
+
+export async function deleteAdminSalesAgent(id: string): Promise<void> {
+  await adminFetchDetail(`/admin/sales/agents/${id}`, { method: 'DELETE' })
+}
+
+export async function fetchAdminSalesAssignments(params?: {
+  keyword?: string
+  distributorId?: string | number
+  agencyId?: string | number
+  agentId?: string | number
+  page?: number
+  pageSize?: number
+}): Promise<AdminSalesListResponse<AdminSalesAssignment>> {
+  return adminFetchDetail(
+    `/admin/sales/assignments${salesQs({
+      keyword: params?.keyword,
+      distributorId: params?.distributorId,
+      agencyId: params?.agencyId,
+      agentId: params?.agentId,
+      page: params?.page,
+      pageSize: params?.pageSize,
+    })}`,
+  )
+}
+
+export async function fetchAdminSalesUnassignedPartners(params?: {
+  keyword?: string
+  page?: number
+  pageSize?: number
+}): Promise<AdminSalesListResponse<AdminSalesUnassignedPartner>> {
+  return adminFetchDetail(
+    `/admin/sales/assignments/unassigned-partners${salesQs({
+      keyword: params?.keyword,
+      page: params?.page,
+      pageSize: params?.pageSize,
+    })}`,
+  )
+}
+
+export async function createAdminSalesAssignment(body: {
+  partnerId: number
+  salesAgentId: number
+  memo?: string | null
+}): Promise<AdminSalesAssignment> {
+  return adminFetchDetail('/admin/sales/assignments', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function reassignAdminSalesAssignment(
+  partnerId: string,
+  body: { salesAgentId: number; memo?: string | null },
+): Promise<AdminSalesAssignment> {
+  return adminFetchDetail(`/admin/sales/assignments/${partnerId}`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function unassignAdminSalesAssignment(partnerId: string): Promise<void> {
+  await adminFetchDetail(`/admin/sales/assignments/${partnerId}`, { method: 'DELETE' })
+}
+
+export async function fetchAdminSalesCommissionPolicy(): Promise<AdminSalesCommissionPolicy> {
+  return adminFetchDetail('/admin/sales/commission-policy')
+}
+
+export async function updateAdminSalesCommissionPolicy(body: {
+  name?: string | null
+  agentRate: number
+  agencyRate: number
+  distributorRate: number
+  durationMonths: number
+}): Promise<AdminSalesCommissionPolicy> {
+  return adminFetchDetail('/admin/sales/commission-policy', {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function fetchAdminSalesCommissionPreview(params?: {
+  page?: number
+  pageSize?: number
+  partnerId?: string
+}): Promise<AdminSalesCommissionPreview> {
+  if (params?.partnerId) {
+    return adminFetchDetail(`/admin/sales/commission-preview/${params.partnerId}`)
+  }
+  return adminFetchDetail('/admin/sales/commission-preview')
+}

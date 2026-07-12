@@ -21,6 +21,13 @@ const PATH_LABELS: Record<string, string> = {
   audit: '운영감사',
   system: '시스템',
   ai: 'AI',
+  sales: '영업조직',
+  distributors: '총판 관리',
+  agencies: '영업점 관리',
+  agents: '영업사원 관리',
+  assignments: '업체 배정',
+  commission: '수수료 정책',
+  franchises: '프랜차이즈',
 }
 
 export default function AdminBreadcrumb() {
