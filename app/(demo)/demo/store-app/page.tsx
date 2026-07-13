@@ -1,1 +1,7 @@
-export { default } from '@/app/(dashboard)/dashboard/store-app/page'
+'use client'
+
+import StoreAppLocalEditor from '@/components/features/store-app/StoreAppLocalEditor'
+
+export default function DemoStoreAppPage() {
+  return <StoreAppLocalEditor />
+}

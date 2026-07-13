@@ -39,6 +39,21 @@ export async function fetchBusinessMe(): Promise<BusinessMe> {
   return apiFetch<BusinessMe>('/business/me')
 }
 
+export type BusinessMeUpdatePayload = {
+  name?: string
+  phone?: string | null
+  address?: string | null
+  brand_color?: string
+}
+
+/** PATCH /business/me — partial update (unset fields are not overwritten). */
+export async function updateBusinessMe(payload: BusinessMeUpdatePayload): Promise<BusinessMe> {
+  return apiFetch<BusinessMe>('/business/me', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function updateBookingStatus(
   bookingId: string,
   status: BookingStatus,

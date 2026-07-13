@@ -14,7 +14,7 @@ export function getDashboardTitle(pathname: string): string {
   if (path.startsWith('/dashboard/ai')) return 'AI 운영'
   if (path.startsWith('/dashboard/ads')) return '앱 노출 관리'
   if (path.startsWith('/dashboard/marketing')) return '쿠폰 관리'
-  if (path.startsWith('/dashboard/store-app')) return '매장앱 관리'
+  if (path.startsWith('/dashboard/store-app')) return '고객앱 매장화면'
   if (path.startsWith('/dashboard/operations')) return '운영관리'
   if (path.startsWith('/dashboard/admin')) return '업체 승인'
   if (path.startsWith('/dashboard/settings')) return '설정'

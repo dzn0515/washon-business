@@ -1,445 +1,358 @@
 'use client'
 
-import { useState } from 'react'
-import { Copy, Download, ExternalLink, Eye, RotateCcw, Smartphone } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import {
+  ExternalLink,
+  ImageIcon,
+  List,
+  Megaphone,
+  QrCode,
+  RefreshCw,
+  Ticket,
+  Clock,
+} from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import Modal from '@/components/ui/Modal'
-import { Field, VisibilityToggle } from '@/components/features/store-app/form-fields'
-import { getStoreAppDeepLink, getStoreAppWebUrl, toCustomerStoreSnapshot, downloadStoreAppExport, serializeStoreAppExport } from '@/lib/store-app/export'
-import { useStoreApp } from '@/lib/store-app/store'
-import { won } from '@/lib/dashboard-ui'
-import { Plus, Trash2 } from 'lucide-react'
+import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
+import { getBusinessTypeLabel } from '@/lib/business-types'
+import { updateBusinessMe } from '@/lib/store-api'
+import { CARD } from '@/lib/dashboard-ui'
+
+const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/
+
+function normalizeBrandColor(value: string): string {
+  const trimmed = value.trim()
+  if (!HEX_COLOR_RE.test(trimmed)) return trimmed
+  return `#${trimmed.slice(1).toUpperCase()}`
+}
+
+function isValidBrandColor(value: string): boolean {
+  return HEX_COLOR_RE.test(value.trim())
+}
+
+const RELATED_LINKS = [
+  {
+    href: '/dashboard/settings',
+    title: '매장 이미지 관리',
+    description: '대표 이미지와 로고는 설정에서 관리합니다.',
+    icon: ImageIcon,
+  },
+  {
+    href: '/dashboard/menus',
+    title: '메뉴 및 가격 관리',
+    description: '고객앱에 표시되는 서비스와 가격은 메뉴/요금에서 관리합니다.',
+    icon: List,
+  },
+  {
+    href: '/dashboard/menus',
+    title: '영업시간 관리',
+    description: '영업시간은 메뉴/요금 화면의 영업시간 탭에서 관리합니다.',
+    icon: Clock,
+  },
+  {
+    href: '/dashboard/marketing/coupons',
+    title: '쿠폰 관리',
+    description: '고객에게 발급·노출되는 쿠폰은 쿠폰 관리에서 다룹니다.',
+    icon: Ticket,
+  },
+  {
+    href: '/dashboard/ads',
+    title: '광고·노출 상품',
+    description: '앱 노출·광고 상품은 앱 노출 관리에서 신청합니다.',
+    icon: Megaphone,
+  },
+  {
+    href: '/dashboard/qr',
+    title: '매장 QR 관리',
+    description: '매장 전용 QR은 매장 QR 메뉴에서 확인합니다.',
+    icon: QrCode,
+  },
+] as const
 
 export default function StoreAppPage() {
-  const {
-    profile,
-    setStore,
-    updateService,
-    addService,
-    removeService,
-    updateCoupon,
-    addCoupon,
-    removeCoupon,
-    updateEvent,
-    addEvent,
-    removeEvent,
-    resetProfile,
-  } = useStoreApp()
+  const { business, loading, error, isDemo, refetch } = useBusinessMe()
 
-  const [previewOpen, setPreviewOpen] = useState(false)
-  const [copied, setCopied] = useState<'web' | 'deeplink' | 'export' | null>(null)
+  const [draftColor, setDraftColor] = useState('#1A6DFF')
+  const [saving, setSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
-  const { store, services, coupons, events } = profile
-  const snapshot = toCustomerStoreSnapshot(profile)
-  const webUrl = getStoreAppWebUrl(store.slug)
-  const deepLink = getStoreAppDeepLink(store.slug)
+  const savedColor = useMemo(
+    () => normalizeBrandColor(business?.brand_color || '#1A6DFF'),
+    [business?.brand_color],
+  )
 
-  async function copyText(text: string, kind: 'web' | 'deeplink' | 'export') {
-    await navigator.clipboard.writeText(text)
-    setCopied(kind)
-    setTimeout(() => setCopied(null), 2000)
+  useEffect(() => {
+    if (business?.brand_color) {
+      setDraftColor(normalizeBrandColor(business.brand_color))
+    } else if (business) {
+      setDraftColor('#1A6DFF')
+    }
+  }, [business])
+
+  const draftNormalized = normalizeBrandColor(draftColor)
+  const draftValid = isValidBrandColor(draftColor)
+  const dirty = draftValid && draftNormalized !== savedColor
+
+  const publicUrl = business?.slug
+    ? `https://autoon.kr/store/${encodeURIComponent(business.slug)}`
+    : null
+
+  async function handleSaveColor() {
+    if (!business || isDemo || !draftValid || !dirty) return
+    setSaving(true)
+    setSaveMessage(null)
+    setSaveError(null)
+    try {
+      const updated = await updateBusinessMe({ brand_color: draftNormalized })
+      setDraftColor(normalizeBrandColor(updated.brand_color || draftNormalized))
+      setSaveMessage('브랜드 색상이 저장되었습니다. 고객앱 공개 화면에 반영됩니다.')
+      await refetch()
+    } catch (e) {
+      setSaveError((e as Error).message || '저장에 실패했습니다.')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  function handleExportDownload() {
-    downloadStoreAppExport(profile)
+  if (isDemo) {
+    return (
+      <div className="space-y-4 pb-8">
+        <p className="text-sm text-gray-500">
+          고객이 보는 매장 페이지의 브랜드 색상과 노출 상태를 확인합니다. 매장 이미지, 메뉴, 쿠폰과
+          영업시간은 각 관리 메뉴에서 수정할 수 있습니다.
+        </p>
+        <div className={CARD}>
+          <p className="text-sm text-gray-600">
+            데모 모드에서는 운영 API 저장을 사용할 수 없습니다. localStorage 기반 편집기는{' '}
+            <Link href="/demo/store-app" className="text-blue-600 underline">
+              /demo/store-app
+            </Link>
+            을 이용해 주세요.
+          </p>
+        </div>
+      </div>
+    )
   }
 
-  function handleExportCopy() {
-    copyText(serializeStoreAppExport(profile), 'export')
+  if (loading) {
+    return (
+      <div className="space-y-4 pb-8">
+        <p className="text-sm text-gray-400">매장 정보를 불러오는 중…</p>
+      </div>
+    )
   }
+
+  if (error || !business) {
+    return (
+      <div className="space-y-4 pb-8">
+        <div className={CARD}>
+          <p className="text-sm text-red-600">{error || '매장 정보를 불러올 수 없습니다.'}</p>
+          <Button size="sm" variant="secondary" className="mt-3" onClick={() => void refetch()}>
+            <RefreshCw size={14} className="mr-1" />
+            다시 시도
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  const bizLabel = getBusinessTypeLabel(business.biz_type ?? 'wash')
+  const logoUrl = business.logo_url || ''
+  const bannerUrl = business.banner_url || ''
+  const previewColor = draftValid ? draftNormalized : savedColor
 
   return (
     <div className="space-y-4 pb-8">
-      <div className="flex flex-wrap items-center justify-between gap-3 sticky top-0 z-10 bg-gray-50/95 backdrop-blur py-2 -mx-1 px-1">
-        <div>
-          <p className="text-sm text-gray-500">
-            고객앱 매장 전용 화면에 표시될 정보를 관리합니다. 변경 내용은 브라우저에 임시 저장됩니다.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" size="sm" onClick={handleExportCopy}>
-            <Copy size={14} className="mr-1" />
-            설정 복사
-          </Button>
-          <Button variant="secondary" size="sm" onClick={handleExportDownload}>
-            <Download size={14} className="mr-1" />
-            설정 내보내기
-          </Button>
-          <Button variant="secondary" size="sm" onClick={resetProfile}>
-            <RotateCcw size={14} className="mr-1" />
-            초기화
-          </Button>
-          <Button size="sm" onClick={() => setPreviewOpen(true)}>
-            <Eye size={14} className="mr-1" />
-            고객앱 미리보기
-          </Button>
-        </div>
-        {copied === 'export' && (
-          <p className="text-xs text-green-600 mt-1">설정 JSON이 클립보드에 복사되었습니다. 고객앱 개발 화면에서 붙여넣으세요.</p>
-        )}
+      <div>
+        <p className="text-sm text-gray-500">
+          고객이 보는 매장 페이지의 브랜드 색상과 노출 상태를 확인합니다. 매장 이미지, 메뉴, 쿠폰과
+          영업시간은 각 관리 메뉴에서 수정할 수 있습니다.
+        </p>
       </div>
 
-      <Card title="매장 기본 정보">
-        <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="매장명">
-            <Input value={store.name} onChange={(e) => setStore({ name: e.target.value })} />
-          </Field>
-          <Field label="매장 slug (URL 주소)">
-            <Input
-              value={store.slug}
-              onChange={(e) => setStore({ slug: e.target.value.replace(/[^a-z0-9-]/gi, '').toLowerCase() })}
-              placeholder="예: sparkling"
-            />
-          </Field>
-          <Field label="전화번호">
-            <Input value={store.phone} onChange={(e) => setStore({ phone: e.target.value })} />
-          </Field>
-          <Field label="영업시간">
-            <Input
-              value={store.hours}
-              onChange={(e) => setStore({ hours: e.target.value })}
-              placeholder="09:00~20:00"
-            />
-          </Field>
-          <Field label="주소" className="sm:col-span-2">
-            <Input value={store.address} onChange={(e) => setStore({ address: e.target.value })} />
-          </Field>
-          <Field label="소개 문구" className="sm:col-span-2">
-            <textarea
-              value={store.description}
-              onChange={(e) => setStore({ description: e.target.value })}
-              rows={3}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-            />
-          </Field>
-          <Field label="브랜드 컬러">
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={store.brandColor}
-                onChange={(e) => setStore({ brandColor: e.target.value })}
-                className="w-10 h-10 rounded-lg cursor-pointer"
-              />
-              <Input value={store.brandColor} onChange={(e) => setStore({ brandColor: e.target.value })} />
+      <Card title="고객앱 매장 미리보기">
+        <p className="text-xs text-gray-400 mb-3">간단 미리보기 · 실제 고객앱 UI와 완전히 동일하지 않을 수 있습니다.</p>
+        <div
+          className="rounded-xl overflow-hidden border border-gray-200 max-w-md"
+          style={{ borderTop: `4px solid ${previewColor}` }}
+        >
+          {bannerUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={bannerUrl} alt="대표 이미지" className="w-full h-28 object-cover bg-gray-100" />
+          ) : (
+            <div className="h-28 bg-gray-100 flex items-center justify-center text-xs text-gray-400">
+              대표 이미지 없음 · 설정에서 업로드
             </div>
-          </Field>
-        </div>
-
-        <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          로고·대표 이미지·시공사진은{' '}
-          <a href="/dashboard/settings" className="underline font-medium">
-            설정 → 매장 이미지
-          </a>
-          에서 파일로 업로드하세요. (URL 직접 입력은 더 이상 사용하지 않습니다)
-        </div>
-
-        {(store.bannerUrl || store.logoUrl) && (
-          <div className="mt-4 rounded-xl overflow-hidden border border-gray-100">
-            {store.bannerUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={store.bannerUrl} alt="대표 이미지" className="w-full h-32 object-cover bg-gray-100" />
-            ) : (
-              <div className="h-24 bg-gray-100 flex items-center justify-center text-xs text-gray-400">
-                대표 이미지 미리보기
-              </div>
-            )}
-            <div className="p-3 flex items-center gap-3" style={{ borderTop: `3px solid ${store.brandColor}` }}>
-              {store.logoUrl ? (
+          )}
+          <div className="p-4">
+            <div className="flex items-center gap-3">
+              {logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={store.logoUrl} alt="로고" className="w-10 h-10 rounded-lg object-cover bg-gray-50" />
+                <img src={logoUrl} alt="로고" className="w-11 h-11 rounded-lg object-cover bg-gray-50" />
               ) : (
-                <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-lg">💧</div>
+                <div className="w-11 h-11 rounded-lg bg-gray-100 flex items-center justify-center text-lg">
+                  💧
+                </div>
               )}
               <div>
-                <div className="font-semibold text-sm">{store.name}</div>
-                <div className="text-xs text-gray-400">{store.hours}</div>
+                <div className="font-bold text-base text-gray-900">{business.name}</div>
+                <div className="text-xs text-gray-400 mt-0.5">{bizLabel}</div>
               </div>
             </div>
+            <p className="text-xs text-gray-500 mt-3">{business.address || '주소 미등록'}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{business.phone || '연락처 미등록'}</p>
+            <button
+              type="button"
+              disabled
+              className="w-full mt-4 py-2.5 rounded-xl text-white text-sm font-medium opacity-90 cursor-default"
+              style={{ backgroundColor: previewColor }}
+            >
+              예약하기
+            </button>
+          </div>
+        </div>
+      </Card>
+
+      <Card title="브랜드 색상 설정">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-gray-500">색상</label>
+            <input
+              type="color"
+              value={draftValid ? draftNormalized : savedColor}
+              onChange={(e) => {
+                setDraftColor(normalizeBrandColor(e.target.value))
+                setSaveMessage(null)
+                setSaveError(null)
+              }}
+              className="w-12 h-10 rounded-lg cursor-pointer border border-gray-200"
+            />
+          </div>
+          <div className="space-y-1 flex-1 min-w-[140px] max-w-xs">
+            <label className="text-xs font-medium text-gray-500">HEX (#RRGGBB)</label>
+            <Input
+              value={draftColor}
+              onChange={(e) => {
+                setDraftColor(e.target.value)
+                setSaveMessage(null)
+                setSaveError(null)
+              }}
+              placeholder="#1A6DFF"
+              className="font-mono"
+            />
+          </div>
+          <Button size="sm" disabled={!dirty || saving} onClick={() => void handleSaveColor()}>
+            {saving ? '저장 중…' : '저장'}
+          </Button>
+        </div>
+        {!draftValid && (
+          <p className="text-xs text-red-500 mt-2">#RRGGBB 형식만 저장할 수 있습니다. 예: #1A6DFF</p>
+        )}
+        {saveMessage && <p className="text-xs text-green-600 mt-2">{saveMessage}</p>}
+        {saveError && <p className="text-xs text-red-600 mt-2">{saveError}</p>}
+        <p className="text-[11px] text-gray-400 mt-2">
+          저장 시 <code className="text-gray-500">PATCH /business/me</code>로{' '}
+          <code className="text-gray-500">partners.brand_color</code>만 갱신합니다.
+        </p>
+      </Card>
+
+      <Card title="현재 반영 정보 요약">
+        <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <SummaryRow label="매장명" value={business.name} />
+          <SummaryRow label="slug" value={business.slug || '—'} />
+          <SummaryRow label="업종" value={bizLabel} />
+          <SummaryRow label="전화번호" value={business.phone || '—'} />
+          <SummaryRow label="주소" value={business.address || '—'} className="sm:col-span-2" />
+          <SummaryRow label="브랜드 색상" value={savedColor} />
+          <SummaryRow
+            label="로고"
+            value={logoUrl ? '등록됨' : '미등록 (설정에서 업로드)'}
+          />
+          <SummaryRow
+            label="대표 이미지"
+            value={bannerUrl ? '등록됨' : '미등록 (설정에서 업로드)'}
+          />
+        </dl>
+        {(logoUrl || bannerUrl) && (
+          <div className="mt-4 flex flex-wrap gap-3">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="로고" className="w-14 h-14 rounded-lg object-cover border border-gray-100" />
+            ) : null}
+            {bannerUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={bannerUrl}
+                alt="대표"
+                className="h-14 w-28 rounded-lg object-cover border border-gray-100"
+              />
+            ) : null}
           </div>
         )}
       </Card>
 
-      <Card title="서비스 메뉴">
-        <div className="flex justify-end mb-3">
-          <Button size="sm" variant="secondary" onClick={addService}>
-            <Plus size={14} className="mr-1" />
-            서비스 추가
-          </Button>
-        </div>
-        <div className="space-y-3">
-          {services.map((item) => (
-            <div key={item.id} className="border border-gray-100 rounded-xl p-3 space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-xs font-medium text-gray-400">서비스 #{item.id}</span>
-                <div className="flex items-center gap-2">
-                  <VisibilityToggle
-                    checked={item.isVisible}
-                    onChange={(v) => updateService(item.id, { isVisible: v })}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeService(item.id)}
-                    className="text-gray-300 hover:text-red-500 p-1"
-                    aria-label="삭제"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <Field label="서비스명">
-                  <Input
-                    value={item.name}
-                    onChange={(e) => updateService(item.id, { name: e.target.value })}
-                  />
-                </Field>
-                <Field label="가격 (원)">
-                  <Input
-                    type="number"
-                    value={item.price}
-                    onChange={(e) => updateService(item.id, { price: Number(e.target.value) || 0 })}
-                  />
-                </Field>
-                <Field label="소요시간 (분)">
-                  <Input
-                    type="number"
-                    value={item.durationMinutes}
-                    onChange={(e) =>
-                      updateService(item.id, { durationMinutes: Number(e.target.value) || 0 })
-                    }
-                  />
-                </Field>
-                <Field label="설명" className="sm:col-span-2">
-                  <Input
-                    value={item.description}
-                    onChange={(e) => updateService(item.id, { description: e.target.value })}
-                  />
-                </Field>
-              </div>
-            </div>
-          ))}
-          {services.length === 0 && (
-            <p className="text-sm text-gray-400 text-center py-6">등록된 서비스가 없습니다.</p>
+      <Card title="관련 관리 메뉴">
+        <ul className="space-y-2">
+          {RELATED_LINKS.map((item) => {
+            const Icon = item.icon
+            return (
+              <li key={`${item.href}-${item.title}`}>
+                <Link
+                  href={item.href}
+                  className="flex items-start gap-3 rounded-xl border border-gray-100 px-3 py-2.5 hover:bg-gray-50 transition-colors"
+                >
+                  <Icon size={16} className="text-gray-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{item.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{item.description}</p>
+                  </div>
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </Card>
+
+      <Card title="고객앱 매장 페이지">
+        <div className="flex flex-wrap items-center gap-2">
+          <Input value={publicUrl ?? ''} readOnly className="text-xs font-mono flex-1 min-w-[200px]" />
+          {publicUrl ? (
+            <a href={publicUrl} target="_blank" rel="noopener noreferrer">
+              <Button size="sm">
+                <ExternalLink size={14} className="mr-1" />
+                고객앱 매장 페이지 열기
+              </Button>
+            </a>
+          ) : (
+            <Button size="sm" disabled>
+              고객앱 매장 페이지 열기
+            </Button>
           )}
         </div>
+        {!business.slug && (
+          <p className="text-xs text-amber-700 mt-2">매장 slug가 없어 공개 페이지 URL을 만들 수 없습니다.</p>
+        )}
       </Card>
+    </div>
+  )
+}
 
-      <Card title="쿠폰">
-        <div className="flex justify-end mb-3">
-          <Button size="sm" variant="secondary" onClick={addCoupon}>
-            <Plus size={14} className="mr-1" />
-            쿠폰 추가
-          </Button>
-        </div>
-        <div className="space-y-3">
-          {coupons.map((item) => (
-            <div key={item.id} className="border border-gray-100 rounded-xl p-3 space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-xs font-medium text-gray-400">쿠폰 #{item.id}</span>
-                <div className="flex items-center gap-2">
-                  <VisibilityToggle
-                    checked={item.isVisible}
-                    onChange={(v) => updateCoupon(item.id, { isVisible: v })}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeCoupon(item.id)}
-                    className="text-gray-300 hover:text-red-500 p-1"
-                    aria-label="삭제"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <Field label="쿠폰명">
-                  <Input
-                    value={item.name}
-                    onChange={(e) => updateCoupon(item.id, { name: e.target.value })}
-                  />
-                </Field>
-                <Field label="할인 유형">
-                  <select
-                    value={item.discountType}
-                    onChange={(e) =>
-                      updateCoupon(item.id, {
-                        discountType: e.target.value as 'FIXED' | 'PERCENT',
-                      })
-                    }
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-primary-500"
-                  >
-                    <option value="FIXED">정액 할인 (원)</option>
-                    <option value="PERCENT">정률 할인 (%)</option>
-                  </select>
-                </Field>
-                <Field label={item.discountType === 'FIXED' ? '할인금액 (원)' : '할인율 (%)'}>
-                  <Input
-                    type="number"
-                    value={item.discountValue}
-                    onChange={(e) =>
-                      updateCoupon(item.id, { discountValue: Number(e.target.value) || 0 })
-                    }
-                  />
-                </Field>
-                <Field label="사용기간 (시작)">
-                  <Input
-                    type="date"
-                    value={item.validFrom}
-                    onChange={(e) => updateCoupon(item.id, { validFrom: e.target.value })}
-                  />
-                </Field>
-                <Field label="사용기간 (종료)">
-                  <Input
-                    type="date"
-                    value={item.validUntil}
-                    onChange={(e) => updateCoupon(item.id, { validUntil: e.target.value })}
-                  />
-                </Field>
-                <Field label="설명" className="sm:col-span-2">
-                  <Input
-                    value={item.description}
-                    onChange={(e) => updateCoupon(item.id, { description: e.target.value })}
-                  />
-                </Field>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card title="이벤트">
-        <div className="flex justify-end mb-3">
-          <Button size="sm" variant="secondary" onClick={addEvent}>
-            <Plus size={14} className="mr-1" />
-            이벤트 추가
-          </Button>
-        </div>
-        <div className="space-y-3">
-          {events.map((item) => (
-            <div key={item.id} className="border border-gray-100 rounded-xl p-3 space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-xs font-medium text-gray-400">이벤트 #{item.id}</span>
-                <div className="flex items-center gap-2">
-                  <VisibilityToggle
-                    checked={item.isVisible}
-                    onChange={(v) => updateEvent(item.id, { isVisible: v })}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeEvent(item.id)}
-                    className="text-gray-300 hover:text-red-500 p-1"
-                    aria-label="삭제"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <Field label="이벤트 제목">
-                  <Input
-                    value={item.title}
-                    onChange={(e) => updateEvent(item.id, { title: e.target.value })}
-                  />
-                </Field>
-                <Field label="기간">
-                  <Input
-                    value={item.period}
-                    onChange={(e) => updateEvent(item.id, { period: e.target.value })}
-                    placeholder="2026.06.01 ~ 2026.08.31"
-                  />
-                </Field>
-                <Field label="이벤트 설명" className="sm:col-span-2">
-                  <textarea
-                    value={item.description}
-                    onChange={(e) => updateEvent(item.id, { description: e.target.value })}
-                    rows={2}
-                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                  />
-                </Field>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Modal open={previewOpen} onClose={() => setPreviewOpen(false)} title="고객앱 미리보기" size="lg">
-        <div className="space-y-4">
-          <div
-            className="rounded-xl overflow-hidden border border-gray-200"
-            style={{ borderTop: `4px solid ${store.brandColor}` }}
-          >
-            <div className="h-28 bg-gray-100 flex items-center justify-center text-xs text-gray-400">
-              {store.bannerUrl ? '대표 이미지' : '배너 영역'}
-            </div>
-            <div className="p-4">
-              <div className="font-bold text-lg">{store.name}</div>
-              <div className="text-xs text-gray-500 mt-1">{store.address}</div>
-              <div className="text-xs text-gray-400 mt-0.5">{store.hours} · {store.phone}</div>
-              <p className="text-sm text-gray-600 mt-2">{store.description}</p>
-
-              <div className="mt-4 space-y-2">
-                <p className="text-xs font-medium text-gray-400">노출 서비스 ({snapshot.services.length})</p>
-                {snapshot.services.slice(0, 3).map((s) => (
-                  <div key={s.id} className="flex justify-between text-sm">
-                    <span>{s.name}</span>
-                    <span style={{ color: store.brandColor }}>{won(s.basePrice)}</span>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                type="button"
-                className="w-full mt-4 py-2.5 rounded-xl text-white text-sm font-medium"
-                style={{ backgroundColor: store.brandColor }}
-              >
-                예약하기
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-gray-500 flex items-center gap-1">
-              <Smartphone size={14} />
-              앱 딥링크
-            </p>
-            <div className="flex gap-2">
-              <Input value={deepLink} readOnly className="text-xs font-mono" />
-              <Button size="sm" variant="secondary" onClick={() => copyText(deepLink, 'deeplink')}>
-                <Copy size={14} />
-              </Button>
-            </div>
-            {copied === 'deeplink' && <p className="text-xs text-green-600">딥링크가 복사되었습니다.</p>}
-            <p className="text-[11px] text-gray-400">
-              adb: adb shell am start -W -a android.intent.action.VIEW -d &quot;{deepLink}&quot; host.exp.exponent
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-gray-500">웹 매장 페이지</p>
-            <div className="flex gap-2">
-              <Input value={webUrl} readOnly className="text-xs" />
-              <Button size="sm" variant="secondary" onClick={() => copyText(webUrl, 'web')}>
-                <Copy size={14} />
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => window.open(`/${store.slug}`, '_blank')}
-              >
-                <ExternalLink size={14} />
-              </Button>
-            </div>
-            {copied === 'web' && <p className="text-xs text-green-600">URL이 복사되었습니다.</p>}
-          </div>
-
-          <p className="text-xs text-gray-400 bg-gray-50 rounded-lg p-3">
-            고객앱 경로: <code className="text-gray-600">/store/{store.slug}</code>
-            · 노출 쿠폰 {snapshot.coupons.length}개 · 노출 이벤트 {snapshot.events.length}개
-          </p>
-        </div>
-      </Modal>
+function SummaryRow({
+  label,
+  value,
+  className,
+}: {
+  label: string
+  value: string
+  className?: string
+}) {
+  return (
+    <div className={className}>
+      <dt className="text-xs text-gray-400">{label}</dt>
+      <dd className="font-medium text-gray-800 mt-0.5 break-all">{value}</dd>
     </div>
   )
 }
