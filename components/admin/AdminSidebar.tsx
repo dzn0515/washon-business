@@ -115,8 +115,8 @@ export const ADMIN_MENUS: { group: string; items: AdminMenuItem[] }[] = [
       {
         icon: '👥',
         label: '고객관리',
-        href: '/admin/customers',
-        ready: false,
+        href: '/admin/users',
+        ready: true,
         permission: 'customer.read',
       },
       {

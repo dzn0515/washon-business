@@ -2945,3 +2945,118 @@ export async function refundAdminSubscriptionPayment(
     body: JSON.stringify(body),
   })
 }
+
+// ---------------------------------------------------------------------------
+// Platform app members (Admin /admin/users)
+// ---------------------------------------------------------------------------
+
+export type AdminAppUserStatus = 'ACTIVE' | 'SUSPENDED' | 'WITHDRAWN'
+
+export type AdminAppUserSummary = {
+  totalMembers: number
+  joinedToday: number
+  joinedThisMonth: number
+  suspendedCount: number
+}
+
+export type AdminAppUserListItem = {
+  id: string
+  name: string
+  phone: string | null
+  email: string | null
+  loginProvider: string
+  joinedAt: string
+  lastLoginAt: string | null
+  reservationCount: number
+  cancelledReservationCount: number
+  visitedPartnerCount: number
+  lastReservationAt: string | null
+  status: AdminAppUserStatus | string
+  pushConsent: boolean | null
+  marketingConsent: boolean | null
+  marketingSmsConsent: boolean | null
+  hasPushDevice: boolean
+}
+
+export type AdminAppUserListResponse = {
+  items: AdminAppUserListItem[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+  summary: AdminAppUserSummary
+}
+
+export type AdminAppUserDetail = AdminAppUserListItem & {
+  adminMemo: string | null
+  suspendedAt: string | null
+  suspendReason: string | null
+  stats: {
+    reservationCount: number
+    cancelledReservationCount: number
+    visitedPartnerCount: number
+    lastReservationAt: string | null
+  }
+  visitedPartners: Array<{
+    partnerId: string
+    name: string
+    slug: string | null
+    status: string | null
+    reservationCount: number
+    lastVisitedAt: string | null
+  }>
+  coupons: Array<{
+    id: string
+    name: string
+    status: string
+    expiresAt: string | null
+  }>
+}
+
+/** GET /admin/users */
+export async function fetchAdminAppUsers(params?: {
+  keyword?: string
+  status?: string
+  joinedFrom?: string
+  joinedTo?: string
+  page?: number
+  pageSize?: number
+}): Promise<AdminAppUserListResponse> {
+  return adminFetchDetail(
+    `/admin/users${salesQs({
+      keyword: params?.keyword,
+      status: params?.status,
+      joinedFrom: params?.joinedFrom,
+      joinedTo: params?.joinedTo,
+      page: params?.page,
+      pageSize: params?.pageSize,
+    })}`,
+  )
+}
+
+/** GET /admin/users/{id} */
+export async function fetchAdminAppUser(id: string): Promise<AdminAppUserDetail> {
+  return adminFetchDetail(`/admin/users/${id}`)
+}
+
+/** PATCH /admin/users/{id}/status */
+export async function updateAdminAppUserStatus(
+  id: string,
+  body: { status: 'ACTIVE' | 'SUSPENDED'; reason?: string | null },
+): Promise<AdminAppUserDetail> {
+  return adminFetchDetail(`/admin/users/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+/** PATCH /admin/users/{id}/memo */
+export async function updateAdminAppUserMemo(
+  id: string,
+  memo: string | null,
+): Promise<AdminAppUserDetail> {
+  return adminFetchDetail(`/admin/users/${id}/memo`, {
+    method: 'PATCH',
+    body: JSON.stringify({ memo }),
+  })
+}
