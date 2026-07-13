@@ -1901,6 +1901,8 @@ export type AdminSalesMetrics = {
   activeCommissionPartnerCount: number
 }
 
+export type AdminSalesAgentAccountStatus = 'NONE' | 'ACTIVE' | 'INACTIVE'
+
 export type AdminSalesDistributor = {
   id: string
   name: string
@@ -1917,6 +1919,9 @@ export type AdminSalesDistributor = {
   estimatedMonthlyCommission: number
   createdAt: string
   updatedAt: string | null
+  hasAccount?: boolean
+  accountStatus?: AdminSalesAgentAccountStatus | string
+  accountEmail?: string | null
 }
 
 export type AdminSalesAgency = {
@@ -1936,9 +1941,10 @@ export type AdminSalesAgency = {
   estimatedMonthlyCommission: number
   createdAt: string
   updatedAt: string | null
+  hasAccount?: boolean
+  accountStatus?: AdminSalesAgentAccountStatus | string
+  accountEmail?: string | null
 }
-
-export type AdminSalesAgentAccountStatus = 'NONE' | 'ACTIVE' | 'INACTIVE'
 
 export type AdminSalesAgent = {
   id: string
@@ -2285,6 +2291,81 @@ export async function resetAdminSalesAgentAccountPassword(
   temporaryPassword: string,
 ): Promise<AdminSalesAgentAccount> {
   return adminFetchDetail(`/admin/sales/agents/${id}/account/reset-password`, {
+    method: 'POST',
+    body: JSON.stringify({ temporaryPassword }),
+  })
+}
+
+export type AdminSalesDistributorAccount = AdminSalesAgentAccount
+export type AdminSalesAgencyAccount = AdminSalesAgentAccount
+
+export async function fetchAdminSalesDistributorAccount(
+  id: string,
+): Promise<AdminSalesDistributorAccount> {
+  return adminFetchDetail(`/admin/sales/distributors/${id}/account`)
+}
+
+export async function createAdminSalesDistributorAccount(
+  id: string,
+  body: { email: string; temporaryPassword: string; isActive?: boolean },
+): Promise<AdminSalesDistributorAccount> {
+  return adminFetchDetail(`/admin/sales/distributors/${id}/account`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateAdminSalesDistributorAccountStatus(
+  id: string,
+  isActive: boolean,
+): Promise<AdminSalesDistributorAccount> {
+  return adminFetchDetail(`/admin/sales/distributors/${id}/account/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isActive }),
+  })
+}
+
+export async function resetAdminSalesDistributorAccountPassword(
+  id: string,
+  temporaryPassword: string,
+): Promise<AdminSalesDistributorAccount> {
+  return adminFetchDetail(`/admin/sales/distributors/${id}/account/reset-password`, {
+    method: 'POST',
+    body: JSON.stringify({ temporaryPassword }),
+  })
+}
+
+export async function fetchAdminSalesAgencyAccount(
+  id: string,
+): Promise<AdminSalesAgencyAccount> {
+  return adminFetchDetail(`/admin/sales/agencies/${id}/account`)
+}
+
+export async function createAdminSalesAgencyAccount(
+  id: string,
+  body: { email: string; temporaryPassword: string; isActive?: boolean },
+): Promise<AdminSalesAgencyAccount> {
+  return adminFetchDetail(`/admin/sales/agencies/${id}/account`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateAdminSalesAgencyAccountStatus(
+  id: string,
+  isActive: boolean,
+): Promise<AdminSalesAgencyAccount> {
+  return adminFetchDetail(`/admin/sales/agencies/${id}/account/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isActive }),
+  })
+}
+
+export async function resetAdminSalesAgencyAccountPassword(
+  id: string,
+  temporaryPassword: string,
+): Promise<AdminSalesAgencyAccount> {
+  return adminFetchDetail(`/admin/sales/agencies/${id}/account/reset-password`, {
     method: 'POST',
     body: JSON.stringify({ temporaryPassword }),
   })

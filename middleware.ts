@@ -15,6 +15,8 @@ const PUBLIC_PREFIXES = [
   '/store',
   '/admin/login',
   '/sales/login',
+  '/distributor/login',
+  '/agency/login',
 ]
 
 const PROTECTED_PREFIXES = [
@@ -28,6 +30,8 @@ const PROTECTED_PREFIXES = [
   '/brand',
   '/admin',
   '/sales',
+  '/distributor',
+  '/agency',
 ]
 
 function isPublicPath(pathname: string): boolean {
@@ -46,6 +50,8 @@ function isProtectedPath(pathname: string): boolean {
 function loginPathFor(pathname: string): string {
   if (pathname.startsWith('/admin')) return '/admin/login'
   if (pathname.startsWith('/sales')) return '/sales/login'
+  if (pathname.startsWith('/distributor')) return '/distributor/login'
+  if (pathname.startsWith('/agency')) return '/agency/login'
   return '/login'
 }
 
@@ -80,5 +86,9 @@ export const config = {
     '/admin/:path*',
     '/sales',
     '/sales/:path*',
+    '/distributor',
+    '/distributor/:path*',
+    '/agency',
+    '/agency/:path*',
   ],
 }

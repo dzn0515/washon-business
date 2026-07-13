@@ -73,6 +73,13 @@ export const ADMIN_MENUS: { group: string; items: AdminMenuItem[] }[] = [
         permission: 'sales.read',
       },
       {
+        icon: '📝',
+        label: '입점 신청 관리',
+        href: '/admin/sales/leads',
+        ready: true,
+        permission: 'sales.read',
+      },
+      {
         icon: '🔗',
         label: '업체 배정',
         href: '/admin/sales/assignments',
