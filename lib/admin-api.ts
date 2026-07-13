@@ -2818,3 +2818,130 @@ export async function exportAdminSalesSettlement(id: string): Promise<void> {
   a.remove()
   URL.revokeObjectURL(url)
 }
+
+// ---------------------------------------------------------------------------
+// Subscription payment collection (Admin deposit verification)
+// ---------------------------------------------------------------------------
+
+export type AdminPaymentCollectionStatus = {
+  collectionMode: string
+  collectionModeLabel: string
+  message: string
+  lastCollectedAt: string | null
+  totalRecords: number
+  bySource: Record<string, number>
+  byStatus: Record<string, number>
+  paidOrPartialCount: number
+  refundedCount: number
+  partialRefundCount: number
+  cancelledCount: number
+  pgLinked: boolean
+}
+
+export type AdminSubscriptionPaymentRecord = {
+  id: string
+  partnerId: string
+  subscriptionId: string
+  externalPaymentId: string | null
+  idempotencyKey: string
+  billingPeriodStart: string
+  billingPeriodEnd: string
+  paidAt: string
+  grossAmount: number
+  vatAmount: number
+  netAmountExVat: number
+  currency: string
+  status: string
+  refundedAmount: number
+  refundedAt: string | null
+  paymentProvider: string | null
+  source: string
+  planTierSnapshot: string | null
+  monthlyFeeSnapshot: number | null
+  subscriptionStatusSnapshot: string | null
+  verifiedByAdminId: string | null
+  verifiedAt: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type AdminSubscriptionPaymentListResponse = {
+  items: AdminSubscriptionPaymentRecord[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+/** GET /admin/subscription-payments/collection-status */
+export async function fetchAdminPaymentCollectionStatus(): Promise<AdminPaymentCollectionStatus> {
+  return adminFetchDetail('/admin/subscription-payments/collection-status')
+}
+
+/** GET /admin/subscription-payments */
+export async function fetchAdminSubscriptionPayments(params?: {
+  partnerId?: number
+  status?: string
+  source?: string
+  page?: number
+  pageSize?: number
+}): Promise<AdminSubscriptionPaymentListResponse> {
+  return adminFetchDetail(
+    `/admin/subscription-payments${salesQs({
+      partnerId: params?.partnerId,
+      status: params?.status,
+      source: params?.source,
+      page: params?.page,
+      pageSize: params?.pageSize,
+    })}`,
+  )
+}
+
+/** POST /admin/subscription-payments/verify */
+export async function verifyAdminSubscriptionPayment(body: {
+  partnerId: number
+  subscriptionId: number
+  externalReference: string
+  paidAt: string
+  billingPeriodStart: string
+  billingPeriodEnd: string
+  grossAmount: number
+  vatAmount: number
+  netAmountExVat: number
+  paymentMethod?: string | null
+  memo?: string | null
+  idempotencyKey?: string | null
+  confirmWarning: boolean
+}): Promise<AdminSubscriptionPaymentRecord> {
+  return adminFetchDetail('/admin/subscription-payments/verify', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/** POST /admin/subscription-payments/{id}/cancel */
+export async function cancelAdminSubscriptionPayment(
+  id: string,
+  reason: string,
+): Promise<AdminSubscriptionPaymentRecord> {
+  return adminFetchDetail(`/admin/subscription-payments/${id}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+/** POST /admin/subscription-payments/{id}/refund */
+export async function refundAdminSubscriptionPayment(
+  id: string,
+  body: {
+    refundedAmountExVat: number
+    partial?: boolean
+    refundedAt?: string | null
+    reason?: string | null
+  },
+): Promise<AdminSubscriptionPaymentRecord> {
+  return adminFetchDetail(`/admin/subscription-payments/${id}/refund`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}

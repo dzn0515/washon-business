@@ -11,9 +11,11 @@ import AdminModal from '@/components/admin/AdminModal'
 import SalesSubNav from '@/components/admin/SalesSubNav'
 import {
   createAdminSalesSettlement,
+  fetchAdminPaymentCollectionStatus,
   fetchAdminSalesSettlementMetrics,
   fetchAdminSalesSettlementPreview,
   fetchAdminSalesSettlements,
+  type AdminPaymentCollectionStatus,
   type AdminSettlementBatch,
   type AdminSettlementMetrics,
   type AdminSettlementPreview,
@@ -58,6 +60,7 @@ function currentMonthValue() {
 export default function AdminSalesSettlementsPage() {
   const router = useRouter()
   const [metrics, setMetrics] = useState<AdminSettlementMetrics | null>(null)
+  const [collection, setCollection] = useState<AdminPaymentCollectionStatus | null>(null)
   const [items, setItems] = useState<AdminSettlementBatch[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -78,7 +81,7 @@ export default function AdminSalesSettlementsPage() {
     setLoading(true)
     setError(null)
     try {
-      const [m, list] = await Promise.all([
+      const [m, list, col] = await Promise.all([
         fetchAdminSalesSettlementMetrics(),
         fetchAdminSalesSettlements({
           month: month || undefined,
@@ -86,8 +89,10 @@ export default function AdminSalesSettlementsPage() {
           page,
           pageSize: PAGE_SIZE,
         }),
+        fetchAdminPaymentCollectionStatus(),
       ])
       setMetrics(m)
+      setCollection(col)
       setItems(list.items)
       setTotal(list.total)
       setTotalPages(list.totalPages)
@@ -166,10 +171,31 @@ export default function AdminSalesSettlementsPage() {
 
       <SalesSubNav />
 
-      <p className="text-sm text-gray-500">
-        실제 구독 결제 기록 수집 연동 전입니다. 원천 결제 기록이 있는 건만 확정 정산됩니다.
-        정산 금액은 VAT 제외 실결제 기준이며, 예상 수수료(현재 기본 정책)와 합산하지 않습니다.
-      </p>
+      <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 space-y-1">
+        <p>
+          결제 수집 방식:{' '}
+          <span className="font-medium">
+            {collection?.collectionModeLabel ?? '관리자 입금 확인'}
+          </span>
+          {collection?.pgLinked ? '' : ' (PG 미연동)'}
+        </p>
+        <p className="text-amber-800">
+          {collection?.message ??
+            '회계·입금 확인 후 Admin이 수동 등록합니다. VAT 제외 금액이 정산 기준입니다.'}
+        </p>
+        <p className="text-amber-700">
+          최근 수집:{' '}
+          {collection?.lastCollectedAt
+            ? formatDateTime(collection.lastCollectedAt)
+            : '없음'}{' '}
+          · PAID/부분환불 {collection?.paidOrPartialCount ?? 0}건 · 환불{' '}
+          {collection?.refundedCount ?? 0}건 · 전체 {collection?.totalRecords ?? 0}건
+          {' · '}
+          <Link href="/admin/subscriptions/payments" className="underline text-amber-900">
+            입금 확인
+          </Link>
+        </p>
+      </div>
 
       {error ? (
         <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-lg flex justify-between gap-3">
