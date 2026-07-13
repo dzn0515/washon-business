@@ -273,3 +273,66 @@ export async function fetchSalesPerformance(
 export async function fetchSalesCommission(): Promise<SalesCommission> {
   return salesFetchDetail('/sales/commission')
 }
+
+// ---------------------------------------------------------------------------
+// Settlements
+// ---------------------------------------------------------------------------
+
+export type SalesSettlementListItem = {
+  id: string
+  settlementMonth: string
+  status: string
+  recipientType: string
+  eligiblePartnerCount: number
+  netSalesBasis: number
+  commissionRate: number
+  commissionAmount: number
+  paidAt: string | null
+  estimated: boolean
+}
+
+export type SalesSettlementLine = {
+  id: string
+  partnerId: string
+  partnerName: string
+  planTier: string
+  paymentNetAmount: number
+  commissionRate: number
+  commissionAmount: number
+  eligibleMonthIndex: number
+  status: string
+  holdReason: string | null
+  sourcePaidAt: string
+  estimated: boolean
+}
+
+export type SalesSettlementListResponse = {
+  items: SalesSettlementListItem[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+  estimated: boolean
+}
+
+export type SalesSettlementDetail = SalesSettlementListItem & {
+  lines: SalesSettlementLine[]
+}
+
+/** GET /sales/settlements */
+export async function fetchSalesSettlements(params?: {
+  page?: number
+  pageSize?: number
+}): Promise<SalesSettlementListResponse> {
+  return salesFetchDetail(
+    `/sales/settlements${qs({
+      page: params?.page,
+      pageSize: params?.pageSize,
+    })}`,
+  )
+}
+
+/** GET /sales/settlements/{id} */
+export async function fetchSalesSettlement(id: string): Promise<SalesSettlementDetail> {
+  return salesFetchDetail(`/sales/settlements/${id}`)
+}

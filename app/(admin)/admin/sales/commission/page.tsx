@@ -351,6 +351,9 @@ export default function AdminSalesCommissionPage() {
 
           <div className="space-y-3">
             <h2 className="font-semibold text-gray-900">업체별 예상 수수료</h2>
+            <p className="text-xs text-gray-500 mt-1">
+              현재 기본 정책 기준 예상(estimated)이며, 확정 정산과 동일한 결과가 아닙니다.
+            </p>
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
               <AdminTable
                 loading={loading}

@@ -12,6 +12,7 @@ const NAV = [
   { href: '/distributor/leads', label: '입점 신청' },
   { href: '/distributor/performance', label: '실적' },
   { href: '/distributor/commission', label: '수수료' },
+  { href: '/distributor/settlements', label: '정산 내역' },
   { href: '/distributor/me', label: '내 정보' },
 ]
 

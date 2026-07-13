@@ -2525,3 +2525,296 @@ export async function rejectAdminSalesLead(
     body: JSON.stringify({ reason }),
   })
 }
+
+// ---------------------------------------------------------------------------
+// Sales commission settlements
+// ---------------------------------------------------------------------------
+
+export type AdminSettlementBatchStatus =
+  | 'DRAFT'
+  | 'CALCULATED'
+  | 'CONFIRMED'
+  | 'PAYMENT_PENDING'
+  | 'PAID'
+  | 'CANCELLED'
+
+export type AdminSettlementLineStatus =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'HELD'
+  | 'PAID'
+  | 'CANCELLED'
+
+export type AdminSettlementMetrics = {
+  currentMonthEstimated: number
+  currentMonthPaidSales: number
+  draftAmount: number
+  confirmedAmount: number
+  paymentPendingAmount: number
+  paidAmount: number
+  heldAmount: number
+  unpaidRecipientCount: number
+  estimated: boolean
+}
+
+export type AdminSettlementPreview = {
+  settlementMonth: string
+  sourcePaymentCount: number
+  eligiblePaymentCount: number
+  excludedPaymentCount: number
+  totalNetSales: number
+  agentCommission: number
+  agencyCommission: number
+  distributorCommission: number
+  totalCommission: number
+  exclusions: Record<string, number>
+  estimated: boolean
+  preview: boolean
+  message: string | null
+}
+
+export type AdminSettlementBatch = {
+  id: string
+  settlementMonth: string
+  status: string
+  calculationVersion: number
+  sourcePaymentCount: number
+  eligiblePaymentCount: number
+  excludedPaymentCount: number
+  totalNetSales: number
+  totalAgentCommission: number
+  totalAgencyCommission: number
+  totalDistributorCommission: number
+  totalCommission: number
+  totalHeldCommission: number
+  totalPayableCommission: number
+  calculatedAt: string | null
+  confirmedAt: string | null
+  paidAt: string | null
+  memo: string | null
+  externalPaymentReference: string | null
+  createdAt: string
+  estimated: boolean
+}
+
+export type AdminSettlementBatchDetail = AdminSettlementBatch & {
+  cancelReason: string | null
+  paymentPendingAt: string | null
+  message: string | null
+}
+
+export type AdminSettlementLine = {
+  id: string
+  batchId: string
+  paymentRecordId: string
+  partnerId: string
+  partnerName: string
+  planTier: string
+  recipientType: string
+  recipientId: string
+  recipientName: string
+  recipientCode: string
+  paymentNetAmount: number
+  commissionRate: number
+  commissionAmount: number
+  eligibleMonthIndex: number
+  commissionDurationMonths: number
+  status: string
+  holdReason: string | null
+  policyName: string | null
+  sourcePaidAt: string
+  estimated: boolean
+}
+
+export type AdminSettlementLineListResponse = {
+  items: AdminSettlementLine[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+/** GET /admin/sales/settlements/metrics */
+export async function fetchAdminSalesSettlementMetrics(): Promise<AdminSettlementMetrics> {
+  return adminFetchDetail('/admin/sales/settlements/metrics')
+}
+
+/** GET /admin/sales/settlements */
+export async function fetchAdminSalesSettlements(params?: {
+  month?: string
+  status?: string
+  page?: number
+  pageSize?: number
+}): Promise<AdminSalesListResponse<AdminSettlementBatch>> {
+  return adminFetchDetail(
+    `/admin/sales/settlements${salesQs({
+      month: params?.month,
+      status: params?.status,
+      page: params?.page,
+      pageSize: params?.pageSize,
+    })}`,
+  )
+}
+
+/** POST /admin/sales/settlements/preview */
+export async function fetchAdminSalesSettlementPreview(body: {
+  settlementMonth: string
+}): Promise<AdminSettlementPreview> {
+  return adminFetchDetail('/admin/sales/settlements/preview', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/** POST /admin/sales/settlements */
+export async function createAdminSalesSettlement(body: {
+  settlementMonth: string
+  memo?: string | null
+}): Promise<AdminSettlementBatchDetail> {
+  return adminFetchDetail('/admin/sales/settlements', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/** GET /admin/sales/settlements/{id} */
+export async function fetchAdminSalesSettlement(
+  id: string,
+): Promise<AdminSettlementBatchDetail> {
+  return adminFetchDetail(`/admin/sales/settlements/${id}`)
+}
+
+/** GET /admin/sales/settlements/{id}/lines */
+export async function fetchAdminSalesSettlementLines(
+  id: string,
+  params?: {
+    recipientType?: string
+    recipientName?: string
+    partner?: string
+    lineStatus?: string
+    agencyId?: number
+    distributorId?: number
+    page?: number
+    pageSize?: number
+  },
+): Promise<AdminSettlementLineListResponse> {
+  return adminFetchDetail(
+    `/admin/sales/settlements/${id}/lines${salesQs({
+      recipientType: params?.recipientType,
+      recipientName: params?.recipientName,
+      partner: params?.partner,
+      lineStatus: params?.lineStatus,
+      agencyId: params?.agencyId,
+      distributorId: params?.distributorId,
+      page: params?.page,
+      pageSize: params?.pageSize,
+    })}`,
+  )
+}
+
+/** POST /admin/sales/settlements/{id}/calculate */
+export async function calculateAdminSalesSettlement(
+  id: string,
+): Promise<AdminSettlementBatchDetail> {
+  return adminFetchDetail(`/admin/sales/settlements/${id}/calculate`, { method: 'POST' })
+}
+
+/** POST /admin/sales/settlements/{id}/recalculate */
+export async function recalculateAdminSalesSettlement(
+  id: string,
+): Promise<AdminSettlementBatchDetail> {
+  return adminFetchDetail(`/admin/sales/settlements/${id}/recalculate`, { method: 'POST' })
+}
+
+/** PATCH /admin/sales/settlements/{id}/confirm */
+export async function confirmAdminSalesSettlement(
+  id: string,
+): Promise<AdminSettlementBatchDetail> {
+  return adminFetchDetail(`/admin/sales/settlements/${id}/confirm`, { method: 'PATCH' })
+}
+
+/** PATCH /admin/sales/settlements/{id}/payment-pending */
+export async function markAdminSalesSettlementPaymentPending(
+  id: string,
+): Promise<AdminSettlementBatchDetail> {
+  return adminFetchDetail(`/admin/sales/settlements/${id}/payment-pending`, {
+    method: 'PATCH',
+  })
+}
+
+/** PATCH /admin/sales/settlements/{id}/paid */
+export async function markAdminSalesSettlementPaid(
+  id: string,
+  body?: {
+    paidAt?: string | null
+    externalReference?: string | null
+    memo?: string | null
+  },
+): Promise<AdminSettlementBatchDetail> {
+  return adminFetchDetail(`/admin/sales/settlements/${id}/paid`, {
+    method: 'PATCH',
+    body: JSON.stringify(body ?? {}),
+  })
+}
+
+/** PATCH /admin/sales/settlements/{id}/cancel */
+export async function cancelAdminSalesSettlement(
+  id: string,
+  reason: string,
+): Promise<AdminSettlementBatchDetail> {
+  return adminFetchDetail(`/admin/sales/settlements/${id}/cancel`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+/** PATCH /admin/sales/settlements/{id}/lines/{lineId}/hold */
+export async function holdAdminSalesSettlementLine(
+  id: string,
+  lineId: string,
+  reason: string,
+): Promise<AdminSettlementLine> {
+  return adminFetchDetail(`/admin/sales/settlements/${id}/lines/${lineId}/hold`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+/** PATCH /admin/sales/settlements/{id}/lines/{lineId}/release */
+export async function releaseAdminSalesSettlementLine(
+  id: string,
+  lineId: string,
+): Promise<AdminSettlementLine> {
+  return adminFetchDetail(`/admin/sales/settlements/${id}/lines/${lineId}/release`, {
+    method: 'PATCH',
+  })
+}
+
+/** GET /admin/sales/settlements/{id}/export ? CSV download */
+export async function exportAdminSalesSettlement(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/admin/sales/settlements/${id}/export`, {
+    headers: { Authorization: `Bearer ${getAdminToken()}` },
+  })
+  if (!res.ok) {
+    let detail = `API error: ${res.status}`
+    try {
+      const body = await res.json()
+      if (typeof body.detail === 'string') detail = body.detail
+    } catch {
+      /* ignore */
+    }
+    throw new Error(detail)
+  }
+  const blob = await res.blob()
+  const disposition = res.headers.get('Content-Disposition') ?? ''
+  const match = disposition.match(/filename="?([^";]+)"?/i)
+  const filename = match?.[1]?.trim() || `settlement-${id}.csv`
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}

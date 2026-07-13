@@ -245,3 +245,66 @@ export async function fetchAgencyPerformance(
 export async function fetchAgencyCommission(): Promise<AgencyCommission> {
   return apiFetch('/agency/commission')
 }
+
+// ---------------------------------------------------------------------------
+// Settlements
+// ---------------------------------------------------------------------------
+
+export type AgencySettlementListItem = {
+  id: string
+  settlementMonth: string
+  status: string
+  recipientType: string
+  eligiblePartnerCount: number
+  netSalesBasis: number
+  commissionRate: number
+  commissionAmount: number
+  paidAt: string | null
+  estimated: boolean
+}
+
+export type AgencySettlementLine = {
+  id: string
+  partnerId: string
+  partnerName: string
+  planTier: string
+  paymentNetAmount: number
+  commissionRate: number
+  commissionAmount: number
+  eligibleMonthIndex: number
+  status: string
+  holdReason: string | null
+  sourcePaidAt: string
+  estimated: boolean
+}
+
+export type AgencySettlementListResponse = {
+  items: AgencySettlementListItem[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+  estimated: boolean
+}
+
+export type AgencySettlementDetail = AgencySettlementListItem & {
+  lines: AgencySettlementLine[]
+}
+
+/** GET /agency/settlements */
+export async function fetchAgencySettlements(params?: {
+  page?: number
+  pageSize?: number
+}): Promise<AgencySettlementListResponse> {
+  return apiFetch(
+    `/agency/settlements${qs({
+      page: params?.page ?? 1,
+      pageSize: params?.pageSize ?? 20,
+    })}`,
+  )
+}
+
+/** GET /agency/settlements/{id} */
+export async function fetchAgencySettlement(id: string): Promise<AgencySettlementDetail> {
+  return apiFetch(`/agency/settlements/${id}`)
+}

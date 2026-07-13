@@ -94,6 +94,13 @@ export const ADMIN_MENUS: { group: string; items: AdminMenuItem[] }[] = [
         permission: 'sales.read',
       },
       {
+        icon: '📑',
+        label: '정산 관리',
+        href: '/admin/sales/settlements',
+        ready: true,
+        permission: 'sales.read',
+      },
+      {
         icon: '📋',
         label: '입점심사',
         href: '/admin/businesses/pending',

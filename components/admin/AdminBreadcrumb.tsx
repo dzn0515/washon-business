@@ -27,6 +27,7 @@ const PATH_LABELS: Record<string, string> = {
   agents: '영업사원 관리',
   assignments: '업체 배정',
   commission: '수수료 정책',
+  settlements: '정산 관리',
   leads: '입점 신청 관리',
   franchises: '프랜차이즈',
 }

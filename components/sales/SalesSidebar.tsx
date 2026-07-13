@@ -11,6 +11,7 @@ const NAV = [
   { href: '/sales/apply', label: '입점 신청' },
   { href: '/sales/performance', label: '실적' },
   { href: '/sales/commission', label: '수수료' },
+  { href: '/sales/settlements', label: '정산 내역' },
   { href: '/sales/me', label: '내 정보' },
 ]
 

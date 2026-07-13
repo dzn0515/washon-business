@@ -309,3 +309,68 @@ export async function fetchDistributorPerformance(
 export async function fetchDistributorCommission(): Promise<DistributorCommission> {
   return apiFetch('/distributor/commission')
 }
+
+// ---------------------------------------------------------------------------
+// Settlements
+// ---------------------------------------------------------------------------
+
+export type DistributorSettlementListItem = {
+  id: string
+  settlementMonth: string
+  status: string
+  recipientType: string
+  eligiblePartnerCount: number
+  netSalesBasis: number
+  commissionRate: number
+  commissionAmount: number
+  paidAt: string | null
+  estimated: boolean
+}
+
+export type DistributorSettlementLine = {
+  id: string
+  partnerId: string
+  partnerName: string
+  planTier: string
+  paymentNetAmount: number
+  commissionRate: number
+  commissionAmount: number
+  eligibleMonthIndex: number
+  status: string
+  holdReason: string | null
+  sourcePaidAt: string
+  estimated: boolean
+}
+
+export type DistributorSettlementListResponse = {
+  items: DistributorSettlementListItem[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+  estimated: boolean
+}
+
+export type DistributorSettlementDetail = DistributorSettlementListItem & {
+  lines: DistributorSettlementLine[]
+}
+
+/** GET /distributor/settlements */
+export async function fetchDistributorSettlements(params?: {
+  page?: number
+  pageSize?: number
+}): Promise<DistributorSettlementListResponse> {
+  return apiFetch(
+    `/distributor/settlements${qs({
+      page: params?.page ?? 1,
+      pageSize: params?.pageSize ?? 20,
+    })}`,
+  )
+}
+
+/** GET /distributor/settlements/{id} */
+export async function fetchDistributorSettlement(
+  id: string,
+): Promise<DistributorSettlementDetail> {
+  return apiFetch(`/distributor/settlements/${id}`)
+}

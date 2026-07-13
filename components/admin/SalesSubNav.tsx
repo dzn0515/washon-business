@@ -11,6 +11,7 @@ const LINKS: Array<{ href: string; label: string; exact?: boolean }> = [
   { href: '/admin/sales/agents', label: '영업사원' },
   { href: '/admin/sales/assignments', label: '업체 배정' },
   { href: '/admin/sales/commission', label: '수수료 정책' },
+  { href: '/admin/sales/settlements', label: '정산 관리' },
 ]
 
 export default function SalesSubNav() {

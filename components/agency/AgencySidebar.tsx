@@ -11,6 +11,7 @@ const NAV = [
   { href: '/agency/leads', label: '입점 신청' },
   { href: '/agency/performance', label: '실적' },
   { href: '/agency/commission', label: '수수료' },
+  { href: '/agency/settlements', label: '정산 내역' },
   { href: '/agency/me', label: '내 정보' },
 ]
 
