@@ -3060,3 +3060,126 @@ export async function updateAdminAppUserMemo(
     body: JSON.stringify({ memo }),
   })
 }
+
+// ---------------------------------------------------------------------------
+// Platform reviews (Admin /admin/reviews)
+// ---------------------------------------------------------------------------
+
+export type AdminReviewStatus = 'PUBLISHED' | 'HIDDEN' | 'DELETED'
+
+export type AdminReviewSummary = {
+  total: number
+  published: number
+  hidden: number
+  deleted: number
+  averageRating: number | null
+}
+
+export type AdminReviewAuthor = {
+  id: string | null
+  name: string
+  phone: string | null
+  email: string | null
+  withdrawn: boolean
+}
+
+export type AdminReviewPartner = {
+  id: string
+  name: string
+  slug: string | null
+  bizType: string | null
+  deleted: boolean
+}
+
+export type AdminReviewListItem = {
+  id: string
+  rating: number
+  content: string | null
+  author: AdminReviewAuthor
+  partner: AdminReviewPartner
+  reservationId: string | null
+  imageCount: number
+  reportCount: number
+  status: AdminReviewStatus | string
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type AdminReviewListResult = {
+  items: AdminReviewListItem[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+  summary: AdminReviewSummary
+}
+
+export type AdminReviewDetail = {
+  id: string
+  rating: number
+  content: string | null
+  images: string[]
+  author: AdminReviewAuthor
+  partner: AdminReviewPartner
+  reservation: {
+    id: string
+    bookingNumber: string | null
+    bookingDate: string | null
+    status: string | null
+    serviceName: string | null
+    vehicleModel: string | null
+    vehicleNumber: string | null
+    verifiedVisit: boolean
+  } | null
+  reply: { content: string | null; repliedAt: string | null }
+  reportCount: number
+  status: AdminReviewStatus | string
+  createdAt: string
+  updatedAt: string | null
+  moderation: {
+    hiddenAt: string | null
+    hiddenByAdminId: string | null
+    hiddenReason: string | null
+  }
+}
+
+/** GET /admin/reviews */
+export async function fetchAdminReviews(params: {
+  keyword?: string
+  partnerId?: string
+  rating?: number
+  status?: string
+  createdFrom?: string
+  createdTo?: string
+  page?: number
+  pageSize?: number
+}): Promise<AdminReviewListResult> {
+  return adminFetchDetail(
+    `/admin/reviews${salesQs({
+      keyword: params.keyword,
+      partnerId: params.partnerId,
+      rating: params.rating,
+      status: params.status,
+      createdFrom: params.createdFrom,
+      createdTo: params.createdTo,
+      page: params.page ?? 1,
+      pageSize: params.pageSize ?? 20,
+    })}`,
+  )
+}
+
+/** GET /admin/reviews/{id} */
+export async function fetchAdminReview(id: string): Promise<AdminReviewDetail> {
+  return adminFetchDetail(`/admin/reviews/${id}`)
+}
+
+/** PATCH /admin/reviews/{id}/status */
+export async function updateAdminReviewStatus(
+  id: string,
+  body: { status: 'PUBLISHED' | 'HIDDEN'; reason?: string | null },
+): Promise<AdminReviewDetail> {
+  return adminFetchDetail(`/admin/reviews/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
