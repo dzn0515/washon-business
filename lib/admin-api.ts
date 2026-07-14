@@ -3183,3 +3183,105 @@ export async function updateAdminReviewStatus(
     body: JSON.stringify(body),
   })
 }
+
+// ---------------------------------------------------------------------------
+// Review reports (Admin /admin/review-reports)
+// ---------------------------------------------------------------------------
+
+export type AdminReviewReportListItem = {
+  id: string
+  status: string
+  reason: string
+  reviewId: string
+  reviewPreview: string | null
+  partnerName: string
+  reporterName: string
+  authorName: string
+  reportCount: number
+  createdAt: string
+}
+
+export type AdminReviewReportListResult = {
+  items: AdminReviewReportListItem[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export type AdminReviewReportDetail = {
+  id: string
+  status: string
+  reason: string
+  detail: string | null
+  createdAt: string
+  processedAt: string | null
+  resolutionNote: string | null
+  processedByAdminId: string | null
+  review: {
+    id: string
+    rating: number
+    content: string | null
+    images: string[]
+    status: string
+    hiddenReason: string | null
+    createdAt: string | null
+    partnerReply: string | null
+  }
+  reporter: {
+    id: string
+    name: string | null
+    email: string | null
+    phone: string | null
+  }
+  author: {
+    id: string | null
+    name: string | null
+    phone: string | null
+  }
+  partner: {
+    id: string
+    name: string
+    slug: string | null
+  }
+  reportCount: number
+  pendingCount: number
+}
+
+/** GET /admin/review-reports */
+export async function fetchAdminReviewReports(params: {
+  status?: string
+  reason?: string
+  keyword?: string
+  createdFrom?: string
+  createdTo?: string
+  page?: number
+  pageSize?: number
+}): Promise<AdminReviewReportListResult> {
+  return adminFetchDetail(
+    `/admin/review-reports${salesQs({
+      status: params.status,
+      reason: params.reason,
+      keyword: params.keyword,
+      createdFrom: params.createdFrom,
+      createdTo: params.createdTo,
+      page: params.page ?? 1,
+      pageSize: params.pageSize ?? 20,
+    })}`,
+  )
+}
+
+/** GET /admin/review-reports/{id} */
+export async function fetchAdminReviewReport(id: string): Promise<AdminReviewReportDetail> {
+  return adminFetchDetail(`/admin/review-reports/${id}`)
+}
+
+/** PATCH /admin/review-reports/{id}/resolve */
+export async function resolveAdminReviewReport(
+  id: string,
+  body: { resolution: 'DISMISSED' | 'HIDE_REVIEW'; note: string },
+): Promise<AdminReviewReportDetail> {
+  return adminFetchDetail(`/admin/review-reports/${id}/resolve`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}

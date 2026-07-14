@@ -129,6 +129,7 @@ export const ADMIN_MENUS: { group: string; items: AdminMenuItem[] }[] = [
       { icon: '🎧', label: '고객센터', href: '/admin/cs', ready: true, permission: 'cs.read' },
       { icon: '📣', label: '공지/알림', href: '/admin/notices', ready: true, permission: 'notices.read' },
       { icon: '⭐', label: '리뷰관리', href: '/admin/reviews', ready: true, permission: 'review.read' },
+      { icon: '🚩', label: '리뷰신고', href: '/admin/review-reports', ready: true, permission: 'review.read' },
     ],
   },
   {

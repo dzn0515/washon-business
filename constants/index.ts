@@ -96,6 +96,7 @@ export const NAV_ITEMS = [
   { href: '/dashboard/reservations', label: '예약 관리', icon: 'Calendar' as const },
   { href: '/dashboard/menus', label: '메뉴/요금', icon: 'List' as const },
   { href: '/dashboard/customers', label: '고객 관리', icon: 'Users' as const },
+  { href: '/dashboard/reviews', label: '리뷰관리', icon: 'Star' as const },
   { href: '/dashboard/vehicles', label: '차량 관리', icon: 'Car' as const },
   { href: '/dashboard/revenue', label: '매출관리', icon: 'Wallet' as const },
   { href: '/dashboard/billing', label: '요금제 / 결제', icon: 'CreditCard' as const },
