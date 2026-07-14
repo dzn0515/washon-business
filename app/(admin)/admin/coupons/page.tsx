@@ -23,6 +23,7 @@ const SOURCE_FILTERS = [
   { key: 'all', label: '전체 출처' },
   { key: 'manual', label: '수동' },
   { key: 'birthday_auto', label: '생일자동' },
+  { key: 'review_auto', label: '리뷰자동' },
 ]
 
 const STATUS_FILTERS = [

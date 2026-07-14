@@ -110,6 +110,7 @@ export function getAdminBizTypeLabel(bizType: string): string {
 export const ADMIN_COUPON_SOURCE_LABEL: Record<string, string> = {
   manual: '수동',
   birthday_auto: '생일자동',
+  review_auto: '리뷰자동',
 }
 
 export const ADMIN_COUPON_STATUS_LABEL: Record<string, string> = {

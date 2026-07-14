@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, Calendar, List, Users, Wallet, Settings, Megaphone, ShieldCheck, Smartphone, Wrench, Ticket, Car, QrCode, Sparkles, CreditCard, Star,
+  LayoutDashboard, Calendar, List, Users, Wallet, Settings, Megaphone, ShieldCheck, Smartphone, Wrench, Ticket, Car, QrCode, Sparkles, CreditCard, Star, MessageSquareHeart,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { NAV_ITEMS } from '@/constants'
@@ -11,7 +11,7 @@ import { useDemoMode } from '@/components/providers/DemoModeProvider'
 import { useBusinessMe } from '@/lib/hooks/useBusinessMe'
 
 const ICONS = {
-  LayoutDashboard, Calendar, List, Users, Wallet, Settings, Megaphone, ShieldCheck, Smartphone, Wrench, Ticket, Car, QrCode, Sparkles, CreditCard, Star,
+  LayoutDashboard, Calendar, List, Users, Wallet, Settings, Megaphone, ShieldCheck, Smartphone, Wrench, Ticket, Car, QrCode, Sparkles, CreditCard, Star, MessageSquareHeart,
 }
 
 interface SidebarProps {
