@@ -135,7 +135,8 @@ export function useOperationalInsights() {
     }
 
     try {
-      liveCustomers = await fetchCustomers()
+      const customerPage = await fetchCustomers({ page: 1, pageSize: 200 })
+      liveCustomers = customerPage.items
       setCustomersLive(true)
     } catch {
       setCustomersLive(false)

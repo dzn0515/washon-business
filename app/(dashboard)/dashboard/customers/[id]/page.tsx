@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ChevronLeft, Plus } from 'lucide-react'
 import Badge from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
@@ -34,7 +34,7 @@ const STATUS_MAP: Record<string, BookingStatus> = {
 
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const { detail, loading, isLive, save } = useCustomerDetail(id)
+  const { detail, loading, error, isLive, refetch } = useCustomerDetail(id)
   const { coupons, isLive: couponsLive } = useCoupons()
   const {
     items: customerCoupons,
@@ -44,36 +44,25 @@ export default function CustomerDetailPage() {
     markUsed,
     refetch: refetchCoupons,
   } = useCustomerCoupons(id)
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [memo, setMemo] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
   const [issueModalOpen, setIssueModalOpen] = useState(false)
   const [selectedCouponId, setSelectedCouponId] = useState('')
   const [issuing, setIssuing] = useState(false)
   const [couponMessage, setCouponMessage] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!detail) return
-    setName(detail.name)
-    setPhone(detail.phone)
-    setMemo(detail.memo ?? '')
-  }, [detail])
-
   if (loading) return <p className="text-sm text-gray-400">불러오는 중...</p>
-  if (!detail) return <p className="text-sm text-gray-400">고객 정보를 불러올 수 없습니다.</p>
+  if (error || !detail) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-red-600">고객 정보를 불러올 수 없습니다.</p>
+        <button type="button" className={BTN_PRIMARY} onClick={() => void refetch()}>
+          다시 시도
+        </button>
+      </div>
+    )
+  }
 
   const visitCount = detail.visit_count
   const grade: CustomerGrade = visitCount >= 10 ? 'VIP' : visitCount >= 3 ? 'GOLD' : 'NORMAL'
-
-  async function handleSave() {
-    setSaving(true)
-    setMessage(null)
-    const ok = await save({ name, phone, memo })
-    setSaving(false)
-    setMessage(ok ? '저장되었습니다.' : '저장에 실패했습니다.')
-  }
 
   const issuableCoupons = coupons.filter((c) => {
     if (!c.is_active) return false
@@ -150,41 +139,70 @@ export default function CustomerDetailPage() {
 
       <div className={CARD}>
         <p className="text-sm font-semibold text-gray-900 mb-3">고객 정보</p>
-        <div className="space-y-2">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-            placeholder="이름"
-          />
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-            placeholder="전화번호"
-          />
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between gap-3">
+            <span className="text-gray-400">이름</span>
+            <span className="font-medium text-gray-900">{detail.name ?? '-'}</span>
+          </div>
+          <div className="flex justify-between gap-3">
+            <span className="text-gray-400">연락처</span>
+            <span className="font-medium text-gray-900">{detail.phone ?? '-'}</span>
+          </div>
+          {detail.email ? (
+            <div className="flex justify-between gap-3">
+              <span className="text-gray-400">이메일</span>
+              <span className="font-medium text-gray-900">{detail.email}</span>
+            </div>
+          ) : null}
         </div>
+        <p className="text-xs text-gray-400 mt-3">
+          이름·연락처는 플랫폼 회원 정보이며 사장님이 수정할 수 없습니다.
+          업체별 메모/태그 저장은 준비 중입니다.
+        </p>
       </div>
 
-      <div className={CARD}>
-        <p className="text-sm font-semibold text-gray-900 mb-2">사장님 메모</p>
-        <textarea
-          value={memo}
-          onChange={(e) => setMemo(e.target.value)}
-          rows={4}
-          className="w-full border border-gray-200 rounded-xl p-3 text-sm resize-none"
-          placeholder="고객 메모"
-        />
-        <button
-          type="button"
-          disabled={saving || !isLive}
-          onClick={() => void handleSave()}
-          className={`${BTN_PRIMARY} w-full mt-2 py-2.5 disabled:opacity-50`}
-        >
-          {saving ? '저장 중...' : '저장'}
-        </button>
-        {message ? <p className="text-xs text-gray-500 mt-2">{message}</p> : null}
-      </div>
+      {(detail.vehicles?.length ?? 0) > 0 ? (
+        <div className={CARD}>
+          <p className="text-sm font-semibold text-gray-900 mb-3">차량</p>
+          <div className="space-y-2">
+            {detail.vehicles!.map((v) => (
+              <div key={v.id} className="flex items-center justify-between text-sm">
+                <span className="font-medium text-gray-900">
+                  {v.licensePlate}
+                  {v.isPrimary ? (
+                    <span className="ml-2 text-[11px] text-blue-600">대표</span>
+                  ) : null}
+                </span>
+                <span className="text-gray-500">
+                  {[v.brand, v.model].filter(Boolean).join(' ') || '-'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {(detail.upcomingReservations?.length ?? 0) > 0 ? (
+        <div className={CARD}>
+          <p className="text-sm font-semibold text-gray-900 mb-3">예정 예약</p>
+          <div className="space-y-2">
+            {detail.upcomingReservations!.map((row) => (
+              <div
+                key={row.booking_id}
+                className="flex items-center justify-between gap-2 text-sm border-b border-gray-50 pb-2"
+              >
+                <div>
+                  <p className="font-medium text-gray-900">
+                    {row.booking_date} {row.start_time.slice(0, 5)}
+                  </p>
+                  <p className="text-xs text-gray-500">{row.menu_name ?? '-'}</p>
+                </div>
+                <span className="text-xs text-gray-500">{row.vehicle_model ?? '-'}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className={CARD}>
         <div className="flex items-center justify-between gap-2 mb-3">
@@ -283,7 +301,7 @@ export default function CustomerDetailPage() {
               </thead>
               <tbody>
                 {detail.visit_history.map((row) => {
-                  const uiStatus = STATUS_MAP[row.status] ?? 'pending'
+                  const uiStatus = STATUS_MAP[row.status.toLowerCase()] ?? 'pending'
                   return (
                     <tr key={row.booking_id} className="border-b border-gray-50">
                       <td className="py-2 pr-2">
@@ -310,6 +328,29 @@ export default function CustomerDetailPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      <div className={CARD}>
+        <p className="text-sm font-semibold text-gray-900 mb-3">리뷰</p>
+        {(detail.reviews?.length ?? 0) === 0 ? (
+          <p className="text-sm text-gray-400">등록된 리뷰가 없습니다.</p>
+        ) : (
+          <div className="space-y-3">
+            {detail.reviews!.map((rv) => (
+              <div key={rv.id} className="border-b border-gray-50 pb-2 last:border-0">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium text-amber-600">{rv.rating}점</span>
+                  <span className="text-xs text-gray-400">
+                    {rv.createdAt
+                      ? new Date(rv.createdAt).toLocaleDateString('ko-KR')
+                      : ''}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700 mt-1">{rv.content ?? '-'}</p>
+              </div>
+            ))}
           </div>
         )}
       </div>

@@ -86,7 +86,18 @@ export default function MenusPage() {
 
   const { isDemo } = useDemoMode()
 
-  const { menus: apiMenus, hours: apiHours, holidays, loading: menusLoading, error: menusError, refreshMenus } = useMenus()
+  const {
+    menus: apiMenus,
+    hours: apiHours,
+    holidays,
+    loading: menusLoading,
+    error: menusError,
+    refreshMenus,
+    saveHours,
+    hoursSaving,
+    hoursSaveError,
+    hoursSaveOk,
+  } = useMenus()
 
   const {
 
@@ -336,6 +347,11 @@ export default function MenusPage() {
 
   }, [apiHours])
 
+  const handleSaveHours = useCallback(async () => {
+    const ok = await saveHours(hours)
+    if (ok) setHoursDraft(null)
+  }, [hours, saveHours])
+
 
 
   const showMenusLoading =
@@ -530,7 +546,20 @@ export default function MenusPage() {
 
           </div>
 
-          <button type="button" className={`${BTN_PRIMARY} w-full mt-4`}>저장하기</button>
+          {hoursSaveError ? (
+            <p className="text-sm text-red-600 mt-3">{hoursSaveError}</p>
+          ) : null}
+          {hoursSaveOk ? (
+            <p className="text-sm text-green-600 mt-3">영업시간이 저장되었습니다.</p>
+          ) : null}
+          <button
+            type="button"
+            className={`${BTN_PRIMARY} w-full mt-4 disabled:opacity-50`}
+            disabled={hoursSaving}
+            onClick={() => void handleSaveHours()}
+          >
+            {hoursSaving ? '저장 중...' : '저장하기'}
+          </button>
 
         </div>
 

@@ -76,13 +76,17 @@ function mapApiMenus(apiMenus: ApiMenu[]): MenuCard[] {
 }
 
 function mapApiHours(apiHours: ApiHours[]): BusinessHours[] {
-  return apiHours.map((h) => ({
-    day: h.day_of_week,
-    label: DAY_LABELS[h.day_of_week] ?? String(h.day_of_week),
-    is_open: !h.is_closed,
-    open_time: (h.open_time ?? '09:00').slice(0, 5),
-    close_time: (h.close_time ?? '18:00').slice(0, 5),
-  }))
+  const byDay = new Map(apiHours.map((h) => [h.day_of_week, h]))
+  return DAY_LABELS.map((label, day) => {
+    const h = byDay.get(day)
+    return {
+      day,
+      label,
+      is_open: h ? !h.is_closed : false,
+      open_time: (h?.open_time ?? '09:00').slice(0, 5),
+      close_time: (h?.close_time ?? '18:00').slice(0, 5),
+    }
+  })
 }
 
 function mapApiHolidays(apiHolidays: ApiHoliday[]): HolidayCard[] {
@@ -121,10 +125,51 @@ export function useMenus() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [hoursSaving, setHoursSaving] = useState(false)
+  const [hoursSaveError, setHoursSaveError] = useState<string | null>(null)
+  const [hoursSaveOk, setHoursSaveOk] = useState(false)
 
   const refreshMenus = useCallback(() => {
     setReloadKey((k) => k + 1)
   }, [])
+
+  const saveHours = useCallback(
+    async (rows: BusinessHours[]) => {
+      if (isDemoMode()) return false
+      setHoursSaving(true)
+      setHoursSaveError(null)
+      setHoursSaveOk(false)
+      try {
+        for (const row of rows) {
+          if (row.is_open && row.open_time >= row.close_time) {
+            setHoursSaveError(`${row.label}: 시작 시간은 종료 시간보다 빨라야 합니다.`)
+            return false
+          }
+        }
+        const payload = {
+          hours: rows.map((h) => ({
+            day_of_week: h.day,
+            open_time: h.open_time,
+            close_time: h.close_time,
+            is_closed: !h.is_open,
+          })),
+        }
+        const saved = await apiFetch<ApiHours[]>('/business/hours', {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        })
+        setHours(mapApiHours(saved))
+        setHoursSaveOk(true)
+        return true
+      } catch (e) {
+        setHoursSaveError(e instanceof Error ? e.message : '영업시간 저장에 실패했습니다.')
+        return false
+      } finally {
+        setHoursSaving(false)
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     if (isDemoMode()) {
@@ -172,7 +217,8 @@ export function useMenus() {
         if (hoursResult.status === 'fulfilled') {
           setHours(mapApiHours(hoursResult.value))
         } else {
-          setHours(mockBusinessHours)
+          setHours([])
+          failures.push('영업시간')
         }
 
         if (holidaysResult.status === 'fulfilled') {
@@ -182,7 +228,7 @@ export function useMenus() {
         }
 
         if (failures.length > 0) {
-          setError('메뉴 정보를 불러올 수 없습니다.')
+          setError(`${failures.join('·')} 정보를 불러올 수 없습니다.`)
         }
       } finally {
         window.clearTimeout(safetyTimer)
@@ -207,7 +253,22 @@ export function useMenus() {
       error,
       isLive: menus !== null,
       refreshMenus,
+      saveHours,
+      hoursSaving,
+      hoursSaveError,
+      hoursSaveOk,
     }),
-    [menus, hours, holidays, loading, error, refreshMenus],
+    [
+      menus,
+      hours,
+      holidays,
+      loading,
+      error,
+      refreshMenus,
+      saveHours,
+      hoursSaving,
+      hoursSaveError,
+      hoursSaveOk,
+    ],
   )
 }

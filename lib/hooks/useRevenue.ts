@@ -1,112 +1,163 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { apiFetch } from '@/lib/api-client'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  mockRevenueTodayKpi,
-  mockRevenueWeeklyKpi,
-  mockRevenueMonthlyKpi,
-  mockRevenueByMenu,
-  mockPaymentsToday,
-} from '@/lib/mock/data'
+  fetchSalesByMenu,
+  fetchSalesSummary,
+  fetchSalesTimeseries,
+  fetchSalesTransactions,
+  fetchDailyRevenue,
+  type ApiDailyRevenue,
+  type ApiSalesByMenu,
+  type ApiSalesSummary,
+  type ApiSalesTimeseriesPoint,
+  type ApiSalesTransaction,
+} from '@/lib/revenue-api'
+import { todayIso } from '@/lib/api-mappers'
 
-type ApiRevenueSummary = {
-  today_sales: number
-  weekly_sales: number
-  monthly_sales: number
-  average_ticket: number
-  completed_count: number
-  noshow_count: number
-  maintenance_fee: number
+export type RevenuePeriodKey = 'today' | '7d' | 'month' | 'last_month' | 'custom'
+
+function toIso(d: Date) {
+  return d.toISOString().slice(0, 10)
 }
 
-type ApiRevenueByMenu = {
-  menu_name: string
-  amount: number
-  pct: number
+function periodRange(key: RevenuePeriodKey, customFrom?: string, customTo?: string) {
+  const today = new Date()
+  const t = todayIso()
+  if (key === 'today') return { from: t, to: t, interval: 'day' as const }
+  if (key === '7d') {
+    const from = new Date(today)
+    from.setDate(from.getDate() - 6)
+    return { from: toIso(from), to: t, interval: 'day' as const }
+  }
+  if (key === 'last_month') {
+    const firstThis = new Date(today.getFullYear(), today.getMonth(), 1)
+    const lastPrev = new Date(firstThis)
+    lastPrev.setDate(0)
+    const firstPrev = new Date(lastPrev.getFullYear(), lastPrev.getMonth(), 1)
+    return { from: toIso(firstPrev), to: toIso(lastPrev), interval: 'day' as const }
+  }
+  if (key === 'custom' && customFrom && customTo) {
+    return { from: customFrom, to: customTo, interval: 'day' as const }
+  }
+  // month
+  const first = new Date(today.getFullYear(), today.getMonth(), 1)
+  return { from: toIso(first), to: t, interval: 'day' as const }
 }
 
-type ApiBooking = {
-  id: string
-  start_time: string
-  customer_name: string
-  price: number
-  menu_id: string
-  status: string
-}
-
-type ApiMenu = { id: string; name: string }
-
-export function useRevenue() {
-  const [todayKpi, setTodayKpi] = useState<typeof mockRevenueTodayKpi | null>(null)
-  const [weeklyKpi, setWeeklyKpi] = useState<typeof mockRevenueWeeklyKpi | null>(null)
-  const [monthlyKpi, setMonthlyKpi] = useState<typeof mockRevenueMonthlyKpi | null>(null)
-  const [byMenu, setByMenu] = useState<typeof mockRevenueByMenu | null>(null)
-  const [paymentsToday, setPaymentsToday] = useState<typeof mockPaymentsToday | null>(null)
+export function useRevenueDashboard() {
+  const [period, setPeriod] = useState<RevenuePeriodKey>('month')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+  const [summary, setSummary] = useState<ApiSalesSummary | null>(null)
+  const [series, setSeries] = useState<ApiSalesTimeseriesPoint[]>([])
+  const [byMenu, setByMenu] = useState<ApiSalesByMenu[]>([])
+  const [tx, setTx] = useState<ApiSalesTransaction[]>([])
+  const [txTotal, setTxTotal] = useState(0)
+  const [txPage, setTxPage] = useState(1)
+  const [q, setQ] = useState('')
+  const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10)
-    Promise.all([
-      apiFetch<ApiRevenueSummary>('/business/revenue/summary'),
-      apiFetch<ApiRevenueByMenu[]>('/business/revenue/by-menu?period=today'),
-      apiFetch<ApiBooking[]>(`/business/bookings/?booking_date=${today}`),
-      apiFetch<ApiMenu[]>('/business/menus/'),
-    ])
-      .then(([summary, menuRows, bookings, menus]) => {
-        const menuMap = Object.fromEntries(menus.map((m) => [m.id, m.name]))
-        const completed = bookings.filter((b) => b.status === 'completed')
+  const range = useMemo(
+    () => periodRange(period, customFrom, customTo),
+    [period, customFrom, customTo],
+  )
 
-        setTodayKpi({
-          today_sales: summary.today_sales,
-          completed_count: summary.completed_count,
-          pending_settlement: summary.monthly_sales - summary.today_sales,
-          app_maintenance_fee: summary.maintenance_fee,
-        })
-        setWeeklyKpi({
-          week_sales: summary.weekly_sales,
-          week_bookings: summary.completed_count,
-        })
-        setMonthlyKpi({
-          month_sales: summary.monthly_sales,
-          month_bookings: summary.completed_count,
-          platform_fee: Math.round(summary.monthly_sales * 0.1),
-          app_maintenance_fee: summary.maintenance_fee,
-        })
-        setByMenu(
-          menuRows.map((m) => ({
-            name: m.menu_name,
-            amount: m.amount,
-            pct: m.pct,
-          })),
-        )
-        setPaymentsToday(
-          completed
-            .filter((b) => b.price > 0)
-            .slice(0, 20)
-            .map((b, i) => ({
-              id: i + 1,
-              time: b.start_time.slice(0, 5),
-              customer_name: b.customer_name,
-              menu: menuMap[b.menu_id] ?? '서비스',
-              amount: b.price,
-              method: '앱결제',
-            })),
-        )
-      })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false))
-  }, [])
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [s, ts, menu, list] = await Promise.all([
+        fetchSalesSummary(range.from, range.to),
+        fetchSalesTimeseries(range.from, range.to, range.interval),
+        fetchSalesByMenu(range.from, range.to),
+        fetchSalesTransactions({
+          dateFrom: range.from,
+          dateTo: range.to,
+          q: q || undefined,
+          status: status || undefined,
+          page: txPage,
+          pageSize: 20,
+        }),
+      ])
+      setSummary(s)
+      setSeries(ts.items ?? [])
+      setByMenu(menu ?? [])
+      setTx(list.items ?? [])
+      setTxTotal(list.total ?? 0)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setSummary(null)
+      setSeries([])
+      setByMenu([])
+      setTx([])
+      setTxTotal(0)
+    } finally {
+      setLoading(false)
+    }
+  }, [range.from, range.to, range.interval, q, status, txPage])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  useEffect(() => {
+    setTxPage(1)
+  }, [period, customFrom, customTo, q, status])
 
   return {
-    todayKpi: todayKpi ?? mockRevenueTodayKpi,
-    weeklyKpi: weeklyKpi ?? mockRevenueWeeklyKpi,
-    monthlyKpi: monthlyKpi ?? mockRevenueMonthlyKpi,
-    byMenu: byMenu ?? mockRevenueByMenu,
-    paymentsToday: paymentsToday ?? mockPaymentsToday,
+    period,
+    setPeriod,
+    customFrom,
+    setCustomFrom,
+    customTo,
+    setCustomTo,
+    range,
+    summary,
+    series,
+    byMenu,
+    tx,
+    txTotal,
+    txPage,
+    setTxPage,
+    q,
+    setQ,
+    status,
+    setStatus,
     loading,
     error,
-    isLive: todayKpi !== null,
+    refetch: load,
   }
+}
+
+export function useDailyRevenue(initialDate?: string) {
+  const [selectedDate, setSelectedDate] = useState(initialDate ?? todayIso())
+  const [data, setData] = useState<ApiDailyRevenue | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isLive, setIsLive] = useState(false)
+
+  const refetch = useCallback(async (date: string) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const result = await fetchDailyRevenue(date)
+      setData(result)
+      setIsLive(true)
+    } catch (e) {
+      setData(null)
+      setIsLive(false)
+      setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refetch(selectedDate)
+  }, [selectedDate, refetch])
+
+  return { data, loading, error, isLive, selectedDate, setSelectedDate, refetch }
 }
