@@ -474,6 +474,10 @@ export default function AdminSalesSettlementDetailPage() {
                     <div>
                       <p className="font-medium">{line.partnerName}</p>
                       <p className="text-xs text-gray-500">{line.planTier}</p>
+                      <p className="text-xs text-blue-700 mt-0.5">
+                        유료 {line.eligibleMonthIndex}개월차
+                        {line.tierRate != null ? ` · ${line.tierRate}%` : ''}
+                      </p>
                     </div>
                   ),
                   recipient: (
@@ -487,7 +491,7 @@ export default function AdminSalesSettlementDetailPage() {
                   net: formatMoney(line.paymentNetAmount),
                   rate: `${line.commissionRate}%`,
                   amount: formatMoney(line.commissionAmount),
-                  month: `${line.eligibleMonthIndex}/${line.commissionDurationMonths}`,
+                  month: `유료 ${line.eligibleMonthIndex}개월차`,
                   status: (
                     <div>
                       <AdminBadge

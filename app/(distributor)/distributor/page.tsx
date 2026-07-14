@@ -62,6 +62,16 @@ export default function DistributorDashboardPage() {
           </div>
         ))}
       </div>
+      {data.agentShare != null ? (
+        <div className="rounded-xl border border-stone-200 bg-white px-5 py-4 text-sm text-stone-700">
+          <span className="font-medium text-stone-900">현재 배분 정책</span>
+          <span className="ml-3">
+            영업사원 {String(data.agentShare)}% · 영업점 {String(data.agencyShare)}% · 총판{' '}
+            {String(data.distributorShare)}%
+          </span>
+          <span className="ml-2 text-xs text-stone-400">(총 수수료 풀 내부 분배)</span>
+        </div>
+      ) : null}
       <div className="flex flex-wrap gap-3">
         <Link href="/distributor/agencies" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">영업점 보기</Link>
         <Link href="/distributor/partners" className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50">업체 보기</Link>

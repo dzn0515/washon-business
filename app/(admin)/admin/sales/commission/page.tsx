@@ -15,50 +15,22 @@ import {
   type AdminSalesPlanExample,
 } from '@/lib/admin-api'
 
-/** Fallback plan examples for default 10/3/2 (VAT 제외) when API preview is unavailable. */
-const DEFAULT_PLAN_EXAMPLES: AdminSalesPlanExample[] = [
-  {
-    planTier: 'BASIC',
-    monthlyFee: 28000,
-    agentCommission: 2800,
-    agencyCommission: 840,
-    distributorCommission: 560,
-    totalCommission: 4200,
-    annualTotal: 50400,
-  },
-  {
-    planTier: 'STANDARD',
-    monthlyFee: 59000,
-    agentCommission: 5900,
-    agencyCommission: 1770,
-    distributorCommission: 1180,
-    totalCommission: 8850,
-    annualTotal: 106200,
-  },
-  {
-    planTier: 'PREMIUM',
-    monthlyFee: 99000,
-    agentCommission: 9900,
-    agencyCommission: 2970,
-    distributorCommission: 1980,
-    totalCommission: 14850,
-    annualTotal: 178200,
-  },
-]
-
 function formatMoney(n: number) {
   return `${n.toLocaleString('ko-KR')}원`
 }
 
-function toNum(v: number | string | undefined): number {
+function toNum(v: number | string | undefined | null): number {
   if (v == null) return 0
   return typeof v === 'number' ? v : Number(v)
 }
 
 function localPlanExamples(
-  agentRate: number,
-  agencyRate: number,
-  distributorRate: number,
+  rateMonth1: number,
+  rateMonth2: number,
+  rateMonth3To12: number,
+  agentW: number,
+  agencyW: number,
+  distW: number,
   durationMonths: number,
 ): AdminSalesPlanExample[] {
   const fees = [
@@ -66,19 +38,42 @@ function localPlanExamples(
     { planTier: 'STANDARD', monthlyFee: 59000 },
     { planTier: 'PREMIUM', monthlyFee: 99000 },
   ]
+  const weightSum = agentW + agencyW + distW || 1
+  const split = (tier: number, fee: number) => {
+    const agent = Math.round((fee * tier * agentW) / weightSum / 100)
+    const agency = Math.round((fee * tier * agencyW) / weightSum / 100)
+    const distributor = Math.round((fee * tier * distW) / weightSum / 100)
+    return { agent, agency, distributor, total: agent + agency + distributor }
+  }
   return fees.map(({ planTier, monthlyFee }) => {
-    const agentCommission = Math.round((monthlyFee * agentRate) / 100)
-    const agencyCommission = Math.round((monthlyFee * agencyRate) / 100)
-    const distributorCommission = Math.round((monthlyFee * distributorRate) / 100)
-    const totalCommission = agentCommission + agencyCommission + distributorCommission
+    let annual = 0
+    const monthExamples = [1, 2, 3, 12].map((monthIndex) => {
+      const tier =
+        monthIndex === 1 ? rateMonth1 : monthIndex === 2 ? rateMonth2 : rateMonth3To12
+      const s = split(tier, monthlyFee)
+      return {
+        monthIndex,
+        tierRate: tier,
+        agentCommission: s.agent,
+        agencyCommission: s.agency,
+        distributorCommission: s.distributor,
+        totalCommission: s.total,
+      }
+    })
+    for (let m = 1; m <= durationMonths; m++) {
+      const tier = m === 1 ? rateMonth1 : m === 2 ? rateMonth2 : rateMonth3To12
+      annual += split(tier, monthlyFee).total
+    }
+    const steady = split(rateMonth3To12, monthlyFee)
     return {
       planTier,
       monthlyFee,
-      agentCommission,
-      agencyCommission,
-      distributorCommission,
-      totalCommission,
-      annualTotal: totalCommission * durationMonths,
+      agentCommission: steady.agent,
+      agencyCommission: steady.agency,
+      distributorCommission: steady.distributor,
+      totalCommission: steady.total,
+      annualTotal: annual,
+      monthExamples,
     }
   })
 }
@@ -92,6 +87,9 @@ export default function AdminSalesCommissionPage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [form, setForm] = useState({
     name: '',
+    rateMonth1: '50',
+    rateMonth2: '30',
+    rateMonth3To12: '15',
     agentRate: '10',
     agencyRate: '3',
     distributorRate: '2',
@@ -110,6 +108,9 @@ export default function AdminSalesCommissionPage() {
       setPreview(prev)
       setForm({
         name: p.name,
+        rateMonth1: String(toNum(p.rateMonth1) || 50),
+        rateMonth2: String(toNum(p.rateMonth2) || 30),
+        rateMonth3To12: String(toNum(p.rateMonth3To12) || 15),
         agentRate: String(toNum(p.agentRate)),
         agencyRate: String(toNum(p.agencyRate)),
         distributorRate: String(toNum(p.distributorRate)),
@@ -126,40 +127,45 @@ export default function AdminSalesCommissionPage() {
     void load()
   }, [load])
 
+  const rateMonth1 = Number(form.rateMonth1) || 0
+  const rateMonth2 = Number(form.rateMonth2) || 0
+  const rateMonth3To12 = Number(form.rateMonth3To12) || 0
   const agentRate = Number(form.agentRate) || 0
   const agencyRate = Number(form.agencyRate) || 0
   const distributorRate = Number(form.distributorRate) || 0
   const durationMonths = Number(form.durationMonths) || 12
-  const totalRate = agentRate + agencyRate + distributorRate
 
   const planExamples = useMemo(() => {
     if (
       preview?.planExamples?.length &&
-      agentRate === toNum(policy?.agentRate) &&
-      agencyRate === toNum(policy?.agencyRate) &&
-      distributorRate === toNum(policy?.distributorRate) &&
-      durationMonths === (policy?.durationMonths ?? 12)
+      rateMonth1 === toNum(policy?.rateMonth1) &&
+      rateMonth2 === toNum(policy?.rateMonth2) &&
+      rateMonth3To12 === toNum(policy?.rateMonth3To12)
     ) {
       return preview.planExamples
     }
-    if (
-      agentRate === 10 &&
-      agencyRate === 3 &&
-      distributorRate === 2 &&
-      durationMonths === 12 &&
-      !policy
-    ) {
-      return DEFAULT_PLAN_EXAMPLES
-    }
-    return localPlanExamples(agentRate, agencyRate, distributorRate, durationMonths)
-  }, [preview, policy, agentRate, agencyRate, distributorRate, durationMonths])
+    return localPlanExamples(
+      rateMonth1,
+      rateMonth2,
+      rateMonth3To12,
+      agentRate,
+      agencyRate,
+      distributorRate,
+      durationMonths,
+    )
+  }, [
+    preview,
+    policy,
+    rateMonth1,
+    rateMonth2,
+    rateMonth3To12,
+    agentRate,
+    agencyRate,
+    distributorRate,
+    durationMonths,
+  ])
 
   const handleSave = async () => {
-    if (totalRate > 15) {
-      setError('합계 요율은 15%를 초과할 수 없습니다.')
-      setConfirmOpen(false)
-      return
-    }
     setSaving(true)
     setError(null)
     try {
@@ -168,6 +174,9 @@ export default function AdminSalesCommissionPage() {
         agentRate,
         agencyRate,
         distributorRate,
+        rateMonth1,
+        rateMonth2,
+        rateMonth3To12,
         durationMonths,
       })
       setPolicy(updated)
@@ -185,7 +194,7 @@ export default function AdminSalesCommissionPage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="수수료 정책"
-        description="구독료 VAT 제외 기준 영업 수수료 요율"
+        description="유료 개월차별 수수료 (구독료 VAT 제외 기준, 무료체험 제외)"
         actions={
           <button
             type="button"
@@ -213,35 +222,25 @@ export default function AdminSalesCommissionPage() {
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <AdminStatCard
-              icon="💹"
-              label="합계 요율"
-              value={`${totalRate}%`}
-              color={totalRate > 15 ? 'orange' : 'blue'}
-            />
+            <AdminStatCard icon="1️⃣" label="1개월차" value={`${rateMonth1}%`} color="blue" />
+            <AdminStatCard icon="2️⃣" label="2개월차" value={`${rateMonth2}%`} color="purple" />
             <AdminStatCard
               icon="📅"
-              label="지급 기간"
-              value={`${durationMonths}개월`}
+              label="3~12개월차"
+              value={`${rateMonth3To12}%`}
               color="green"
             />
-            <AdminStatCard
-              icon="💰"
-              label="예상 월 총액"
-              value={formatMoney(preview?.totalEstimatedMonthlyCommission ?? 0)}
-              color="purple"
-            />
-            <AdminStatCard icon="📄" label="기준" value="VAT 제외" color="blue" />
+            <AdminStatCard icon="⏹" label="13개월~" value="0%" color="orange" />
           </div>
 
           <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="font-semibold text-gray-900">정책 수정</h2>
               <span className="text-xs text-gray-500">
-                기준: 구독료 VAT 제외 · 합계 ≤ 15%
+                첫 유료결제 = 1개월차 · 미납 지급 없음 · 환불은 다음 정산 차감
               </span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 text-sm">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
               <label className="space-y-1 lg:col-span-2">
                 <span className="text-gray-600">정책명</span>
                 <input
@@ -251,40 +250,40 @@ export default function AdminSalesCommissionPage() {
                 />
               </label>
               <label className="space-y-1">
-                <span className="text-gray-600">영업사원 %</span>
+                <span className="text-gray-600">1개월차 %</span>
                 <input
                   type="number"
                   min={0}
                   max={100}
                   step={0.1}
                   className="w-full border rounded-lg px-3 py-2"
-                  value={form.agentRate}
-                  onChange={(e) => setForm((f) => ({ ...f, agentRate: e.target.value }))}
+                  value={form.rateMonth1}
+                  onChange={(e) => setForm((f) => ({ ...f, rateMonth1: e.target.value }))}
                 />
               </label>
               <label className="space-y-1">
-                <span className="text-gray-600">영업점 %</span>
+                <span className="text-gray-600">2개월차 %</span>
                 <input
                   type="number"
                   min={0}
                   max={100}
                   step={0.1}
                   className="w-full border rounded-lg px-3 py-2"
-                  value={form.agencyRate}
-                  onChange={(e) => setForm((f) => ({ ...f, agencyRate: e.target.value }))}
+                  value={form.rateMonth2}
+                  onChange={(e) => setForm((f) => ({ ...f, rateMonth2: e.target.value }))}
                 />
               </label>
               <label className="space-y-1">
-                <span className="text-gray-600">총판 %</span>
+                <span className="text-gray-600">3~12개월차 %</span>
                 <input
                   type="number"
                   min={0}
                   max={100}
                   step={0.1}
                   className="w-full border rounded-lg px-3 py-2"
-                  value={form.distributorRate}
+                  value={form.rateMonth3To12}
                   onChange={(e) =>
-                    setForm((f) => ({ ...f, distributorRate: e.target.value }))
+                    setForm((f) => ({ ...f, rateMonth3To12: e.target.value }))
                   }
                 />
               </label>
@@ -302,16 +301,62 @@ export default function AdminSalesCommissionPage() {
                 />
               </label>
             </div>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm text-gray-600">
-                합계 <strong className={totalRate > 15 ? 'text-red-600' : ''}>{totalRate}%</strong>
-                {totalRate > 15 ? ' (15% 초과 — 저장 불가)' : ''}
+            <div className="border-t border-gray-100 pt-3 space-y-2">
+              <p className="text-sm text-gray-700 font-medium">내부 배분</p>
+              <p className="text-xs text-gray-500">
+                본사 정책은 유료 개월차별 <strong>총 수수료 풀</strong>만 관리합니다. 총판·영업점·영업사원
+                배분율(합계 100%)은{' '}
+                <a href="/admin/sales/distributors" className="text-blue-600 underline">
+                  총판 관리
+                </a>
+                에서 총판별로 설정합니다. 아래 값은 배분 정책이 없을 때 쓰는 기본 비중(레거시)입니다.
               </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                <label className="space-y-1">
+                  <span className="text-gray-600">영업사원 기본 비중</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.1}
+                    className="w-full border rounded-lg px-3 py-2"
+                    value={form.agentRate}
+                    onChange={(e) => setForm((f) => ({ ...f, agentRate: e.target.value }))}
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-gray-600">영업점 기본 비중</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.1}
+                    className="w-full border rounded-lg px-3 py-2"
+                    value={form.agencyRate}
+                    onChange={(e) => setForm((f) => ({ ...f, agencyRate: e.target.value }))}
+                  />
+                </label>
+                <label className="space-y-1">
+                  <span className="text-gray-600">총판 기본 비중</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.1}
+                    className="w-full border rounded-lg px-3 py-2"
+                    value={form.distributorRate}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, distributorRate: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+            </div>
+            <div className="flex justify-end">
               <button
                 type="button"
-                disabled={totalRate > 15}
                 onClick={() => setConfirmOpen(true)}
-                className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40"
+                className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
               >
                 저장
               </button>
@@ -319,9 +364,10 @@ export default function AdminSalesCommissionPage() {
           </div>
 
           <div className="space-y-3">
-            <h2 className="font-semibold text-gray-900">요금제별 예시 (VAT 제외)</h2>
+            <h2 className="font-semibold text-gray-900">요금제·개월차 예시 (VAT 제외)</h2>
             <p className="text-sm text-gray-500">
-              기본 10/3/2% 기준 BASIC 2,800 / 840 / 560 / 합계 4,200원
+              BASIC 28,000원 기준 · 1개월차 {rateMonth1}% / 2개월차 {rateMonth2}% / 3~12개월차{' '}
+              {rateMonth3To12}%
             </p>
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
               <AdminTable
@@ -329,21 +375,25 @@ export default function AdminSalesCommissionPage() {
                 columns={[
                   { key: 'plan', label: '요금제' },
                   { key: 'fee', label: '월 구독료', width: '110px' },
-                  { key: 'agent', label: '영업사원', width: '100px' },
-                  { key: 'agency', label: '영업점', width: '100px' },
-                  { key: 'dist', label: '총판', width: '100px' },
-                  { key: 'total', label: '합계', width: '100px' },
-                  { key: 'annual', label: `${durationMonths}개월`, width: '110px' },
+                  { key: 'm1', label: '1개월차', width: '100px' },
+                  { key: 'm2', label: '2개월차', width: '100px' },
+                  { key: 'm3', label: '3~12개월', width: '100px' },
+                  { key: 'annual', label: `${durationMonths}개월 합`, width: '110px' },
                 ]}
-                data={planExamples.map((ex) => ({
-                  plan: <span className="font-medium">{ex.planTier}</span>,
-                  fee: formatMoney(ex.monthlyFee ?? ex.baseAmount ?? 0),
-                  agent: formatMoney(ex.agentCommission),
-                  agency: formatMoney(ex.agencyCommission),
-                  dist: formatMoney(ex.distributorCommission),
-                  total: <span className="font-medium">{formatMoney(ex.totalCommission)}</span>,
-                  annual: formatMoney(ex.annualTotal),
-                }))}
+                data={planExamples.map((ex) => {
+                  const m = ex.monthExamples ?? []
+                  const m1 = m.find((x) => x.monthIndex === 1)
+                  const m2 = m.find((x) => x.monthIndex === 2)
+                  const m3 = m.find((x) => x.monthIndex === 3)
+                  return {
+                    plan: <span className="font-medium">{ex.planTier}</span>,
+                    fee: formatMoney(ex.monthlyFee ?? ex.baseAmount ?? 0),
+                    m1: formatMoney(m1?.totalCommission ?? 0),
+                    m2: formatMoney(m2?.totalCommission ?? 0),
+                    m3: formatMoney(m3?.totalCommission ?? ex.totalCommission),
+                    annual: formatMoney(ex.annualTotal),
+                  }
+                })}
                 emptyMessage="예시가 없습니다."
               />
             </div>
@@ -352,7 +402,7 @@ export default function AdminSalesCommissionPage() {
           <div className="space-y-3">
             <h2 className="font-semibold text-gray-900">업체별 예상 수수료</h2>
             <p className="text-xs text-gray-500 mt-1">
-              현재 기본 정책 기준 예상(estimated)이며, 확정 정산과 동일한 결과가 아닙니다.
+              유료 결제 개월수 기준 예상(estimated)입니다.
             </p>
             <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
               <AdminTable
@@ -360,9 +410,11 @@ export default function AdminSalesCommissionPage() {
                 columns={[
                   { key: 'partner', label: '업체' },
                   { key: 'agent', label: '영업사원' },
-                  { key: 'base', label: '기준액', width: '100px' },
-                  { key: 'total', label: '합계', width: '100px' },
-                  { key: 'month', label: '차월', width: '80px' },
+                  { key: 'month', label: '유료 개월차', width: '110px' },
+                  { key: 'rate', label: '적용 요율', width: '90px' },
+                  { key: 'total', label: '이번달', width: '100px' },
+                  { key: 'next', label: '다음달 예상', width: '100px' },
+                  { key: 'remain', label: '남은 개월', width: '80px' },
                   { key: 'note', label: '비고' },
                 ]}
                 data={(preview?.items ?? []).map((row) => ({
@@ -381,9 +433,13 @@ export default function AdminSalesCommissionPage() {
                       </p>
                     </div>
                   ),
-                  base: formatMoney(row.baseAmount),
+                  month:
+                    row.commissionMonth > 0 ? `유료 ${row.commissionMonth}개월차` : '체험중',
+                  rate:
+                    row.appliedTierRate != null ? `${toNum(row.appliedTierRate)}%` : '-',
                   total: formatMoney(row.totalCommission),
-                  month: `${row.commissionMonth}/${row.remainingMonths}`,
+                  next: formatMoney(row.nextMonthAgentCommission ?? 0),
+                  remain: String(row.remainingMonths),
                   note: <span className="text-xs text-gray-500">{row.note || '-'}</span>,
                 }))}
                 emptyMessage="배정된 업체가 없어 미리보기가 없습니다."
@@ -419,8 +475,8 @@ export default function AdminSalesCommissionPage() {
         }
       >
         <p className="text-sm text-gray-600">
-          영업사원 {agentRate}% · 영업점 {agencyRate}% · 총판 {distributorRate}% (합계{' '}
-          {totalRate}%) · {durationMonths}개월 정책을 저장할까요?
+          1개월차 {rateMonth1}% · 2개월차 {rateMonth2}% · 3~12개월차 {rateMonth3To12}% ·{' '}
+          {durationMonths}개월 정책을 저장할까요?
         </p>
         <p className="text-xs text-gray-500 mt-2">모든 금액은 구독료 VAT 제외 기준입니다.</p>
       </AdminModal>

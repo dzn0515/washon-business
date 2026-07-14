@@ -70,10 +70,11 @@ export function getAccessToken(): string | null {
 }
 
 export async function login(email: string, password: string) {
+  const normalizedEmail = email.trim().toLowerCase()
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email: normalizedEmail, password }),
   })
   const data = await res.json()
   if (!res.ok) {
@@ -83,7 +84,7 @@ export async function login(email: string, password: string) {
     throw err
   }
   setAccessToken(data.access_token)
-  setUserEmail(email)
+  setUserEmail(normalizedEmail)
   return data
 }
 

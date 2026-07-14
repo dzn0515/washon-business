@@ -56,6 +56,14 @@ export default function DistributorMePage() {
           <Row label="이메일" value={data.email} />
           <Row label="지역" value={data.region} />
           <Row label="상태" value={<span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-700">{data.status}</span>} />
+          <Row
+            label="배분 정책"
+            value={
+              data.agentShare != null
+                ? `영업사원 ${data.agentShare}% / 영업점 ${data.agencyShare}% / 총판 ${data.distributorShare}%`
+                : '미설정'
+            }
+          />
         </dl>
       </div>
     </div>

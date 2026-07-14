@@ -10,14 +10,17 @@ import {
   createAdminSalesDistributor,
   createAdminSalesDistributorAccount,
   deleteAdminSalesDistributor,
+  fetchAdminSalesActiveDistributionPolicy,
   fetchAdminSalesDistributorAccount,
   fetchAdminSalesDistributors,
   resetAdminSalesDistributorAccountPassword,
   updateAdminSalesDistributor,
   updateAdminSalesDistributorAccountStatus,
   updateAdminSalesDistributorStatus,
+  upsertAdminSalesDistributionPolicy,
   type AdminSalesDistributor,
   type AdminSalesDistributorAccount,
+  type AdminSalesDistributionPolicy,
   type SalesOrgStatus,
 } from '@/lib/admin-api'
 
@@ -95,6 +98,13 @@ export default function AdminSalesDistributorsPage() {
   const [statusConfirm, setStatusConfirm] = useState<'deactivate' | 'activate' | null>(null)
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [copied, setCopied] = useState<'issue' | 'reset' | null>(null)
+  const [distPolicy, setDistPolicy] = useState<AdminSalesDistributionPolicy | null>(null)
+  const [distForm, setDistForm] = useState({
+    agentShare: '66.6667',
+    agencyShare: '20',
+    distributorShare: '13.3333',
+  })
+  const [distSaving, setDistSaving] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -138,8 +148,25 @@ export default function AdminSalesDistributorsPage() {
     setAccountLoading(true)
     setAccountError(null)
     try {
-      const res = await fetchAdminSalesDistributorAccount(id)
+      const [res, policy] = await Promise.all([
+        fetchAdminSalesDistributorAccount(id),
+        fetchAdminSalesActiveDistributionPolicy(id).catch(() => null),
+      ])
       setAccount(res)
+      setDistPolicy(policy)
+      if (policy) {
+        setDistForm({
+          agentShare: String(policy.agentShare),
+          agencyShare: String(policy.agencyShare),
+          distributorShare: String(policy.distributorShare),
+        })
+      } else {
+        setDistForm({
+          agentShare: '66.6667',
+          agencyShare: '20',
+          distributorShare: '13.3333',
+        })
+      }
       if (!res.hasAccount) {
         setIssueEmail('')
         setIssuePassword('')
@@ -601,6 +628,7 @@ export default function AdminSalesDistributorsPage() {
         </div>
 
         {editing ? (
+          <>
           <div className="mt-6 border-t border-gray-100 pt-4 space-y-3">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-gray-900">포털 계정</h3>
@@ -609,7 +637,8 @@ export default function AdminSalesDistributorsPage() {
               ) : null}
             </div>
             <p className="text-xs text-gray-500">
-              Distributor Portal(`/distributor/login`) 로그인용 계정입니다. 임시 비밀번호는 저장 후
+              Distributor Portal(`/distributor/login`) 로그인용 계정입니다. 총판 등록만으로는
+              로그인되지 않으며, 아래 포털 계정을 반드시 발급해야 합니다. 임시 비밀번호는 저장 후
               다시 조회할 수 없습니다.
             </p>
             {accountError ? (
@@ -757,6 +786,98 @@ export default function AdminSalesDistributorsPage() {
               </div>
             ) : null}
           </div>
+
+          <div className="mt-6 border-t border-gray-100 pt-4 space-y-3">
+            <h3 className="text-sm font-semibold text-gray-900">수수료 배분 정책 (합계 100%)</h3>
+            {distPolicy ? (
+              <p className="text-xs text-gray-400">현재 정책 ID: {distPolicy.id}</p>
+            ) : null}
+            <p className="text-xs text-gray-500">
+              본사 총 수수료 풀 내부 분배율입니다. 구독료 직접 %가 아닙니다. (기본 66.6667 / 20 /
+              13.3333)
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+              <label className="space-y-1">
+                <span className="text-gray-600">영업사원 %</span>
+                <input
+                  type="number"
+                  step="0.0001"
+                  className="w-full border rounded-lg px-3 py-2"
+                  value={distForm.agentShare}
+                  onChange={(e) => setDistForm((f) => ({ ...f, agentShare: e.target.value }))}
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-gray-600">영업점 %</span>
+                <input
+                  type="number"
+                  step="0.0001"
+                  className="w-full border rounded-lg px-3 py-2"
+                  value={distForm.agencyShare}
+                  onChange={(e) => setDistForm((f) => ({ ...f, agencyShare: e.target.value }))}
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-gray-600">총판 %</span>
+                <input
+                  type="number"
+                  step="0.0001"
+                  className="w-full border rounded-lg px-3 py-2"
+                  value={distForm.distributorShare}
+                  onChange={(e) =>
+                    setDistForm((f) => ({ ...f, distributorShare: e.target.value }))
+                  }
+                />
+              </label>
+            </div>
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span
+                className={
+                  Math.abs(
+                    Number(distForm.agentShare) +
+                      Number(distForm.agencyShare) +
+                      Number(distForm.distributorShare) -
+                      100,
+                  ) < 0.0002
+                    ? 'text-green-700'
+                    : 'text-red-600'
+                }
+              >
+                합계{' '}
+                {(
+                  Number(distForm.agentShare) +
+                  Number(distForm.agencyShare) +
+                  Number(distForm.distributorShare)
+                ).toFixed(4)}
+                %
+              </span>
+              <button
+                type="button"
+                disabled={distSaving}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm disabled:opacity-40"
+                onClick={async () => {
+                  if (!editing) return
+                  setDistSaving(true)
+                  setError(null)
+                  try {
+                    const saved = await upsertAdminSalesDistributionPolicy(editing.id, {
+                      agentShare: Number(distForm.agentShare),
+                      agencyShare: Number(distForm.agencyShare),
+                      distributorShare: Number(distForm.distributorShare),
+                    })
+                    setDistPolicy(saved)
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : '배분 정책 저장 실패')
+                  } finally {
+                    setDistSaving(false)
+                  }
+                }}
+              >
+                {distSaving ? '저장 중...' : '배분 정책 저장'}
+              </button>
+            </div>
+          </div>
+          </>
         ) : null}
       </AdminModal>
 

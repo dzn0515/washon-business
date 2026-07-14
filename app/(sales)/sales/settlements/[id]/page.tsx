@@ -90,6 +90,8 @@ export default function SalesSettlementDetailPage() {
           <thead className="border-b border-stone-100 bg-stone-50 text-xs text-stone-500">
             <tr>
               <th className="px-4 py-3 font-medium">업체</th>
+              <th className="px-4 py-3 font-medium">유료 개월차</th>
+              <th className="px-4 py-3 font-medium">요율</th>
               <th className="px-4 py-3 font-medium">결제액</th>
               <th className="px-4 py-3 font-medium">내 수수료</th>
               <th className="px-4 py-3 font-medium">상태</th>
@@ -98,7 +100,7 @@ export default function SalesSettlementDetailPage() {
           <tbody className="divide-y divide-stone-100">
             {data.lines.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-stone-400">
+                <td colSpan={6} className="px-4 py-10 text-center text-stone-400">
                   실제 구독 결제 기록이 수집된 이후 정산 가능합니다.
                 </td>
               </tr>
@@ -108,6 +110,12 @@ export default function SalesSettlementDetailPage() {
                   <td className="px-4 py-3">
                     <p className="font-medium text-stone-800">{line.partnerName}</p>
                     <p className="text-xs text-stone-400">{line.planTier}</p>
+                  </td>
+                  <td className="px-4 py-3 text-stone-600">
+                    유료 {line.eligibleMonthIndex}개월차
+                  </td>
+                  <td className="px-4 py-3 text-stone-600">
+                    {line.tierRate != null ? `${line.tierRate}%` : `${line.commissionRate}%`}
                   </td>
                   <td className="px-4 py-3 text-stone-600">{formatMoney(line.paymentNetAmount)}</td>
                   <td className="px-4 py-3 font-medium text-stone-800">

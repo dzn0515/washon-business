@@ -48,6 +48,9 @@ export default function DistributorLoginPage() {
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-white">AUTOON Distributor</h1>
           <p className="mt-2 text-sm text-slate-200/80">총판 전용 로그인</p>
+          <p className="mt-1 text-xs text-slate-400">
+            로그인 URL: /distributor/login · Admin에서 발급한 포털 계정 이메일을 사용하세요
+          </p>
         </div>
         <div className="rounded-2xl bg-white p-8 shadow-xl">
           <h2 className="mb-6 text-xl font-bold text-stone-900">로그인</h2>

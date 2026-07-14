@@ -2019,6 +2019,9 @@ export type AdminSalesCommissionPolicy = {
   agentRate: number | string
   agencyRate: number | string
   distributorRate: number | string
+  rateMonth1: number | string
+  rateMonth2: number | string
+  rateMonth3To12: number | string
   totalRate: number | string
   durationMonths: number
   basis: string
@@ -2039,6 +2042,14 @@ export type AdminSalesPlanExample = {
   totalCommission: number
   annualTotal: number
   vatExcluded?: boolean
+  monthExamples?: Array<{
+    monthIndex: number
+    tierRate: number
+    agentCommission: number
+    agencyCommission: number
+    distributorCommission: number
+    totalCommission: number
+  }>
 }
 
 export type AdminSalesCommissionPreviewItem = {
@@ -2053,6 +2064,10 @@ export type AdminSalesCommissionPreviewItem = {
   totalCommission: number
   commissionMonth: number
   remainingMonths: number
+  appliedTierRate?: number | string | null
+  nextMonthIndex?: number | null
+  nextMonthTierRate?: number | string | null
+  nextMonthAgentCommission?: number
   salesAgentId: string | null
   salesAgentName: string | null
   agencyName: string | null
@@ -2335,6 +2350,49 @@ export async function resetAdminSalesDistributorAccountPassword(
   })
 }
 
+export type AdminSalesDistributionPolicy = {
+  id: string
+  distributorId: string
+  distributorName: string | null
+  distributorShare: number | string
+  agencyShare: number | string
+  agentShare: number | string
+  effectiveFrom: string
+  effectiveTo: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string | null
+}
+
+export async function fetchAdminSalesDistributionPolicies(
+  distributorId: string,
+): Promise<AdminSalesDistributionPolicy[]> {
+  return adminFetchDetail(`/admin/sales/distributors/${distributorId}/distribution-policy`)
+}
+
+export async function fetchAdminSalesActiveDistributionPolicy(
+  distributorId: string,
+): Promise<AdminSalesDistributionPolicy | null> {
+  return adminFetchDetail(
+    `/admin/sales/distributors/${distributorId}/distribution-policy/active`,
+  )
+}
+
+export async function upsertAdminSalesDistributionPolicy(
+  distributorId: string,
+  body: {
+    agentShare: number
+    agencyShare: number
+    distributorShare: number
+    effectiveFrom?: string | null
+  },
+): Promise<AdminSalesDistributionPolicy> {
+  return adminFetchDetail(`/admin/sales/distributors/${distributorId}/distribution-policy`, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+}
+
 export async function fetchAdminSalesAgencyAccount(
   id: string,
 ): Promise<AdminSalesAgencyAccount> {
@@ -2436,9 +2494,12 @@ export async function fetchAdminSalesCommissionPolicy(): Promise<AdminSalesCommi
 
 export async function updateAdminSalesCommissionPolicy(body: {
   name?: string | null
-  agentRate: number
-  agencyRate: number
-  distributorRate: number
+  agentRate?: number
+  agencyRate?: number
+  distributorRate?: number
+  rateMonth1: number
+  rateMonth2: number
+  rateMonth3To12: number
   durationMonths: number
 }): Promise<AdminSalesCommissionPolicy> {
   return adminFetchDetail('/admin/sales/commission-policy', {
@@ -2616,6 +2677,7 @@ export type AdminSettlementLine = {
   recipientCode: string
   paymentNetAmount: number
   commissionRate: number
+  tierRate?: number | null
   commissionAmount: number
   eligibleMonthIndex: number
   commissionDurationMonths: number

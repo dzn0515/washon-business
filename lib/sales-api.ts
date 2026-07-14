@@ -182,12 +182,17 @@ export type SalesCommissionItem = {
   totalCommission: number
   commissionMonth: number
   remainingMonths: number
+  appliedTierRate?: number | null
+  nextMonthIndex?: number | null
+  nextMonthTierRate?: number | null
+  nextMonthAgentCommission?: number
   note: string | null
 }
 
 export type SalesCommission = {
   estimated: boolean
   monthTotal: number
+  nextMonthTotal?: number
   items: SalesCommissionItem[]
 }
 
@@ -298,6 +303,7 @@ export type SalesSettlementLine = {
   planTier: string
   paymentNetAmount: number
   commissionRate: number
+  tierRate?: number | null
   commissionAmount: number
   eligibleMonthIndex: number
   status: string

@@ -20,6 +20,9 @@ export type DistributorMe = {
   region: string | null
   status: string
   accountEmail: string | null
+  agentShare?: number | string | null
+  agencyShare?: number | string | null
+  distributorShare?: number | string | null
 }
 
 export type DistributorRecentItem = {
@@ -39,6 +42,9 @@ export type DistributorDashboard = {
   reviewingLeadCount: number
   estimatedMonthlyCommission: number
   thisMonthNewPartners: number
+  agentShare?: number | string | null
+  agencyShare?: number | string | null
+  distributorShare?: number | string | null
   recentAgencies: DistributorRecentItem[]
   recentAgents: DistributorRecentItem[]
   recentPartners: DistributorRecentItem[]
