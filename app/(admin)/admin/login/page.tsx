@@ -3,7 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { clearAuthSession, fetchAuthMe, login } from '@/lib/api-client'
-import { setMockRole, persistAdminUser } from '@/lib/admin-auth'
+import { persistAdminUser } from '@/lib/admin-auth'
+import { ADMIN_CONSOLE_ROLES } from '@/lib/admin-permissions'
+import { fetchMyAdminPermissions } from '@/lib/admin-api'
+import { ADMIN_MENU_REGISTRY } from '@/lib/admin-menu-registry'
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -20,23 +23,45 @@ export default function AdminLoginPage() {
     try {
       await login(email, password)
       const me = await fetchAuthMe()
-      const role = me.role.toLowerCase()
+      const role = me.role.toUpperCase()
 
-      if (role !== 'admin') {
+      if (!ADMIN_CONSOLE_ROLES.includes(role as (typeof ADMIN_CONSOLE_ROLES)[number])) {
         clearAuthSession()
         setError('관리자 권한이 없습니다.')
         return
       }
 
-      setMockRole('admin')
       persistAdminUser({
         id: String(me.id),
         email: me.email,
         name: me.name ?? undefined,
-        role,
+        role: role.toLowerCase(),
       })
 
-      router.push('/admin/dashboard')
+      let dest = '/admin/dashboard'
+      try {
+        const perms = await fetchMyAdminPermissions()
+        if (perms.passwordResetRequired) {
+          dest = '/admin/change-password'
+        } else if (perms.role === 'SUPER_ADMIN') {
+          dest = '/admin/dashboard'
+        } else {
+          const allowed = new Set(
+            perms.permissions.filter((p) => p.canView).map((p) => p.menuKey),
+          )
+          const first = ADMIN_MENU_REGISTRY.find((m) => allowed.has(m.key))
+          if (first) dest = first.href
+          else {
+            clearAuthSession()
+            setError('접근 권한이 설정되지 않았습니다. 최고관리자에게 문의하세요.')
+            return
+          }
+        }
+      } catch {
+        // fall through to dashboard; page guard will refine
+      }
+
+      router.push(dest)
     } catch (err) {
       const status = (err as Error & { status?: number }).status
       if (status === 401) {
@@ -88,14 +113,11 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white py-3 rounded-xl font-semibold text-sm transition-colors mt-2"
+              className="w-full bg-blue-600 text-white rounded-xl py-2.5 text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? '로그인 중...' : '로그인'}
             </button>
           </form>
-          <p className="text-center text-xs text-gray-400 mt-6">
-            관리자 계정이 필요하면 시스템 담당자에게 문의하세요.
-          </p>
         </div>
       </div>
     </div>

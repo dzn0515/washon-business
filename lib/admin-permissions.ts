@@ -1,10 +1,10 @@
-import { ADMIN_MENUS } from '@/components/admin/AdminSidebar'
+import { ADMIN_MENU_REGISTRY } from '@/lib/admin-menu-registry'
 
-export type PermissionKey = 'read' | 'update' | 'delete' | 'approve' | 'download'
+export type PermissionKey = 'view' | 'edit' | 'delete' | 'approve' | 'download'
 
 export interface MenuPermission {
-  read: boolean
-  update: boolean
+  view: boolean
+  edit: boolean
   delete: boolean
   approve: boolean
   download: boolean
@@ -24,73 +24,46 @@ export const ADMIN_ROLES = [
 
 export type AdminRoleKey = (typeof ADMIN_ROLES)[number]['key']
 
-export const ALL_PERMISSIONS = ADMIN_MENUS.flatMap((s) => s.items)
-  .map((i) => i.permission)
-  .filter(Boolean) as string[]
+export const ADMIN_CONSOLE_ROLES = ADMIN_ROLES.map((r) => r.key)
 
-const ALL_TRUE: MenuPermission = {
-  read: true,
-  update: true,
-  delete: true,
-  approve: true,
-  download: true,
-}
-const READ_ONLY: MenuPermission = {
-  read: true,
-  update: false,
+export const ALL_MENU_KEYS = ADMIN_MENU_REGISTRY.map((m) => m.key)
+
+export const EMPTY_PERM: MenuPermission = {
+  view: false,
+  edit: false,
   delete: false,
   approve: false,
-  download: true,
-}
-const READ_EDIT: MenuPermission = {
-  read: true,
-  update: true,
-  delete: false,
-  approve: false,
-  download: true,
-}
-const READ_APPR: MenuPermission = {
-  read: true,
-  update: true,
-  delete: false,
-  approve: true,
-  download: true,
+  download: false,
 }
 
-export const DEFAULT_PERMISSIONS: Record<AdminRoleKey, RolePermissionMap> = {
-  SUPER_ADMIN: Object.fromEntries(ALL_PERMISSIONS.map((p) => [p, { ...ALL_TRUE }])),
-  ADMIN: {
-    'dashboard.read': READ_ONLY,
-    'business.read': READ_APPR,
-    'reservation.read': READ_EDIT,
-    'cs.read': READ_EDIT,
-    'notices.read': READ_EDIT,
-    'review.read': READ_APPR,
-    'stats.read': READ_ONLY,
-    'qr.read': READ_ONLY,
-    'roles.read': READ_ONLY,
-    'settings.read': READ_EDIT,
-    'system.read': READ_ONLY,
-    'security.read': READ_EDIT,
-  },
-  FINANCE: {
-    'payment.read': READ_APPR,
-    'finance.read': READ_ONLY,
-    'stats.read': READ_ONLY,
-  },
-  CS: {
-    'cs.read': READ_EDIT,
-    'review.read': READ_APPR,
-    'customer.read': READ_ONLY,
-  },
-  SALES: {
-    'business.read': READ_APPR,
-    'sales.read': READ_EDIT,
-    'screening.read': READ_APPR,
-  },
-  PARTNER: {
-    'business.read': READ_ONLY,
-    'sales.read': READ_ONLY,
-  },
-  VIEWER: Object.fromEntries(ALL_PERMISSIONS.map((p) => [p, { ...READ_ONLY }])),
+export function normalizePermission(p: Partial<MenuPermission> | null | undefined): MenuPermission {
+  const view = Boolean(p?.view)
+  if (!view) return { ...EMPTY_PERM }
+  return {
+    view: true,
+    edit: Boolean(p?.edit),
+    delete: Boolean(p?.delete),
+    approve: Boolean(p?.approve),
+    download: Boolean(p?.download),
+  }
+}
+
+/** Legacy FE keys (read/update) → new action keys */
+export function fromLegacyPermission(raw: Record<string, boolean>): MenuPermission {
+  if ('view' in raw || 'edit' in raw) {
+    return normalizePermission({
+      view: raw.view ?? raw.read,
+      edit: raw.edit ?? raw.update,
+      delete: raw.delete,
+      approve: raw.approve,
+      download: raw.download,
+    })
+  }
+  return normalizePermission({
+    view: raw.read,
+    edit: raw.update,
+    delete: raw.delete,
+    approve: raw.approve,
+    download: raw.download,
+  })
 }

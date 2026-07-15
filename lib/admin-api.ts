@@ -621,13 +621,56 @@ export interface RolePermissions {
   permissions: Record<
     string,
     {
-      read: boolean
-      update: boolean
-      delete: boolean
-      approve: boolean
-      download: boolean
+      read?: boolean
+      update?: boolean
+      delete?: boolean
+      approve?: boolean
+      download?: boolean
+      view?: boolean
+      edit?: boolean
     }
   >
+}
+
+export type AdminMenuPermissionRow = {
+  menuKey: string
+  canView: boolean
+  canEdit: boolean
+  canDelete: boolean
+  canApprove: boolean
+  canDownload: boolean
+}
+
+export type AdminRolePermissions = {
+  role: string
+  roleLabel: string
+  isFixed: boolean
+  permissions: AdminMenuPermissionRow[]
+}
+
+export type AdminMyPermissions = {
+  role: string
+  roleLabel: string
+  distributorId: string | null
+  passwordResetRequired: boolean
+  permissions: AdminMenuPermissionRow[]
+}
+
+export type AdminStaffItem = {
+  id: string
+  name: string
+  email: string | null
+  role: string
+  roleLabel: string
+  distributorId: string | null
+  distributorName: string | null
+  organizationType: string
+  isActive: boolean
+  passwordResetRequired: boolean
+  lastLoginAt: string | null
+  createdAt: string
+  temporaryPassword?: string
+  loginUrl?: string
 }
 
 const MOCK_CS: AdminCSInquiry[] = [
@@ -785,26 +828,118 @@ export async function sendAdminNotice(data: NoticePayload): Promise<{ success: b
   }
 }
 
-// TODO: POST /api/v1/admin/roles/{role}/permissions ? ??? ???
-export async function saveRolePermissions(data: RolePermissions): Promise<{ success: boolean }> {
-  try {
-    await adminFetch(`/admin/roles/${data.role}/permissions`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-    return { success: true }
-  } catch (e) {
-    if (!isDev) {
-      const err = e as Error & { status?: number }
-      if (err.status === 404 || err.status === 405) {
-        throw new Error('?? ?? API? ???? ?????.')
-      }
-      throw new Error('?? ??? ??????.')
-    }
-    console.warn('[Admin][Dev] saveRolePermissions ? mock')
-    return { success: true }
-  }
+export async function fetchAdminRolePermissions(): Promise<AdminRolePermissions[]> {
+  return adminFetchDetail('/admin/permissions/roles')
 }
+
+export async function saveRolePermissions(data: {
+  role: string
+  permissions: AdminMenuPermissionRow[]
+}): Promise<{ success: boolean }> {
+  await adminFetchDetail(`/admin/permissions/roles/${data.role}`, {
+    method: 'PUT',
+    body: JSON.stringify({ permissions: data.permissions }),
+  })
+  return { success: true }
+}
+
+export async function fetchMyAdminPermissions(): Promise<AdminMyPermissions> {
+  return adminFetchDetail('/admin/me/permissions')
+}
+
+export async function changeAdminPassword(data: {
+  currentPassword: string
+  newPassword: string
+}): Promise<{ success: boolean }> {
+  await adminFetchDetail('/admin/me/change-password', {
+    method: 'POST',
+    body: JSON.stringify({
+      currentPassword: data.currentPassword,
+      newPassword: data.newPassword,
+    }),
+  })
+  return { success: true }
+}
+
+/** Formats a caught API error into a user-facing message, special-casing 403 permission errors. */
+export function formatAdminPermissionError(err: unknown, fallback = '요청 처리에 실패했습니다.'): string {
+  const status = (err as Error & { status?: number } | undefined)?.status
+  if (status === 403) return '이 작업을 수행할 권한이 없습니다.'
+  if (err instanceof Error && err.message) return err.message
+  return fallback
+}
+
+export async function fetchAdminStaff(params?: {
+  q?: string
+  role?: string
+  status?: string
+  organizationType?: string
+  distributorId?: string
+  page?: number
+  pageSize?: number
+}): Promise<{
+  items: AdminStaffItem[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}> {
+  const query = new URLSearchParams()
+  if (params?.q) query.set('q', params.q)
+  if (params?.role) query.set('role', params.role)
+  if (params?.status) query.set('status', params.status)
+  if (params?.organizationType) query.set('organizationType', params.organizationType)
+  if (params?.distributorId) query.set('distributorId', params.distributorId)
+  if (params?.page) query.set('page', String(params.page))
+  if (params?.pageSize) query.set('pageSize', String(params.pageSize))
+  const qs = query.toString()
+  return adminFetchDetail(`/admin/staff${qs ? `?${qs}` : ''}`)
+}
+
+export async function createAdminStaff(body: {
+  name: string
+  email: string
+  role: string
+  distributorId?: number | null
+  temporaryPassword?: string
+  isActive?: boolean
+}): Promise<AdminStaffItem> {
+  return adminFetchDetail('/admin/staff', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateAdminStaff(
+  id: string,
+  body: { name?: string; role?: string; distributorId?: number | null; clearDistributor?: boolean },
+): Promise<AdminStaffItem> {
+  return adminFetchDetail(`/admin/staff/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function activateAdminStaff(id: string): Promise<AdminStaffItem> {
+  return adminFetchDetail(`/admin/staff/${id}/activate`, { method: 'POST' })
+}
+
+export async function deactivateAdminStaff(id: string): Promise<AdminStaffItem> {
+  return adminFetchDetail(`/admin/staff/${id}/deactivate`, { method: 'POST' })
+}
+
+export async function resetAdminStaffPassword(
+  id: string,
+  temporaryPassword?: string,
+): Promise<AdminStaffItem> {
+  return adminFetchDetail(`/admin/staff/${id}/reset-password`, {
+    method: 'POST',
+    body: JSON.stringify(temporaryPassword ? { temporaryPassword } : {}),
+  })
+}
+
+// (legacy mock save removed — real API above)
+
 
 // ?? Admin-05 ?????????????????????????????????????????????????
 

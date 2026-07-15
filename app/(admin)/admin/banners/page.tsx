@@ -7,6 +7,8 @@ import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import AdminStatCard from '@/components/admin/AdminStatCard'
 import AdminTable from '@/components/admin/AdminTable'
 import { useToast } from '@/components/admin/AdminToast'
+import { PermissionGate } from '@/components/admin/PermissionGate'
+import { usePermission } from '@/hooks/useAdminPermissions'
 import {
   BANNER_LINK_TYPES,
   BANNER_PLACEMENTS,
@@ -23,6 +25,7 @@ import {
 import {
   createBanner,
   deleteBanner,
+  formatAdminPermissionError,
   getAdminBanner,
   getAdminBanners,
   getBannerMetrics,
@@ -135,6 +138,7 @@ function EllipsisText({ text, className }: { text: string; className?: string })
 
 export default function AdminBannersPage() {
   const { showToast, ToastComponent } = useToast()
+  const { canEdit, canDelete } = usePermission('banners')
   const [items, setItems] = useState<AdminBanner[]>([])
   const [metrics, setMetrics] = useState<BannerMetrics | null>(null)
   const [total, setTotal] = useState(0)
@@ -386,7 +390,7 @@ export default function AdminBannersPage() {
         await refreshAll()
       }
     } catch (e) {
-      showToast(errMessage(e, '저장에 실패했습니다.'), 'error')
+      showToast(formatAdminPermissionError(e, errMessage(e, '저장에 실패했습니다.')), 'error')
     } finally {
       setSubmitting(false)
     }
@@ -429,7 +433,7 @@ export default function AdminBannersPage() {
       await confirmAction()
       setConfirmOpen(false)
     } catch (e) {
-      showToast(errMessage(e, '처리에 실패했습니다.'), 'error')
+      showToast(formatAdminPermissionError(e, errMessage(e, '처리에 실패했습니다.')), 'error')
     } finally {
       setConfirmBusy(false)
       setConfirmAction(null)
@@ -665,7 +669,7 @@ export default function AdminBannersPage() {
             >
               파일 선택
             </button>
-            {editorMode === 'edit' && pendingFile && (
+            {editorMode === 'edit' && pendingFile && canEdit && (
               <button
                 type="button"
                 disabled={uploading}
@@ -685,7 +689,7 @@ export default function AdminBannersPage() {
       </div>
     ),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- form handlers close over latest state
-    [form, editorMode, existingImageUrl, localPreview, previewUrl, uploading, pendingFile],
+    [form, editorMode, existingImageUrl, localPreview, previewUrl, uploading, pendingFile, canEdit],
   )
 
   return (
@@ -695,13 +699,15 @@ export default function AdminBannersPage() {
         title="배너 관리"
         description="고객앱과 웹에 노출되는 플랫폼 배너를 관리합니다."
         actions={
-          <button
-            type="button"
-            onClick={openCreate}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
-          >
-            + 배너 만들기
-          </button>
+          <PermissionGate menuKey="banners" action="edit">
+            <button
+              type="button"
+              onClick={openCreate}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+            >
+              + 배너 만들기
+            </button>
+          </PermissionGate>
         }
       />
 
@@ -965,30 +971,35 @@ export default function AdminBannersPage() {
                 ),
                 actions: (
                   <div className="flex flex-col items-start gap-1">
-                    <button
-                      type="button"
-                      onClick={() => void openEdit(row.id)}
-                      className="text-sm text-blue-600 hover:underline"
-                    >
-                      수정
-                    </button>
-                    {statusActionsFor(row.status).map((a) => (
+                    {canEdit && (
                       <button
-                        key={a.status}
                         type="button"
-                        onClick={() => changeStatus(row, a.status)}
-                        className="text-sm text-slate-600 hover:underline"
+                        onClick={() => void openEdit(row.id)}
+                        className="text-sm text-blue-600 hover:underline"
                       >
-                        {a.label}
+                        수정
                       </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => removeBanner(row)}
-                      className="text-sm text-red-600 hover:underline"
-                    >
-                      삭제
-                    </button>
+                    )}
+                    {canEdit &&
+                      statusActionsFor(row.status).map((a) => (
+                        <button
+                          key={a.status}
+                          type="button"
+                          onClick={() => changeStatus(row, a.status)}
+                          className="text-sm text-slate-600 hover:underline"
+                        >
+                          {a.label}
+                        </button>
+                      ))}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        onClick={() => removeBanner(row)}
+                        className="text-sm text-red-600 hover:underline"
+                      >
+                        삭제
+                      </button>
+                    )}
                   </div>
                 ),
               }))}
@@ -1073,23 +1084,26 @@ export default function AdminBannersPage() {
                     순서 {row.displayOrder} · 노출 {row.impressionCount} · 클릭 {row.clickCount}
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void openEdit(row.id)}
-                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm"
-                    >
-                      수정
-                    </button>
-                    {statusActionsFor(row.status).map((a) => (
+                    {canEdit && (
                       <button
-                        key={a.status}
                         type="button"
-                        onClick={() => changeStatus(row, a.status)}
+                        onClick={() => void openEdit(row.id)}
                         className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm"
                       >
-                        {a.label}
+                        수정
                       </button>
-                    ))}
+                    )}
+                    {canEdit &&
+                      statusActionsFor(row.status).map((a) => (
+                        <button
+                          key={a.status}
+                          type="button"
+                          onClick={() => changeStatus(row, a.status)}
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm"
+                        >
+                          {a.label}
+                        </button>
+                      ))}
                     {reorderMode && (
                       <>
                         <button
@@ -1110,13 +1124,15 @@ export default function AdminBannersPage() {
                         </button>
                       </>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => removeBanner(row)}
-                      className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600"
-                    >
-                      삭제
-                    </button>
+                    {canDelete && (
+                      <button
+                        type="button"
+                        onClick={() => removeBanner(row)}
+                        className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-600"
+                      >
+                        삭제
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
@@ -1168,14 +1184,16 @@ export default function AdminBannersPage() {
             >
               취소
             </button>
-            <button
-              type="button"
-              disabled={submitting || uploading || editorLoading}
-              onClick={() => void submitEditor()}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {submitting || uploading ? '저장 중…' : editorMode === 'create' ? '생성' : '저장'}
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                disabled={submitting || uploading || editorLoading}
+                onClick={() => void submitEditor()}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {submitting || uploading ? '저장 중…' : editorMode === 'create' ? '생성' : '저장'}
+              </button>
+            )}
           </div>
         }
       >

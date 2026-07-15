@@ -8,9 +8,11 @@ import AdminTable from '@/components/admin/AdminTable'
 import AdminBadge from '@/components/admin/AdminBadge'
 import AdminModal from '@/components/admin/AdminModal'
 import { useToast } from '@/components/admin/AdminToast'
+import { PermissionGate } from '@/components/admin/PermissionGate'
 import {
   fetchAdminBusinessDetail,
   fetchAdminAllReservations,
+  formatAdminPermissionError,
   updateBusinessStatus,
   saveBusinessMemo,
   type AdminBusinessDetail,
@@ -76,8 +78,8 @@ export default function AdminBusinessDetailPage() {
       showToast('상태가 변경되었습니다.', 'success')
       setConfirmOpen(false)
       load()
-    } catch {
-      showToast('상태 변경에 실패했습니다.', 'error')
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '상태 변경에 실패했습니다.'), 'error')
     } finally {
       setStatusLoading(false)
     }
@@ -88,8 +90,8 @@ export default function AdminBusinessDetailPage() {
     try {
       await saveBusinessMemo(id, memo)
       showToast('메모가 저장되었습니다.', 'success')
-    } catch {
-      showToast('메모 저장에 실패했습니다.', 'error')
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '메모 저장에 실패했습니다.'), 'error')
     } finally {
       setMemoSaving(false)
     }
@@ -192,32 +194,38 @@ export default function AdminBusinessDetailPage() {
           </div>
           <div className="pt-4 border-t border-gray-100 flex gap-2">
             {business.status === 'pending' && (
-              <StatusBtn
-                label="승인"
-                onClick={() => {
-                  setPendingStatus('active')
-                  setConfirmOpen(true)
-                }}
-              />
+              <PermissionGate menuKey="businesses" action="approve">
+                <StatusBtn
+                  label="승인"
+                  onClick={() => {
+                    setPendingStatus('active')
+                    setConfirmOpen(true)
+                  }}
+                />
+              </PermissionGate>
             )}
             {business.status === 'active' && (
-              <StatusBtn
-                label="정지"
-                danger
-                onClick={() => {
-                  setPendingStatus('suspended')
-                  setConfirmOpen(true)
-                }}
-              />
+              <PermissionGate menuKey="businesses" action="edit">
+                <StatusBtn
+                  label="정지"
+                  danger
+                  onClick={() => {
+                    setPendingStatus('suspended')
+                    setConfirmOpen(true)
+                  }}
+                />
+              </PermissionGate>
             )}
             {business.status === 'suspended' && (
-              <StatusBtn
-                label="복구"
-                onClick={() => {
-                  setPendingStatus('active')
-                  setConfirmOpen(true)
-                }}
-              />
+              <PermissionGate menuKey="businesses" action="edit">
+                <StatusBtn
+                  label="복구"
+                  onClick={() => {
+                    setPendingStatus('active')
+                    setConfirmOpen(true)
+                  }}
+                />
+              </PermissionGate>
             )}
           </div>
         </div>
@@ -284,14 +292,16 @@ export default function AdminBusinessDetailPage() {
             className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <div className="mt-3 flex justify-end">
-            <button
-              type="button"
-              onClick={handleMemoSave}
-              disabled={memoSaving}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
-            >
-              {memoSaving ? '저장 중...' : '저장'}
-            </button>
+            <PermissionGate menuKey="businesses" action="edit">
+              <button
+                type="button"
+                onClick={handleMemoSave}
+                disabled={memoSaving}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+              >
+                {memoSaving ? '저장 중...' : '저장'}
+              </button>
+            </PermissionGate>
           </div>
         </div>
       )}

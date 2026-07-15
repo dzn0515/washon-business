@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAdmin } from '@/context/AdminContext'
+import { usePermissionMap } from '@/hooks/useAdminPermissions'
+import { buildAdminMenusFromRegistry } from '@/lib/admin-menu-registry'
 
 export type AdminMenuItem = {
   icon: string
@@ -12,252 +14,34 @@ export type AdminMenuItem = {
   permission: string
 }
 
-export const ADMIN_MENUS: { group: string; items: AdminMenuItem[] }[] = [
-  {
-    group: '홈',
-    items: [
-      { icon: '🏠', label: '내 업무', href: '/admin/my', ready: true, permission: 'my.read' },
-      {
-        icon: '📊',
-        label: '대시보드',
-        href: '/admin/dashboard',
-        ready: true,
-        permission: 'dashboard.read',
-      },
-      { icon: '🔔', label: '알림센터', href: '/admin/alerts', ready: true, permission: 'alerts.read' },
-    ],
-  },
-  {
-    group: '업체',
-    items: [
-      {
-        icon: '🏪',
-        label: '업체관리',
-        href: '/admin/businesses',
-        ready: true,
-        permission: 'business.read',
-      },
-      {
-        icon: '🏢',
-        label: '프랜차이즈',
-        href: '/admin/franchises',
-        ready: true,
-        permission: 'franchise.read',
-      },
-      {
-        icon: '💼',
-        label: '영업 대시보드',
-        href: '/admin/sales',
-        ready: true,
-        permission: 'sales.read',
-      },
-      {
-        icon: '🏬',
-        label: '총판 관리',
-        href: '/admin/sales/distributors',
-        ready: true,
-        permission: 'sales.read',
-      },
-      {
-        icon: '🏪',
-        label: '영업점 관리',
-        href: '/admin/sales/agencies',
-        ready: true,
-        permission: 'sales.read',
-      },
-      {
-        icon: '👤',
-        label: '영업사원 관리',
-        href: '/admin/sales/agents',
-        ready: true,
-        permission: 'sales.read',
-      },
-      {
-        icon: '📝',
-        label: '입점 신청 관리',
-        href: '/admin/sales/leads',
-        ready: true,
-        permission: 'sales.read',
-      },
-      {
-        icon: '🔗',
-        label: '업체 배정',
-        href: '/admin/sales/assignments',
-        ready: true,
-        permission: 'sales.read',
-      },
-      {
-        icon: '💹',
-        label: '수수료 정책',
-        href: '/admin/sales/commission',
-        ready: true,
-        permission: 'sales.read',
-      },
-      {
-        icon: '📑',
-        label: '정산 관리',
-        href: '/admin/sales/settlements',
-        ready: true,
-        permission: 'sales.read',
-      },
-      {
-        icon: '📋',
-        label: '입점심사',
-        href: '/admin/businesses/pending',
-        ready: true,
-        permission: 'screening.read',
-      },
-    ],
-  },
-  {
-    group: '운영',
-    items: [
-      {
-        icon: '👥',
-        label: '고객관리',
-        href: '/admin/users',
-        ready: true,
-        permission: 'customer.read',
-      },
-      {
-        icon: '📅',
-        label: '예약관리',
-        href: '/admin/reservations',
-        ready: true,
-        permission: 'reservation.read',
-      },
-      { icon: '🎧', label: '고객센터', href: '/admin/cs', ready: true, permission: 'cs.read' },
-      { icon: '📣', label: '공지/알림', href: '/admin/notices', ready: true, permission: 'notices.read' },
-      { icon: '⭐', label: '리뷰관리', href: '/admin/reviews', ready: true, permission: 'review.read' },
-      { icon: '🚩', label: '리뷰신고', href: '/admin/review-reports', ready: true, permission: 'review.read' },
-    ],
-  },
-  {
-    group: '수익',
-    items: [
-      {
-        icon: '💰',
-        label: '결제/정산',
-        href: '/admin/payments',
-        ready: false,
-        permission: 'payment.read',
-      },
-      { icon: '🧾', label: '재무', href: '/admin/finance', ready: false, permission: 'finance.read' },
-      {
-        icon: '📢',
-        label: '광고 신청 관리',
-        href: '/admin/ad-applications',
-        ready: true,
-        permission: 'ads.read',
-      },
-      {
-        icon: '📋',
-        label: '구독 관리',
-        href: '/admin/subscriptions',
-        ready: true,
-        permission: 'subscription.read',
-      },
-      { icon: '🎁', label: '쿠폰', href: '/admin/coupons', ready: true, permission: 'coupon.read' },
-    ],
-  },
-  {
-    group: '분석',
-    items: [
-      { icon: '📈', label: '통계', href: '/admin/stats', ready: false, permission: 'stats.read' },
-      { icon: '🏆', label: 'SLA', href: '/admin/sla', ready: false, permission: 'sla.read' },
-    ],
-  },
-  {
-    group: '서비스',
-    items: [
-      {
-        icon: '🚗',
-        label: '서비스관리',
-        href: '/admin/services',
-        ready: false,
-        permission: 'service.read',
-      },
-      { icon: '🔗', label: 'QR관리', href: '/admin/qr', ready: true, permission: 'qr.read' },
-      {
-        icon: '🪧',
-        label: '배너 관리',
-        href: '/admin/banners',
-        ready: true,
-        permission: 'content.read',
-      },
-      {
-        icon: '🖼️',
-        label: '콘텐츠',
-        href: '/admin/contents',
-        ready: false,
-        permission: 'content.read',
-      },
-      {
-        icon: '📁',
-        label: '문서관리',
-        href: '/admin/documents',
-        ready: false,
-        permission: 'document.read',
-      },
-    ],
-  },
-  {
-    group: '자동화',
-    items: [
-      {
-        icon: '⚙️',
-        label: '자동화',
-        href: '/admin/automation',
-        ready: false,
-        permission: 'automation.read',
-      },
-      { icon: '🔌', label: 'API', href: '/admin/api', ready: false, permission: 'api.read' },
-      { icon: '📱', label: '앱관리', href: '/admin/app', ready: false, permission: 'app.read' },
-    ],
-  },
-  {
-    group: '데이터',
-    items: [
-      { icon: '📂', label: '데이터관리', href: '/admin/data', ready: false, permission: 'data.read' },
-      {
-        icon: '📦',
-        label: '파일저장소',
-        href: '/admin/storage',
-        ready: false,
-        permission: 'storage.read',
-      },
-    ],
-  },
-  {
-    group: '시스템',
-    items: [
-      {
-        icon: '⚙️',
-        label: '운영설정',
-        href: '/admin/settings',
-        ready: true,
-        permission: 'settings.read',
-      },
-      { icon: '🔐', label: '보안', href: '/admin/security', ready: true, permission: 'security.read' },
-      { icon: '👑', label: '권한관리', href: '/admin/roles', ready: true, permission: 'roles.read' },
-      { icon: '🗂️', label: '운영감사', href: '/admin/audit', ready: false, permission: 'audit.read' },
-      { icon: '🖥️', label: '시스템', href: '/admin/system', ready: true, permission: 'system.read' },
-      { icon: '🤖', label: 'AI', href: '/admin/ai', ready: false, permission: 'ai.read' },
-    ],
-  },
-]
+export const ADMIN_MENUS: { group: string; items: AdminMenuItem[] }[] = buildAdminMenusFromRegistry()
 
 const ALL_ITEMS = ADMIN_MENUS.flatMap((s) => s.items)
 
 export default function AdminSidebar() {
   const pathname = usePathname()
   const { toggleFavorite, isFavorite, sidebarSearch, setSidebarSearch } = useAdmin()
+  const { canView, loaded } = usePermissionMap()
+
+  const visibleMenus = ADMIN_MENUS.map((section) => ({
+    ...section,
+    items: section.items.filter((i) => !loaded || canView(i.permission)),
+  })).filter((section) => section.items.length > 0)
 
   const filteredMenus = sidebarSearch
-    ? [{ group: '검색 결과', items: ALL_ITEMS.filter((i) => i.label.includes(sidebarSearch)) }]
-    : ADMIN_MENUS
+    ? [
+        {
+          group: '검색 결과',
+          items: ALL_ITEMS.filter(
+            (i) => i.label.includes(sidebarSearch) && (!loaded || canView(i.permission)),
+          ),
+        },
+      ]
+    : visibleMenus
 
-  const favoriteItems = ALL_ITEMS.filter((i) => isFavorite(i.href))
+  const favoriteItems = ALL_ITEMS.filter(
+    (i) => isFavorite(i.href) && (!loaded || canView(i.permission)),
+  )
 
   const renderItem = (item: AdminMenuItem) => {
     const isActive =

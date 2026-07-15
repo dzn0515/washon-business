@@ -8,9 +8,11 @@ import Button from '@/components/ui/Button'
 import Modal from '@/components/ui/Modal'
 import Badge from '@/components/ui/Badge'
 import { useToast } from '@/components/admin/AdminToast'
+import { usePermission } from '@/hooks/useAdminPermissions'
 import {
   approveAdminPartner,
   fetchAdminPartners,
+  formatAdminPermissionError,
   rejectAdminPartner,
   type AdminPartnerListItem,
 } from '@/lib/admin-api'
@@ -28,6 +30,7 @@ const TAB_API_STATUS = {
 export default function AdminPendingBusinessesPage() {
   const router = useRouter()
   const { showToast, ToastComponent } = useToast()
+  const { canApprove } = usePermission('business_reviews')
   const [tab, setTab] = useState<Tab>('pending')
   const [counts, setCounts] = useState({ pending: 0, active: 0, rejected: 0 })
   const [list, setList] = useState<AdminPartnerListItem[]>([])
@@ -91,8 +94,8 @@ export default function AdminPendingBusinessesPage() {
       showToast('업체가 승인되었습니다.', 'success')
       setApproveTarget(null)
       await refresh()
-    } catch {
-      showToast('승인 처리에 실패했습니다.', 'error')
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '승인 처리에 실패했습니다.'), 'error')
     } finally {
       setActionLoading(false)
     }
@@ -107,8 +110,8 @@ export default function AdminPendingBusinessesPage() {
       setRejectTarget(null)
       setRejectReason('')
       await refresh()
-    } catch {
-      showToast('거절 처리에 실패했습니다.', 'error')
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '거절 처리에 실패했습니다.'), 'error')
     } finally {
       setActionLoading(false)
     }
@@ -170,6 +173,7 @@ export default function AdminPendingBusinessesPage() {
               {tab === 'pending' ? (
                 <PendingCard
                   business={b}
+                  canApprove={canApprove}
                   onApprove={() => setApproveTarget(b)}
                   onReject={() => setRejectTarget(b)}
                 />
@@ -237,10 +241,12 @@ export default function AdminPendingBusinessesPage() {
 
 function PendingCard({
   business: b,
+  canApprove,
   onApprove,
   onReject,
 }: {
   business: AdminPartnerListItem
+  canApprove: boolean
   onApprove: () => void
   onReject: () => void
 }) {
@@ -263,14 +269,16 @@ function PendingCard({
       <p className="text-xs text-gray-400 mt-2">
         업종: {getAdminBizTypeLabel(b.bizType)} · {getResourceLabel(b.bizType)}: {b.bayCount}개
       </p>
-      <div className="flex gap-2 mt-4">
-        <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700" onClick={onApprove}>
-          <Check size={14} className="mr-1" /> 승인
-        </Button>
-        <Button size="sm" variant="danger" className="flex-1" onClick={onReject}>
-          <X size={14} className="mr-1" /> 거절
-        </Button>
-      </div>
+      {canApprove && (
+        <div className="flex gap-2 mt-4">
+          <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700" onClick={onApprove}>
+            <Check size={14} className="mr-1" /> 승인
+          </Button>
+          <Button size="sm" variant="danger" className="flex-1" onClick={onReject}>
+            <X size={14} className="mr-1" /> 거절
+          </Button>
+        </div>
+      )}
     </>
   )
 }

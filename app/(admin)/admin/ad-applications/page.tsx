@@ -6,10 +6,12 @@ import AdminTable from '@/components/admin/AdminTable'
 import AdminBadge from '@/components/admin/AdminBadge'
 import AdminModal from '@/components/admin/AdminModal'
 import { useToast } from '@/components/admin/AdminToast'
+import { usePermission } from '@/hooks/useAdminPermissions'
 import {
   approveAdApp,
   endAdApp,
   fetchAdAppApplications,
+  formatAdminPermissionError,
   rejectAdApp,
 } from '@/lib/admin-api'
 import {
@@ -120,8 +122,8 @@ export default function AdminAdApplicationsPage() {
       setApplications((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
       showToast(`승인 처리 (${AD_APPLICATION_STATUS_LABEL[updated.status]})`, 'success')
       closeDetail()
-    } catch {
-      showToast('승인 처리에 실패했습니다.', 'error')
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '승인 처리에 실패했습니다.'), 'error')
     } finally {
       setProcessing(false)
     }
@@ -139,8 +141,8 @@ export default function AdminAdApplicationsPage() {
       setApplications((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
       showToast('반려 처리되었습니다.', 'success')
       closeDetail()
-    } catch {
-      showToast('반려 처리에 실패했습니다.', 'error')
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '반려 처리에 실패했습니다.'), 'error')
     } finally {
       setProcessing(false)
     }
@@ -154,8 +156,8 @@ export default function AdminAdApplicationsPage() {
       setApplications((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
       showToast('종료 처리되었습니다.', 'success')
       closeDetail()
-    } catch {
-      showToast('종료 처리에 실패했습니다.', 'error')
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '종료 처리에 실패했습니다.'), 'error')
     } finally {
       setProcessing(false)
     }
@@ -190,6 +192,7 @@ export default function AdminAdApplicationsPage() {
 
   const pendingCount = applications.filter((a) => a.status === 'PENDING_REVIEW').length
   const canEnd = detail?.status === 'ACTIVE' || detail?.status === 'APPROVED'
+  const { canApprove } = usePermission('ad_applications')
 
   return (
     <div className="space-y-6">
@@ -276,7 +279,7 @@ export default function AdminAdApplicationsPage() {
         title="신청 상세"
         size="lg"
         footer={
-          detail?.status === 'PENDING_REVIEW' ? (
+          !canApprove ? undefined : detail?.status === 'PENDING_REVIEW' ? (
             mode === 'reject' ? (
               <div className="flex flex-col sm:flex-row gap-2">
                 <button

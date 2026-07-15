@@ -6,11 +6,13 @@ import AdminTable from '@/components/admin/AdminTable'
 import AdminBadge from '@/components/admin/AdminBadge'
 import AdminModal from '@/components/admin/AdminModal'
 import SalesSubNav from '@/components/admin/SalesSubNav'
+import { PermissionGate } from '@/components/admin/PermissionGate'
 import {
   approveAdminSalesLead,
   fetchAdminSalesAgents,
   fetchAdminSalesLead,
   fetchAdminSalesLeads,
+  formatAdminPermissionError,
   rejectAdminSalesLead,
   type AdminSalesAgent,
   type AdminSalesLead,
@@ -73,7 +75,7 @@ export default function AdminSalesLeadsPage() {
       setTotal(res.total)
       setTotalPages(res.totalPages)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '입점 신청을 불러오지 못했습니다.')
+      setError(formatAdminPermissionError(e, '입점 신청을 불러오지 못했습니다.'))
     } finally {
       setLoading(false)
     }
@@ -99,7 +101,7 @@ export default function AdminSalesLeadsPage() {
       setShowPassword(false)
       await load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '상세 조회에 실패했습니다.')
+      setError(formatAdminPermissionError(e, '상세 조회에 실패했습니다.'))
     }
   }
 
@@ -122,7 +124,7 @@ export default function AdminSalesLeadsPage() {
       // keep password only in local modal state until close; do not persist from API
       await load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '승인에 실패했습니다.')
+      setError(formatAdminPermissionError(e, '승인에 실패했습니다.'))
     } finally {
       setSaving(false)
     }
@@ -156,7 +158,7 @@ export default function AdminSalesLeadsPage() {
       setRejectReason('')
       await load()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '반려에 실패했습니다.')
+      setError(formatAdminPermissionError(e, '반려에 실패했습니다.'))
     } finally {
       setSaving(false)
     }
@@ -336,7 +338,7 @@ export default function AdminSalesLeadsPage() {
               닫기
             </button>
             {canReview ? (
-              <>
+              <PermissionGate menuKey="sales_leads" action="approve">
                 <button
                   type="button"
                   className="px-3 py-1.5 border border-red-300 text-red-600 rounded-lg text-sm"
@@ -352,7 +354,7 @@ export default function AdminSalesLeadsPage() {
                 >
                   승인
                 </button>
-              </>
+              </PermissionGate>
             ) : null}
           </div>
         }

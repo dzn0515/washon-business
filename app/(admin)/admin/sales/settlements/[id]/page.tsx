@@ -9,6 +9,7 @@ import AdminTable from '@/components/admin/AdminTable'
 import AdminBadge from '@/components/admin/AdminBadge'
 import AdminModal from '@/components/admin/AdminModal'
 import SalesSubNav from '@/components/admin/SalesSubNav'
+import { usePermission } from '@/hooks/useAdminPermissions'
 import {
   calculateAdminSalesSettlement,
   cancelAdminSalesSettlement,
@@ -16,6 +17,7 @@ import {
   exportAdminSalesSettlement,
   fetchAdminSalesSettlement,
   fetchAdminSalesSettlementLines,
+  formatAdminPermissionError,
   holdAdminSalesSettlementLine,
   markAdminSalesSettlementPaid,
   markAdminSalesSettlementPaymentPending,
@@ -79,6 +81,7 @@ function formatDateTime(value: string | null | undefined) {
 export default function AdminSalesSettlementDetailPage() {
   const params = useParams()
   const id = String(params?.id ?? '')
+  const { canEdit, canDownload } = usePermission('sales_settlements')
 
   const [batch, setBatch] = useState<AdminSettlementBatchDetail | null>(null)
   const [lines, setLines] = useState<AdminSettlementLine[]>([])
@@ -109,7 +112,7 @@ export default function AdminSalesSettlementDetailPage() {
       const detail = await fetchAdminSalesSettlement(id)
       setBatch(detail)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '정산 상세를 불러오지 못했습니다.')
+      setError(formatAdminPermissionError(e, '정산 상세를 불러오지 못했습니다.'))
     } finally {
       setLoading(false)
     }
@@ -130,7 +133,7 @@ export default function AdminSalesSettlementDetailPage() {
       setLineTotal(list.total)
       setLineTotalPages(list.totalPages)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '정산 라인을 불러오지 못했습니다.')
+      setError(formatAdminPermissionError(e, '정산 라인을 불러오지 못했습니다.'))
     } finally {
       setLinesLoading(false)
     }
@@ -193,7 +196,7 @@ export default function AdminSalesSettlementDetailPage() {
       setPaidMemo('')
       await refresh()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '처리에 실패했습니다.')
+      setError(formatAdminPermissionError(e, '처리에 실패했습니다.'))
     } finally {
       setActing(false)
     }
@@ -205,7 +208,7 @@ export default function AdminSalesSettlementDetailPage() {
     try {
       await exportAdminSalesSettlement(id)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'CSV 내보내기에 실패했습니다.')
+      setError(formatAdminPermissionError(e, 'CSV 내보내기에 실패했습니다.'))
     }
   }
 
@@ -249,13 +252,15 @@ export default function AdminSalesSettlementDetailPage() {
             >
               새로고침
             </button>
-            <button
-              type="button"
-              onClick={() => void handleExport()}
-              className="text-sm px-3 py-1.5 border border-gray-200 rounded-lg"
-            >
-              CSV 내보내기
-            </button>
+            {canDownload && (
+              <button
+                type="button"
+                onClick={() => void handleExport()}
+                className="text-sm px-3 py-1.5 border border-gray-200 rounded-lg"
+              >
+                CSV 내보내기
+              </button>
+            )}
           </div>
         }
       />
@@ -320,62 +325,64 @@ export default function AdminSalesSettlementDetailPage() {
               <p>메모: {batch.memo || '-'}</p>
               {batch.cancelReason ? <p className="text-red-600">취소 사유: {batch.cancelReason}</p> : null}
             </div>
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
-              {canCalculate ? (
-                <button
-                  type="button"
-                  className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm"
-                  onClick={() => setConfirmAction('calculate')}
-                >
-                  산출
-                </button>
-              ) : null}
-              {canRecalculate ? (
-                <button
-                  type="button"
-                  className="px-3 py-1.5 rounded-lg border text-sm"
-                  onClick={() => setConfirmAction('recalculate')}
-                >
-                  재산출
-                </button>
-              ) : null}
-              {canConfirm ? (
-                <button
-                  type="button"
-                  className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm"
-                  onClick={() => setConfirmAction('confirm')}
-                >
-                  확정
-                </button>
-              ) : null}
-              {canPaymentPending ? (
-                <button
-                  type="button"
-                  className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-sm"
-                  onClick={() => setConfirmAction('payment-pending')}
-                >
-                  지급대기
-                </button>
-              ) : null}
-              {canPaid ? (
-                <button
-                  type="button"
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm"
-                  onClick={() => setConfirmAction('paid')}
-                >
-                  지급완료
-                </button>
-              ) : null}
-              {canCancel ? (
-                <button
-                  type="button"
-                  className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm"
-                  onClick={() => setConfirmAction('cancel')}
-                >
-                  취소
-                </button>
-              ) : null}
-            </div>
+            {canEdit && (
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+                {canCalculate ? (
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm"
+                    onClick={() => setConfirmAction('calculate')}
+                  >
+                    산출
+                  </button>
+                ) : null}
+                {canRecalculate ? (
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-lg border text-sm"
+                    onClick={() => setConfirmAction('recalculate')}
+                  >
+                    재산출
+                  </button>
+                ) : null}
+                {canConfirm ? (
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm"
+                    onClick={() => setConfirmAction('confirm')}
+                  >
+                    확정
+                  </button>
+                ) : null}
+                {canPaymentPending ? (
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-sm"
+                    onClick={() => setConfirmAction('payment-pending')}
+                  >
+                    지급대기
+                  </button>
+                ) : null}
+                {canPaid ? (
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-sm"
+                    onClick={() => setConfirmAction('paid')}
+                  >
+                    지급완료
+                  </button>
+                ) : null}
+                {canCancel ? (
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm"
+                    onClick={() => setConfirmAction('cancel')}
+                  >
+                    취소
+                  </button>
+                ) : null}
+              </div>
+            )}
             {canPaid || status === 'PAYMENT_PENDING' ? (
               <p className="text-xs text-gray-500">
                 실제 송금은 시스템 외부에서 수행되며, 이 버튼은 지급 상태를 기록합니다.
@@ -505,7 +512,7 @@ export default function AdminSalesSettlementDetailPage() {
                   ),
                   actions: (
                     <div className="flex flex-wrap gap-1">
-                      {canHoldLine && line.status !== 'HELD' && line.status !== 'PAID' && line.status !== 'CANCELLED' ? (
+                      {canEdit && canHoldLine && line.status !== 'HELD' && line.status !== 'PAID' && line.status !== 'CANCELLED' ? (
                         <button
                           type="button"
                           className="text-xs text-amber-700 underline"
@@ -518,7 +525,7 @@ export default function AdminSalesSettlementDetailPage() {
                           보류
                         </button>
                       ) : null}
-                      {line.status === 'HELD' ? (
+                      {canEdit && line.status === 'HELD' ? (
                         <button
                           type="button"
                           className="text-xs text-blue-600 underline"

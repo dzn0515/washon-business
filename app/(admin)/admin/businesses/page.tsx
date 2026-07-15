@@ -7,8 +7,10 @@ import AdminTable from '@/components/admin/AdminTable'
 import AdminBadge from '@/components/admin/AdminBadge'
 import AdminModal from '@/components/admin/AdminModal'
 import { useToast } from '@/components/admin/AdminToast'
+import { PermissionGate } from '@/components/admin/PermissionGate'
 import {
   fetchAdminAllBusinesses,
+  formatAdminPermissionError,
   updateBusinessStatus,
   type AdminBusinessListItem,
 } from '@/lib/admin-api'
@@ -97,8 +99,8 @@ export default function AdminBusinessesPage() {
       setConfirm(null)
       setRejectReason('')
       load()
-    } catch {
-      showToast('상태 변경에 실패했습니다.', 'error')
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '상태 변경에 실패했습니다.'), 'error')
     } finally {
       setActionLoading(false)
     }
@@ -218,7 +220,7 @@ export default function AdminBusinessesPage() {
                 <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
                   <ActionBtn label="상세" onClick={() => router.push(`/admin/businesses/${b.id}`)} />
                   {b.status === 'pending' && (
-                    <>
+                    <PermissionGate menuKey="businesses" action="approve">
                       <ActionBtn
                         label="승인"
                         onClick={() =>
@@ -245,36 +247,40 @@ export default function AdminBusinessesPage() {
                           })
                         }
                       />
-                    </>
+                    </PermissionGate>
                   )}
                   {b.status === 'active' && (
-                    <ActionBtn
-                      label="정지"
-                      danger
-                      onClick={() =>
-                        openConfirm({
-                          business: b,
-                          title: '업체 정지',
-                          message: `${b.name} 업체를 정지하시겠습니까?`,
-                          nextStatus: 'suspended',
-                          variant: 'danger',
-                        })
-                      }
-                    />
+                    <PermissionGate menuKey="businesses" action="edit">
+                      <ActionBtn
+                        label="정지"
+                        danger
+                        onClick={() =>
+                          openConfirm({
+                            business: b,
+                            title: '업체 정지',
+                            message: `${b.name} 업체를 정지하시겠습니까?`,
+                            nextStatus: 'suspended',
+                            variant: 'danger',
+                          })
+                        }
+                      />
+                    </PermissionGate>
                   )}
                   {b.status === 'suspended' && (
-                    <ActionBtn
-                      label="복구"
-                      onClick={() =>
-                        openConfirm({
-                          business: b,
-                          title: '업체 복구',
-                          message: `${b.name} 업체를 복구하시겠습니까?`,
-                          nextStatus: 'active',
-                          variant: 'primary',
-                        })
-                      }
-                    />
+                    <PermissionGate menuKey="businesses" action="edit">
+                      <ActionBtn
+                        label="복구"
+                        onClick={() =>
+                          openConfirm({
+                            business: b,
+                            title: '업체 복구',
+                            message: `${b.name} 업체를 복구하시겠습니까?`,
+                            nextStatus: 'active',
+                            variant: 'primary',
+                          })
+                        }
+                      />
+                    </PermissionGate>
                   )}
                 </div>
               ),

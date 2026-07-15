@@ -9,12 +9,14 @@ import AdminTable from '@/components/admin/AdminTable'
 import AdminBadge from '@/components/admin/AdminBadge'
 import AdminModal from '@/components/admin/AdminModal'
 import SalesSubNav from '@/components/admin/SalesSubNav'
+import { PermissionGate } from '@/components/admin/PermissionGate'
 import {
   createAdminSalesSettlement,
   fetchAdminPaymentCollectionStatus,
   fetchAdminSalesSettlementMetrics,
   fetchAdminSalesSettlementPreview,
   fetchAdminSalesSettlements,
+  formatAdminPermissionError,
   type AdminPaymentCollectionStatus,
   type AdminSettlementBatch,
   type AdminSettlementMetrics,
@@ -97,7 +99,7 @@ export default function AdminSalesSettlementsPage() {
       setTotal(list.total)
       setTotalPages(list.totalPages)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '정산 목록을 불러오지 못했습니다.')
+      setError(formatAdminPermissionError(e, '정산 목록을 불러오지 못했습니다.'))
     } finally {
       setLoading(false)
     }
@@ -121,7 +123,7 @@ export default function AdminSalesSettlementsPage() {
       const p = await fetchAdminSalesSettlementPreview({ settlementMonth: createMonth })
       setPreview(p)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '미리보기에 실패했습니다.')
+      setError(formatAdminPermissionError(e, '미리보기에 실패했습니다.'))
     } finally {
       setPreviewLoading(false)
     }
@@ -138,7 +140,7 @@ export default function AdminSalesSettlementsPage() {
       setCreateOpen(false)
       router.push(`/admin/sales/settlements/${created.id}`)
     } catch (e) {
-      setError(e instanceof Error ? e.message : '정산 배치 생성에 실패했습니다.')
+      setError(formatAdminPermissionError(e, '정산 배치 생성에 실패했습니다.'))
     } finally {
       setSaving(false)
     }
@@ -158,13 +160,15 @@ export default function AdminSalesSettlementsPage() {
             >
               새로고침
             </button>
-            <button
-              type="button"
-              onClick={openCreate}
-              className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-            >
-              정산 배치 생성
-            </button>
+            <PermissionGate menuKey="sales_settlements" action="edit">
+              <button
+                type="button"
+                onClick={openCreate}
+                className="text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+              >
+                정산 배치 생성
+              </button>
+            </PermissionGate>
           </div>
         }
       />
