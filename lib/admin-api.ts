@@ -3482,3 +3482,82 @@ export async function resolveAdminReviewReport(
     body: JSON.stringify(body),
   })
 }
+
+/** GET /admin/payments */
+export async function fetchAdminPartnerPayments(params?: {
+  partnerId?: number
+  status?: string
+  page?: number
+  pageSize?: number
+}) {
+  return adminFetchDetail<{
+    items: Array<Record<string, unknown>>
+    total: number
+    page: number
+    pageSize: number
+  }>(
+    `/admin/payments${salesQs({
+      partnerId: params?.partnerId,
+      status: params?.status,
+      page: params?.page ?? 1,
+      pageSize: params?.pageSize ?? 20,
+    })}`,
+  )
+}
+
+/** POST /admin/payments/{id}/cancel */
+export async function cancelAdminPartnerPayment(
+  id: number | string,
+  body: { cancelAmount?: number; cancelReason?: string },
+) {
+  return adminFetchDetail(`/admin/payments/${id}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify({
+      cancelAmount: body.cancelAmount,
+      cancelReason: body.cancelReason ?? 'admin cancel',
+    }),
+  })
+}
+
+/** GET /admin/settlements */
+export async function fetchAdminPartnerSettlements() {
+  return adminFetchDetail<{ items: Array<Record<string, unknown>> }>('/admin/settlements')
+}
+
+/** POST /admin/settlements/generate */
+export async function generateAdminPartnerSettlement(body: {
+  periodStart: string
+  periodEnd: string
+}) {
+  return adminFetchDetail('/admin/settlements/generate', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/** POST /admin/settlements/{id}/confirm */
+export async function confirmAdminPartnerSettlement(id: number | string) {
+  return adminFetchDetail(`/admin/settlements/${id}/confirm`, { method: 'POST' })
+}
+
+/** POST /admin/settlements/{id}/request-payout */
+export async function requestAdminPartnerPayout(id: number | string) {
+  return adminFetchDetail(`/admin/settlements/${id}/request-payout`, { method: 'POST' })
+}
+
+/** GET /admin/payment-webhooks */
+export async function fetchAdminPaymentWebhooks(page = 1) {
+  return adminFetchDetail<{ items: Array<Record<string, unknown>>; total: number }>(
+    `/admin/payment-webhooks?page=${page}&pageSize=20`,
+  )
+}
+
+/** GET /admin/pg-settings-status */
+export async function fetchAdminPgSettingsStatus() {
+  return adminFetchDetail<Record<string, unknown>>('/admin/pg-settings-status')
+}
+
+/** GET /admin/trial-policy */
+export async function fetchAdminTrialPolicy() {
+  return adminFetchDetail<Record<string, unknown>>('/admin/trial-policy')
+}

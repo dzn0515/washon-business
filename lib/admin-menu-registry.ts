@@ -32,6 +32,8 @@ export const ADMIN_MENU_REGISTRY: AdminMenuDef[] = [
   { key: 'review_reports', label: '리뷰신고', href: '/admin/review-reports', group: '운영', icon: '🚩', ready: true },
   { key: 'ad_applications', label: '광고 신청 관리', href: '/admin/ad-applications', group: '수익', icon: '📣', ready: true },
   { key: 'subscriptions', label: '구독 관리', href: '/admin/subscriptions', group: '수익', icon: '💳', ready: true },
+  { key: 'partner_payments', label: '결제 관리', href: '/admin/payments', group: '수익', icon: '💰', ready: true },
+  { key: 'partner_settlements', label: '매장 정산', href: '/admin/partner-settlements', group: '수익', icon: '🏦', ready: true },
   { key: 'coupons', label: '쿠폰', href: '/admin/coupons', group: '수익', icon: '🎟️', ready: true },
   { key: 'qr', label: 'QR관리', href: '/admin/qr', group: '서비스', icon: '▣', ready: true },
   { key: 'banners', label: '배너 관리', href: '/admin/banners', group: '서비스', icon: '🖼️', ready: true },
