@@ -1,4 +1,5 @@
 import { DemoModeError, isDemoMode } from '@/lib/demo-mode'
+import { PORTAL_STORAGE_KEY, setStoredPortal } from '@/lib/portal'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 const TOKEN_KEY = 'washon_access_token'
@@ -69,7 +70,14 @@ export function getAccessToken(): string | null {
   return accessToken
 }
 
-export async function login(email: string, password: string) {
+export async function login(email: string, password: string): Promise<{
+  access_token: string
+  refresh_token: string
+  token_type: string
+  portal: string
+  role: string
+  passwordResetRequired: boolean
+}> {
   const normalizedEmail = email.trim().toLowerCase()
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
@@ -106,8 +114,10 @@ export function clearAuthSession(): void {
   sessionStorage.removeItem(USER_EMAIL_KEY)
   sessionStorage.removeItem(ROLE_KEY)
   sessionStorage.removeItem(ADMIN_USER_KEY)
+  sessionStorage.removeItem(PORTAL_STORAGE_KEY)
   localStorage.removeItem(LEGACY_TOKEN_KEY)
   setAuthCookie(null)
+  setStoredPortal(null)
 }
 
 export type RegisterPayload = {

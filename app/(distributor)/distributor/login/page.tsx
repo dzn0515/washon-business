@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { clearAuthSession, fetchAuthMe, login } from '@/lib/api-client'
+import { clearAuthSession, login } from '@/lib/api-client'
+import { homeForPortal, setStoredPortal } from '@/lib/portal'
 
 export default function DistributorLoginPage() {
   const router = useRouter()
@@ -17,17 +18,18 @@ export default function DistributorLoginPage() {
     setLoading(true)
 
     try {
-      await login(email, password)
-      const me = await fetchAuthMe()
-      const role = me.role.toLowerCase()
-
-      if (role !== 'distributor') {
+      const data = await login(email, password)
+      if (data.portal !== 'DISTRIBUTOR') {
         clearAuthSession()
         setError('총판 권한이 없습니다.')
         return
       }
-
-      router.push('/distributor')
+      setStoredPortal('DISTRIBUTOR')
+      if (data.passwordResetRequired) {
+        router.replace('/change-password')
+        return
+      }
+      router.replace(homeForPortal('DISTRIBUTOR'))
     } catch (err) {
       const status = (err as Error & { status?: number }).status
       if (status === 401) {
@@ -48,46 +50,37 @@ export default function DistributorLoginPage() {
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight text-white">AUTOON Distributor</h1>
           <p className="mt-2 text-sm text-slate-200/80">총판 전용 로그인</p>
-          <p className="mt-1 text-xs text-slate-400">
-            로그인 URL: /distributor/login · Admin에서 발급한 포털 계정 이메일을 사용하세요
-          </p>
+          <p className="mt-1 text-xs text-slate-400">통합 로그인: /login 도 사용 가능합니다</p>
         </div>
-        <div className="rounded-2xl bg-white p-8 shadow-xl">
-          <h2 className="mb-6 text-xl font-bold text-stone-900">로그인</h2>
-          {error && (
-            <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
-          )}
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-stone-700">이메일</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="distributor@autoon.kr"
-                className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-stone-700">비밀번호</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full rounded-xl border border-stone-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-2 w-full rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:bg-indigo-300"
-            >
-              {loading ? '로그인 중...' : '로그인'}
-            </button>
-          </form>
-        </div>
+        <form
+          onSubmit={handleLogin}
+          className="space-y-3 rounded-2xl border border-slate-700/60 bg-slate-900/70 p-6"
+        >
+          <input
+            type="email"
+            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+            placeholder="이메일"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input
+            type="password"
+            className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white"
+            placeholder="비밀번호"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          {error && <p className="text-sm text-red-400">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-lg bg-indigo-500 px-3 py-2.5 text-sm font-medium text-white disabled:opacity-60"
+          >
+            {loading ? '로그인 중...' : '로그인'}
+          </button>
+        </form>
       </div>
     </div>
   )

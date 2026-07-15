@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { clearAuthSession, fetchAuthMe, login } from '@/lib/api-client'
+import { clearAuthSession, login } from '@/lib/api-client'
 
 export default function AgencyLoginPage() {
   const router = useRouter()
@@ -17,17 +17,19 @@ export default function AgencyLoginPage() {
     setLoading(true)
 
     try {
-      await login(email, password)
-      const me = await fetchAuthMe()
-      const role = me.role.toLowerCase()
-
-      if (role !== 'agency') {
+      const data = await login(email, password)
+      if (data.portal !== 'AGENCY') {
         clearAuthSession()
         setError('영업점 권한이 없습니다.')
         return
       }
-
-      router.push('/agency')
+      const { setStoredPortal, homeForPortal } = await import('@/lib/portal')
+      setStoredPortal('AGENCY')
+      if (data.passwordResetRequired) {
+        router.replace('/change-password')
+        return
+      }
+      router.replace(homeForPortal('AGENCY'))
     } catch (err) {
       const status = (err as Error & { status?: number }).status
       if (status === 401) {

@@ -8,8 +8,8 @@ log.transports.file.level = 'info'
 let mainWindow: BrowserWindow | null = null
 
 const isDev = process.env.NODE_ENV === 'development'
-const DEV_URL = process.env.ELECTRON_DEV_URL || 'http://127.0.0.1:3010/dashboard'
-const PROD_URL = 'https://business.autoon.kr/dashboard'
+const DEV_URL = process.env.ELECTRON_DEV_URL || 'http://127.0.0.1:3010/login'
+const PROD_URL = 'https://business.autoon.kr/login'
 
 function createWindow() {
   mainWindow = new BrowserWindow({

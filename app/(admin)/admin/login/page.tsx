@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { clearAuthSession, fetchAuthMe, login } from '@/lib/api-client'
 import { persistAdminUser } from '@/lib/admin-auth'
-import { ADMIN_CONSOLE_ROLES } from '@/lib/admin-permissions'
 import { fetchMyAdminPermissions } from '@/lib/admin-api'
 import { ADMIN_MENU_REGISTRY } from '@/lib/admin-menu-registry'
 
@@ -21,24 +20,29 @@ export default function AdminLoginPage() {
     setLoading(true)
 
     try {
-      await login(email, password)
-      const me = await fetchAuthMe()
-      const role = me.role.toUpperCase()
-
-      if (!ADMIN_CONSOLE_ROLES.includes(role as (typeof ADMIN_CONSOLE_ROLES)[number])) {
+      const data = await login(email, password)
+      const { setStoredPortal, isCrmPortal, homeForPortal } = await import('@/lib/portal')
+      if (!isCrmPortal(data.portal) || data.portal !== 'ADMIN') {
         clearAuthSession()
         setError('관리자 권한이 없습니다.')
         return
       }
+      setStoredPortal(data.portal)
 
+      const me = await fetchAuthMe()
       persistAdminUser({
         id: String(me.id),
         email: me.email,
         name: me.name ?? undefined,
-        role: role.toLowerCase(),
+        role: (data.role || me.role).toLowerCase(),
       })
 
-      let dest = '/admin/dashboard'
+      if (data.passwordResetRequired) {
+        router.push('/admin/change-password')
+        return
+      }
+
+      let dest = homeForPortal('ADMIN')
       try {
         const perms = await fetchMyAdminPermissions()
         if (perms.passwordResetRequired) {
@@ -58,7 +62,7 @@ export default function AdminLoginPage() {
           }
         }
       } catch {
-        // fall through to dashboard; page guard will refine
+        // fall through
       }
 
       router.push(dest)

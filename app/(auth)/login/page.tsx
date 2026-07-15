@@ -6,7 +6,7 @@ import Link from 'next/link'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import { login } from '@/lib/api-client'
-import { setMockRole } from '@/lib/admin-auth'
+import { homeForPortal, isCrmPortal, setStoredPortal } from '@/lib/portal'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -21,14 +21,19 @@ export default function LoginPage() {
     setPendingMsg(null)
     setLoading(true)
     try {
-      await login(email, password)
-      if (email.includes('admin@')) {
-        setMockRole('admin')
-        router.push('/admin')
-      } else {
-        setMockRole('owner')
-        router.push('/dashboard')
+      const data = await login(email, password)
+      if (!isCrmPortal(data.portal)) {
+        setError('포털을 판별할 수 없습니다. 관리자에게 문의하세요.')
+        return
       }
+      setStoredPortal(data.portal)
+
+      if (data.passwordResetRequired) {
+        router.replace('/change-password')
+        return
+      }
+
+      router.replace(homeForPortal(data.portal))
     } catch (e) {
       const err = e as Error & { status?: number }
       const msg = err.message
@@ -52,8 +57,8 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="text-3xl mb-2">💧</div>
-          <h1 className="text-xl font-bold text-washon">AUTOON Business</h1>
-          <p className="text-sm text-gray-500 mt-1">세차장 사장님 관리자</p>
+          <h1 className="text-xl font-bold text-washon">AUTOON</h1>
+          <p className="text-sm text-gray-500 mt-1">이메일로 로그인하세요</p>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm space-y-3">
@@ -68,18 +73,25 @@ export default function LoginPage() {
             placeholder="비밀번호"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void handleEmailLogin()
+            }}
           />
           <Button className="w-full bg-[#1A6DFF]" onClick={handleEmailLogin} disabled={loading}>
-            {loading ? '로그인 중...' : '이메일로 로그인'}
+            {loading ? '로그인 중...' : '로그인'}
           </Button>
 
           {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-          {pendingMsg && <p className="text-sm text-amber-700 text-center bg-amber-50 rounded-lg p-2">{pendingMsg}</p>}
+          {pendingMsg && (
+            <p className="text-sm text-amber-700 text-center bg-amber-50 rounded-lg p-2">{pendingMsg}</p>
+          )}
         </div>
 
         <p className="text-center text-sm text-gray-500 mt-6">
           아직 회원이 아니신가요?{' '}
-          <Link href="/register" className="text-[#1A6DFF] font-medium">회원가입</Link>
+          <Link href="/register" className="text-[#1A6DFF] font-medium">
+            회원가입
+          </Link>
         </p>
       </div>
     </div>
