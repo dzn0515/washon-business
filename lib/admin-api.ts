@@ -928,6 +928,10 @@ export async function deactivateAdminStaff(id: string): Promise<AdminStaffItem> 
   return adminFetchDetail(`/admin/staff/${id}/deactivate`, { method: 'POST' })
 }
 
+export async function deleteAdminStaff(id: string): Promise<void> {
+  await adminFetchDetail(`/admin/staff/${id}`, { method: 'DELETE' })
+}
+
 export async function resetAdminStaffPassword(
   id: string,
   temporaryPassword?: string,

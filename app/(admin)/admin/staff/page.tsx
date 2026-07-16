@@ -10,6 +10,7 @@ import {
   activateAdminStaff,
   createAdminStaff,
   deactivateAdminStaff,
+  deleteAdminStaff,
   fetchAdminSalesDistributors,
   fetchAdminStaff,
   formatAdminPermissionError,
@@ -29,6 +30,7 @@ export default function AdminStaffPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [formOpen, setFormOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<AdminStaffItem | null>(null)
   const [distributors, setDistributors] = useState<AdminSalesDistributor[]>([])
   const [createdCred, setCreatedCred] = useState<{ email: string; password: string } | null>(null)
   const [form, setForm] = useState({
@@ -105,7 +107,7 @@ export default function AdminStaffPage() {
               <PermissionGate menuKey="staff" action="delete">
                 <button
                   type="button"
-                  className="text-xs text-red-600"
+                  className="text-xs text-amber-600"
                   onClick={() => {
                     void (async () => {
                       try {
@@ -140,11 +142,35 @@ export default function AdminStaffPage() {
                 </button>
               </PermissionGate>
             )}
+            <PermissionGate menuKey="staff" action="delete">
+              <button
+                type="button"
+                className="text-xs text-red-600"
+                onClick={() => setDeleteTarget(row)}
+              >
+                삭제
+              </button>
+            </PermissionGate>
           </div>
         ),
       })),
     [items, load, showToast],
   )
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setSaving(true)
+    try {
+      await deleteAdminStaff(deleteTarget.id)
+      setDeleteTarget(null)
+      showToast('직원이 삭제되었습니다.', 'success')
+      await load()
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '삭제 실패'), 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const handleCreate = async () => {
     if (!form.name.trim() || !form.email.trim()) return
@@ -356,6 +382,37 @@ export default function AdminStaffPage() {
             <p className="text-xs text-amber-600">이 화면을 닫으면 비밀번호를 다시 조회할 수 없습니다.</p>
           </div>
         ) : null}
+      </AdminModal>
+
+      <AdminModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="직원 삭제"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              className="px-3 py-1.5 border rounded-lg text-sm"
+              onClick={() => setDeleteTarget(null)}
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              disabled={saving}
+              className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm disabled:opacity-40"
+              onClick={() => void handleDelete()}
+            >
+              {saving ? '삭제 중...' : '삭제'}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm text-gray-600">
+          <strong>{deleteTarget?.name}</strong>({deleteTarget?.email}) 계정을 삭제할까요?
+          삭제 후에는 로그인할 수 없으며, 목록에서도 사라집니다. 정지와 달리 복구할 수 없습니다.
+        </p>
       </AdminModal>
     </div>
   )
