@@ -94,7 +94,11 @@ export default function JoinPage() {
 
       <section className="py-16 md:py-24 bg-white">
         <div className="max-w-6xl mx-auto px-4 md:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 text-center mb-10">입점 문의</h2>
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-3">입점 신청</h2>
+          <p className="text-center text-sm text-gray-500 mb-10 max-w-xl mx-auto">
+            신청이 접수되면 관리자 승인대기 목록에 등록됩니다. 승인 후 바로 로그인해 매장을 운영할 수
+            있습니다.
+          </p>
           <InquiryForm />
         </div>
       </section>

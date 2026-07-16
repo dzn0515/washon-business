@@ -36,6 +36,7 @@ export default function AdminPendingBusinessesPage() {
   const [list, setList] = useState<AdminPartnerListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [approveTarget, setApproveTarget] = useState<AdminPartnerListItem | null>(null)
   const [rejectTarget, setRejectTarget] = useState<AdminPartnerListItem | null>(null)
   const [rejectReason, setRejectReason] = useState('')
@@ -57,11 +58,13 @@ export default function AdminPendingBusinessesPage() {
   const load = useCallback(async () => {
     setLoading(true)
     setError(false)
+    setErrorMessage(null)
     try {
       const data = await fetchAdminPartners(TAB_API_STATUS[tab])
       setList(data)
-    } catch {
+    } catch (e) {
       setError(true)
+      setErrorMessage(formatAdminPermissionError(e, '목록을 불러오지 못했습니다.'))
       setList([])
     } finally {
       setLoading(false)
@@ -147,10 +150,15 @@ export default function AdminPendingBusinessesPage() {
 
       {error ? (
         <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
-          <p className="text-sm text-gray-500 mb-4">업체 목록을 불러오지 못했습니다.</p>
+          <p className="text-sm text-gray-500 mb-2">업체 목록을 불러오지 못했습니다.</p>
+          {errorMessage ? (
+            <p className="text-sm text-red-600 mb-4 whitespace-pre-line">{errorMessage}</p>
+          ) : (
+            <div className="mb-4" />
+          )}
           <button
             type="button"
-            onClick={refresh}
+            onClick={() => void refresh()}
             className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
           >
             다시 시도

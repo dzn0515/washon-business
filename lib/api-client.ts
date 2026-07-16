@@ -127,7 +127,7 @@ export type RegisterPayload = {
   phone: string
   business_name: string
   biz_type: string
-  business_number: string
+  business_number?: string | null
   address: string
   zipcode?: string
   road_address?: string
@@ -138,16 +138,40 @@ export type RegisterPayload = {
   business_category?: string
 }
 
+function formatRegisterErrorDetail(detail: unknown, status: number): string {
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if (Array.isArray(detail)) {
+    const parts = detail
+      .map((item) => {
+        if (item && typeof item === 'object' && 'msg' in item) {
+          return String((item as { msg?: string }).msg || '')
+        }
+        return ''
+      })
+      .filter(Boolean)
+    if (parts.length > 0) return parts.join('\n')
+  }
+  if (detail && typeof detail === 'object' && 'message' in detail) {
+    const message = String((detail as { message?: string }).message || '')
+    if (message) return message
+  }
+  return `입점 신청에 실패했습니다. (${status})`
+}
+
 export async function register(payload: RegisterPayload) {
+  const body: Record<string, unknown> = { ...payload }
+  if (body.business_number == null || body.business_number === '') {
+    delete body.business_number
+  }
+
   const res = await fetch(`${API_BASE}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   })
-  const data = await res.json()
+  const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    const detail = typeof data.detail === 'string' ? data.detail : `Register failed: ${res.status}`
-    throw new Error(detail)
+    throw new Error(formatRegisterErrorDetail((data as { detail?: unknown }).detail, res.status))
   }
   return data as {
     id: string
