@@ -297,6 +297,50 @@ export type AdminPartnerItem = {
   status: string
   slug: string
   created_at: string
+  region_code?: string | null
+  plan_tier?: string | null
+  subscription_status?: string | null
+  payment_status?: string | null
+  distributor_id?: string | null
+  distributor_name?: string | null
+  agency_id?: string | null
+  agency_name?: string | null
+  agent_id?: string | null
+  agent_name?: string | null
+  franchise_id?: string | null
+  franchise_name?: string | null
+  last_login_at?: string | null
+  recent_reservations?: number
+  deleted_at?: string | null
+}
+
+export type AdminPartnerSummary = {
+  total: number
+  pending: number
+  active: number
+  suspended: number
+  setup_incomplete: number
+  stale_login: number
+  unpaid: number
+  deleted: number
+}
+
+export type AdminPartnerAuditItem = {
+  id: string
+  action: string
+  reason: string | null
+  actor_type: string
+  actor_id: string | null
+  created_at: string
+  field_changes: Record<string, unknown> | null
+}
+
+export type AdminPartnerDetail = AdminPartnerItem & {
+  latitude: number | null
+  longitude: number | null
+  recent_audits: AdminPartnerAuditItem[]
+  partner_memo_supported: boolean
+  partner_memo: string | null
 }
 
 export type AdminPartnerListItem = AdminBusinessListItem & {
@@ -305,6 +349,13 @@ export type AdminPartnerListItem = AdminBusinessListItem & {
   address: string
   hasCoordinates: boolean
   bayCount: number
+  regionCode: string | null
+  planTier: string | null
+  distributorName: string | null
+  agencyName: string | null
+  agentName: string | null
+  franchiseName: string | null
+  deletedAt: string | null
 }
 
 function toPartnerStatusQuery(status?: string): AdminPartnerApiStatus | undefined {
@@ -327,11 +378,11 @@ function mapPartnerItem(p: AdminPartnerItem): AdminPartnerListItem {
     ownerName: p.owner_name ?? '',
     phone: p.phone ?? '',
     status: p.status.toLowerCase(),
-    plan: null,
+    plan: p.plan_tier ?? null,
     slug: p.slug,
     createdAt: p.created_at.slice(0, 10),
-    lastLogin: null,
-    recentReservations: 0,
+    lastLogin: p.last_login_at ? p.last_login_at.slice(0, 10) : null,
+    recentReservations: p.recent_reservations ?? 0,
     recentRevenue: 0,
     rating: null,
     email: p.email ?? '',
@@ -339,6 +390,13 @@ function mapPartnerItem(p: AdminPartnerItem): AdminPartnerListItem {
     address: p.address ?? '',
     hasCoordinates: Boolean(p.has_coordinates),
     bayCount: p.bay_count,
+    regionCode: p.region_code ?? null,
+    planTier: p.plan_tier ?? null,
+    distributorName: p.distributor_name ?? null,
+    agencyName: p.agency_name ?? null,
+    agentName: p.agent_name ?? null,
+    franchiseName: p.franchise_name ?? null,
+    deletedAt: p.deleted_at ?? null,
   }
 }
 
@@ -349,6 +407,8 @@ export type AdminPartnerListResponse = {
   total: number
   page: number
   pageSize: number
+  total_pages?: number
+  summary?: AdminPartnerSummary | null
 }
 
 export async function fetchAdminPartners(
@@ -393,27 +453,52 @@ export async function restoreAdminPartner(id: string): Promise<{ success: boolea
 // ?? Admin-03 ?????????????????????????????????????????????????
 
 export type AdminBusinessListResult = {
-  items: AdminBusinessListItem[]
+  items: AdminPartnerListItem[]
   total: number
   page: number
   pageSize: number
+  totalPages: number
+  summary: AdminPartnerSummary | null
 }
 
-// GET /api/v1/admin/partners ? ?????????
-export async function fetchAdminAllBusinesses(params?: {
+export type FetchAdminBusinessesParams = {
   status?: string
   search?: string
   bizType?: string
   page?: number
   pageSize?: number
-}): Promise<AdminBusinessListResult> {
+  region?: string
+  planTier?: string
+  hasCoordinates?: boolean | null
+  deleted?: 'exclude' | 'include' | 'only'
+  kpi?: string
+  sort?: string
+  createdFrom?: string
+  createdTo?: string
+  includeSummary?: boolean
+}
+
+// GET /api/v1/admin/partners — ops center list
+export async function fetchAdminAllBusinesses(
+  params?: FetchAdminBusinessesParams,
+): Promise<AdminBusinessListResult> {
   const qs = new URLSearchParams()
   const apiStatus = toPartnerStatusQuery(params?.status)
   if (apiStatus) qs.set('status', apiStatus)
   if (params?.search?.trim()) qs.set('keyword', params.search.trim())
   if (params?.bizType && params.bizType !== 'all') qs.set('bizType', params.bizType)
+  if (params?.region?.trim()) qs.set('region', params.region.trim())
+  if (params?.planTier && params.planTier !== 'all') qs.set('planTier', params.planTier)
+  if (params?.hasCoordinates === true) qs.set('hasCoordinates', 'true')
+  if (params?.hasCoordinates === false) qs.set('hasCoordinates', 'false')
+  if (params?.deleted) qs.set('deleted', params.deleted)
+  if (params?.kpi && params.kpi !== 'all') qs.set('kpi', params.kpi)
+  if (params?.sort) qs.set('sort', params.sort)
+  if (params?.createdFrom) qs.set('createdFrom', params.createdFrom)
+  if (params?.createdTo) qs.set('createdTo', params.createdTo)
+  if (params?.includeSummary) qs.set('includeSummary', 'true')
   qs.set('page', String(params?.page ?? 1))
-  qs.set('pageSize', String(params?.pageSize ?? 20))
+  qs.set('pageSize', String(params?.pageSize ?? 30))
   const data = await adminFetch<AdminPartnerListResponse>(`/admin/partners?${qs}`)
   const rows = data.items?.length ? data.items : data.partners
   return {
@@ -421,17 +506,38 @@ export async function fetchAdminAllBusinesses(params?: {
     total: data.total ?? rows.length,
     page: data.page ?? 1,
     pageSize: data.pageSize ?? rows.length,
+    totalPages: data.total_pages ?? Math.max(1, Math.ceil((data.total ?? rows.length) / (data.pageSize || 30))),
+    summary: data.summary ?? null,
   }
 }
 
-// ?? ?? API ?? ? partners ???? id ??
+export async function fetchAdminPartnerSummary(): Promise<AdminPartnerSummary> {
+  return adminFetch<AdminPartnerSummary>('/admin/partners/summary')
+}
+
+export async function fetchAdminPartnerDetail(id: string): Promise<AdminPartnerDetail> {
+  return adminFetch<AdminPartnerDetail>(`/admin/partners/${id}`)
+}
+
+// Prefer dedicated detail endpoint; keep legacy shape for [id] page
 export async function fetchAdminBusinessDetail(id: string): Promise<AdminBusinessDetail> {
-  const partners = await fetchAdminPartners()
-  const found = partners.find((p) => p.id === id)
-  if (!found) throw new Error('??? ?? ? ????.')
-  return {
-    ...found,
-    memo: '',
+  try {
+    const detail = await fetchAdminPartnerDetail(id)
+    const mapped = mapPartnerItem(detail)
+    return {
+      ...mapped,
+      email: detail.email ?? '',
+      address: detail.address ?? '',
+      memo: detail.partner_memo ?? '',
+    }
+  } catch {
+    const partners = await fetchAdminPartners()
+    const found = partners.find((p) => p.id === id)
+    if (!found) throw new Error('업체를 찾을 수 없습니다.')
+    return {
+      ...found,
+      memo: '',
+    }
   }
 }
 
