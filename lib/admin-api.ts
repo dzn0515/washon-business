@@ -93,8 +93,27 @@ async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
     },
   })
   if (!res.ok) {
-    const err = new Error(`API error: ${res.status}`) as Error & { status?: number }
+    let message = `API error: ${res.status}`
+    let body: unknown
+    try {
+      body = await res.json()
+      const detail = (body as { detail?: unknown }).detail
+      if (typeof detail === 'string') message = detail
+      else if (detail && typeof detail === 'object') {
+        const obj = detail as { message?: string; blocking_reasons?: unknown }
+        if (typeof obj.message === 'string' && obj.message) message = obj.message
+      } else if (Array.isArray(detail)) {
+        message = detail
+          .map((d: { msg?: string }) => d?.msg)
+          .filter(Boolean)
+          .join(', ')
+      }
+    } catch {
+      /* ignore */
+    }
+    const err = new Error(message) as Error & { status?: number; body?: unknown }
     err.status = res.status
+    err.body = body
     throw err
   }
   if (res.status === 204) return undefined as T
@@ -517,6 +536,63 @@ export async function fetchAdminPartnerSummary(): Promise<AdminPartnerSummary> {
 
 export async function fetchAdminPartnerDetail(id: string): Promise<AdminPartnerDetail> {
   return adminFetch<AdminPartnerDetail>(`/admin/partners/${id}`)
+}
+
+export type AdminPartnerDeletionBlockingReason = {
+  code: string
+  count: number
+  message: string
+}
+
+export type AdminPartnerDeletionImpact = {
+  partner_id: number
+  can_delete: boolean
+  blocking_reasons: AdminPartnerDeletionBlockingReason[]
+  counts: {
+    active_reservations: number
+    future_reservations: number
+    pending_payments: number
+    unsettled_payments: number
+    pending_refunds: number
+    staff_accounts: number
+    reviews: number
+    completed_reservations: number
+    sales_assignments: number
+    franchise_links: number
+  }
+  account_effects: {
+    owner_accounts_disabled: number
+    staff_accounts_disabled: number
+  }
+}
+
+/** GET /admin/partners/{id}/deletion-impact */
+export async function fetchAdminPartnerDeletionImpact(
+  id: string,
+): Promise<AdminPartnerDeletionImpact> {
+  return adminFetch<AdminPartnerDeletionImpact>(`/admin/partners/${id}/deletion-impact`)
+}
+
+/** POST /admin/partners/{id}/delete — soft-delete */
+export async function softDeleteAdminPartner(
+  id: string,
+  body: { confirm_warning: boolean; confirmation_text: string; reason: string },
+): Promise<void> {
+  await adminFetch<void>(`/admin/partners/${id}/delete`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/** POST /admin/partners/{id}/undelete — restore soft-deleted partner */
+export async function undeleteAdminPartner(
+  id: string,
+  body: { confirm_warning: boolean; reason: string },
+): Promise<{ success: boolean; message: string; partner_id: string; status: string }> {
+  return adminFetch(`/admin/partners/${id}/undelete`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
 }
 
 // Prefer dedicated detail endpoint; keep legacy shape for [id] page

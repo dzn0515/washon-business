@@ -11,9 +11,13 @@ import { useToast } from '@/components/admin/AdminToast'
 import { PermissionGate } from '@/components/admin/PermissionGate'
 import {
   fetchAdminAllBusinesses,
+  fetchAdminPartnerDeletionImpact,
   fetchAdminPartnerDetail,
   formatAdminPermissionError,
+  softDeleteAdminPartner,
+  undeleteAdminPartner,
   updateBusinessStatus,
+  type AdminPartnerDeletionImpact,
   type AdminPartnerDetail,
   type AdminPartnerListItem,
   type AdminPartnerSummary,
@@ -105,6 +109,17 @@ export default function AdminBusinessesPage() {
   const [actionLoading, setActionLoading] = useState(false)
   const [drawer, setDrawer] = useState<AdminPartnerDetail | null>(null)
   const [drawerLoading, setDrawerLoading] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<AdminPartnerListItem | null>(null)
+  const [deleteImpact, setDeleteImpact] = useState<AdminPartnerDeletionImpact | null>(null)
+  const [deleteImpactLoading, setDeleteImpactLoading] = useState(false)
+  const [deleteReason, setDeleteReason] = useState('')
+  const [deleteConfirmChecked, setDeleteConfirmChecked] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [undeleteTarget, setUndeleteTarget] = useState<AdminPartnerListItem | null>(null)
+  const [undeleteReason, setUndeleteReason] = useState('')
+  const [undeleteConfirmChecked, setUndeleteConfirmChecked] = useState(false)
+
+  const isDeletedVault = kpi === 'deleted'
 
   const syncUrl = useCallback(
     (next: Record<string, string | number | undefined>) => {
@@ -208,6 +223,68 @@ export default function AdminBusinessesPage() {
     () => (drawer ? businesses.find((b) => b.id === drawer.id) : null),
     [drawer, businesses],
   )
+
+  const openDeleteModal = async (business: AdminPartnerListItem) => {
+    setDeleteTarget(business)
+    setDeleteImpact(null)
+    setDeleteReason('')
+    setDeleteConfirmChecked(false)
+    setDeleteConfirmText('')
+    setDeleteImpactLoading(true)
+    try {
+      const impact = await fetchAdminPartnerDeletionImpact(business.id)
+      setDeleteImpact(impact)
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '삭제 영향도를 불러오지 못했습니다.'), 'error')
+      setDeleteTarget(null)
+    } finally {
+      setDeleteImpactLoading(false)
+    }
+  }
+
+  const handleSoftDelete = async () => {
+    if (!deleteTarget || !deleteImpact?.can_delete) return
+    if (!deleteConfirmChecked || deleteConfirmText.trim() !== '업체삭제' || !deleteReason.trim()) {
+      return
+    }
+    setActionLoading(true)
+    try {
+      await softDeleteAdminPartner(deleteTarget.id, {
+        confirm_warning: true,
+        confirmation_text: '업체삭제',
+        reason: deleteReason.trim(),
+      })
+      showToast('업체가 삭제되었습니다.', 'success')
+      setDeleteTarget(null)
+      setDrawer(null)
+      void load()
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '업체 삭제에 실패했습니다.'), 'error')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleUndelete = async () => {
+    if (!undeleteTarget || !undeleteConfirmChecked || !undeleteReason.trim()) return
+    setActionLoading(true)
+    try {
+      await undeleteAdminPartner(undeleteTarget.id, {
+        confirm_warning: true,
+        reason: undeleteReason.trim(),
+      })
+      showToast('삭제 업체가 복구되었습니다. 공개·구독 상태를 확인해 주세요.', 'success')
+      setUndeleteTarget(null)
+      setUndeleteReason('')
+      setUndeleteConfirmChecked(false)
+      setDrawer(null)
+      void load()
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '업체 복구에 실패했습니다.'), 'error')
+    } finally {
+      setActionLoading(false)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -381,21 +458,32 @@ export default function AdminBusinessesPage() {
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           <AdminTable
             loading={loading}
-            columns={[
-              { key: 'name', label: '업체명' },
-              { key: 'bizType', label: '업종', width: '90px' },
-              { key: 'region', label: '지역', width: '70px' },
-              { key: 'status', label: '상태', width: '90px' },
-              { key: 'plan', label: '플랜', width: '90px' },
-              { key: 'distributor', label: '총판', width: '100px' },
-              { key: 'agency', label: '영업점', width: '100px' },
-              { key: 'agent', label: '영업사원', width: '100px' },
-              { key: 'lastLogin', label: '최근 로그인', width: '100px' },
-              { key: 'recentReservations', label: '최근 예약', width: '80px' },
-              { key: 'createdAt', label: '가입일', width: '100px' },
-              { key: 'coords', label: '좌표', width: '80px' },
-              { key: 'actions', label: '작업', width: '150px' },
-            ]}
+            columns={
+              isDeletedVault
+                ? [
+                    { key: 'name', label: '업체명' },
+                    { key: 'bizType', label: '업종', width: '90px' },
+                    { key: 'region', label: '지역', width: '70px' },
+                    { key: 'status', label: '보존 상태', width: '90px' },
+                    { key: 'deletedAt', label: '삭제일', width: '110px' },
+                    { key: 'actions', label: '작업', width: '150px' },
+                  ]
+                : [
+                    { key: 'name', label: '업체명' },
+                    { key: 'bizType', label: '업종', width: '90px' },
+                    { key: 'region', label: '지역', width: '70px' },
+                    { key: 'status', label: '상태', width: '90px' },
+                    { key: 'plan', label: '플랜', width: '90px' },
+                    { key: 'distributor', label: '총판', width: '100px' },
+                    { key: 'agency', label: '영업점', width: '100px' },
+                    { key: 'agent', label: '영업사원', width: '100px' },
+                    { key: 'lastLogin', label: '최근 로그인', width: '100px' },
+                    { key: 'recentReservations', label: '최근 예약', width: '80px' },
+                    { key: 'createdAt', label: '가입일', width: '100px' },
+                    { key: 'coords', label: '좌표', width: '80px' },
+                    { key: 'actions', label: '작업', width: '150px' },
+                  ]
+            }
             data={businesses.map((b) => ({
               ...b,
               bizType: getAdminBizTypeLabel(b.bizType),
@@ -408,6 +496,7 @@ export default function AdminBusinessesPage() {
               recentReservations:
                 b.recentReservations > 0 ? b.recentReservations : '예약 없음',
               coords: b.hasCoordinates ? '등록됨' : '미등록',
+              deletedAt: b.deletedAt ? b.deletedAt.slice(0, 10) : '-',
               status: (
                 <AdminBadge
                   label={BUSINESS_STATUS_LABEL[b.status] ?? b.status}
@@ -417,38 +506,53 @@ export default function AdminBusinessesPage() {
               actions: (
                 <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
                   <ActionBtn label="상세" onClick={() => void openDrawer(b.id)} />
-                  {b.status === 'active' && (
-                    <PermissionGate menuKey="businesses" action="edit">
+                  {isDeletedVault ? (
+                    <PermissionGate menuKey="businesses" action="delete">
                       <ActionBtn
-                        label="정지"
-                        danger
-                        onClick={() =>
-                          setConfirm({
-                            business: b,
-                            title: '업체 정지',
-                            message: `${b.name} 업체를 정지하시겠습니까?`,
-                            nextStatus: 'suspended',
-                            variant: 'danger',
-                          })
-                        }
+                        label="삭제복구"
+                        onClick={() => {
+                          setUndeleteTarget(b)
+                          setUndeleteReason('')
+                          setUndeleteConfirmChecked(false)
+                        }}
                       />
                     </PermissionGate>
-                  )}
-                  {b.status === 'suspended' && (
-                    <PermissionGate menuKey="businesses" action="edit">
-                      <ActionBtn
-                        label="복구"
-                        onClick={() =>
-                          setConfirm({
-                            business: b,
-                            title: '업체 복구',
-                            message: `${b.name} 업체를 복구하시겠습니까?`,
-                            nextStatus: 'active',
-                            variant: 'primary',
-                          })
-                        }
-                      />
-                    </PermissionGate>
+                  ) : (
+                    <>
+                      {b.status === 'active' && (
+                        <PermissionGate menuKey="businesses" action="edit">
+                          <ActionBtn
+                            label="정지"
+                            danger
+                            onClick={() =>
+                              setConfirm({
+                                business: b,
+                                title: '업체 정지',
+                                message: `${b.name} 업체를 정지하시겠습니까?`,
+                                nextStatus: 'suspended',
+                                variant: 'danger',
+                              })
+                            }
+                          />
+                        </PermissionGate>
+                      )}
+                      {b.status === 'suspended' && (
+                        <PermissionGate menuKey="businesses" action="edit">
+                          <ActionBtn
+                            label="정지해제"
+                            onClick={() =>
+                              setConfirm({
+                                business: b,
+                                title: '정지 해제',
+                                message: `${b.name} 업체 정지를 해제하시겠습니까?`,
+                                nextStatus: 'active',
+                                variant: 'primary',
+                              })
+                            }
+                          />
+                        </PermissionGate>
+                      )}
+                    </>
                   )}
                 </div>
               ),
@@ -497,33 +601,92 @@ export default function AdminBusinessesPage() {
               >
                 전체 상세
               </button>
-              {selectedBusiness?.status === 'active' && (
-                <PermissionGate menuKey="businesses" action="edit">
+              {drawer.deleted_at ? (
+                <PermissionGate menuKey="businesses" action="delete">
                   <button
                     type="button"
-                    onClick={() =>
-                      setConfirm({
-                        business: selectedBusiness,
-                        title: '업체 정지',
-                        message: `${selectedBusiness.name} 업체를 정지하시겠습니까?`,
-                        nextStatus: 'suspended',
-                        variant: 'danger',
-                      })
-                    }
-                    className="px-3 py-1.5 rounded-lg text-sm text-white bg-red-600"
+                    onClick={() => {
+                      const row =
+                        selectedBusiness ||
+                        ({
+                          id: drawer.id,
+                          name: drawer.business_name,
+                          status: drawer.status.toLowerCase(),
+                        } as AdminPartnerListItem)
+                      setUndeleteTarget(row)
+                      setUndeleteReason('')
+                      setUndeleteConfirmChecked(false)
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-sm text-white bg-blue-600"
                   >
-                    정지
+                    삭제 복구
                   </button>
                 </PermissionGate>
+              ) : (
+                <>
+                  {selectedBusiness?.status === 'active' && (
+                    <PermissionGate menuKey="businesses" action="edit">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setConfirm({
+                            business: selectedBusiness,
+                            title: '업체 정지',
+                            message: `${selectedBusiness.name} 업체를 정지하시겠습니까?`,
+                            nextStatus: 'suspended',
+                            variant: 'danger',
+                          })
+                        }
+                        className="px-3 py-1.5 rounded-lg text-sm text-white bg-red-600"
+                      >
+                        정지
+                      </button>
+                    </PermissionGate>
+                  )}
+                  <PermissionGate menuKey="businesses" action="delete">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedBusiness) void openDeleteModal(selectedBusiness)
+                        else {
+                          void openDeleteModal({
+                            id: drawer.id,
+                            name: drawer.business_name,
+                            bizType: drawer.biz_type,
+                            ownerName: drawer.owner_name ?? '',
+                            phone: drawer.phone ?? '',
+                            status: drawer.status.toLowerCase(),
+                            plan: drawer.plan_tier ?? null,
+                            slug: drawer.slug,
+                            createdAt: drawer.created_at.slice(0, 10),
+                            lastLogin: null,
+                            recentReservations: drawer.recent_reservations ?? 0,
+                            recentRevenue: 0,
+                            rating: null,
+                            email: drawer.email ?? '',
+                            businessRegistrationNo: drawer.business_registration_no ?? '',
+                            address: drawer.address ?? '',
+                            hasCoordinates: Boolean(
+                              drawer.latitude != null && drawer.longitude != null,
+                            ),
+                            bayCount: drawer.bay_count,
+                            regionCode: drawer.region_code ?? null,
+                            planTier: drawer.plan_tier ?? null,
+                            distributorName: drawer.distributor_name ?? null,
+                            agencyName: drawer.agency_name ?? null,
+                            agentName: drawer.agent_name ?? null,
+                            franchiseName: drawer.franchise_name ?? null,
+                            deletedAt: drawer.deleted_at ?? null,
+                          })
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-sm border border-red-200 text-red-600 hover:bg-red-50"
+                    >
+                      업체 삭제
+                    </button>
+                  </PermissionGate>
+                </>
               )}
-              <button
-                type="button"
-                disabled
-                title="다음 단계에서 구현"
-                className="px-3 py-1.5 rounded-lg text-sm border border-gray-200 text-gray-400 cursor-not-allowed"
-              >
-                삭제(준비중)
-              </button>
             </div>
           ) : null
         }
@@ -564,6 +727,9 @@ export default function AdminBusinessesPage() {
                     : '예약 없음'
                 }
               />
+              {drawer.deleted_at ? (
+                <Info label="삭제일" value={drawer.deleted_at.slice(0, 19).replace('T', ' ')} />
+              ) : null}
             </div>
             <div>
               <p className="text-xs font-semibold text-gray-500 mb-2">운영 메모</p>
@@ -640,6 +806,181 @@ export default function AdminBusinessesPage() {
             className="mt-3 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         )}
+      </AdminModal>
+
+      <AdminModal
+        open={!!deleteTarget}
+        onClose={() => {
+          if (actionLoading) return
+          setDeleteTarget(null)
+          setDeleteImpact(null)
+        }}
+        title="업체 삭제"
+        size="lg"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => setDeleteTarget(null)}
+              className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              disabled={
+                actionLoading ||
+                deleteImpactLoading ||
+                !deleteImpact?.can_delete ||
+                !deleteConfirmChecked ||
+                deleteConfirmText.trim() !== '업체삭제' ||
+                !deleteReason.trim()
+              }
+              onClick={() => void handleSoftDelete()}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
+            >
+              {actionLoading ? '삭제 중...' : '최종 삭제'}
+            </button>
+          </div>
+        }
+      >
+        {deleteTarget ? (
+          <div className="space-y-4 text-sm text-gray-700">
+            <p className="font-medium text-gray-900">업체를 삭제하시겠습니까?</p>
+            <p>
+              삭제하면 업체와 삭제 대상 직원 계정이 로그인할 수 없으며,
+              고객앱·검색·지도·신규 예약에서 업체가 제외됩니다.
+            </p>
+            <p>기존 예약·결제·정산·리뷰 이력은 보존됩니다.</p>
+            <div className="grid grid-cols-2 gap-2 bg-gray-50 border border-gray-100 rounded-lg p-3 text-xs">
+              <span>업체명: {deleteTarget.name}</span>
+              <span>상태: {deleteTarget.status}</span>
+              {deleteImpactLoading || !deleteImpact ? (
+                <span className="col-span-2 text-gray-400">영향도 불러오는 중...</span>
+              ) : (
+                <>
+                  <span>대표 계정: {deleteImpact.account_effects.owner_accounts_disabled}</span>
+                  <span>직원 계정: {deleteImpact.counts.staff_accounts}</span>
+                  <span>진행 중 예약: {deleteImpact.counts.active_reservations}</span>
+                  <span>미래 예약: {deleteImpact.counts.future_reservations}</span>
+                  <span>처리 중 결제: {deleteImpact.counts.pending_payments}</span>
+                  <span>미정산: {deleteImpact.counts.unsettled_payments}</span>
+                  <span>처리 중 환불: {deleteImpact.counts.pending_refunds}</span>
+                  <span>과거 예약: {deleteImpact.counts.completed_reservations}</span>
+                  <span>리뷰: {deleteImpact.counts.reviews}</span>
+                </>
+              )}
+            </div>
+            {deleteImpact && !deleteImpact.can_delete ? (
+              <div className="border border-red-200 bg-red-50 rounded-lg p-3 space-y-1">
+                <p className="text-red-700 font-medium">예약 또는 정산을 먼저 처리해 주세요.</p>
+                {deleteImpact.blocking_reasons.map((r) => (
+                  <p key={r.code} className="text-red-600 text-xs">
+                    · {r.message}
+                  </p>
+                ))}
+              </div>
+            ) : null}
+            {deleteImpact?.can_delete ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">삭제 사유</label>
+                  <textarea
+                    value={deleteReason}
+                    onChange={(e) => setDeleteReason(e.target.value)}
+                    rows={2}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    placeholder="삭제 사유를 입력하세요"
+                  />
+                </div>
+                <label className="flex items-start gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={deleteConfirmChecked}
+                    onChange={(e) => setDeleteConfirmChecked(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>위 내용을 확인했으며 soft-delete에 동의합니다.</span>
+                </label>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    확인을 위해 <strong>업체삭제</strong>를 입력하세요
+                  </label>
+                  <input
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                    placeholder="업체삭제"
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </AdminModal>
+
+      <AdminModal
+        open={!!undeleteTarget}
+        onClose={() => {
+          if (actionLoading) return
+          setUndeleteTarget(null)
+        }}
+        title="삭제 업체 복구"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => setUndeleteTarget(null)}
+              className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              disabled={
+                actionLoading || !undeleteConfirmChecked || !undeleteReason.trim()
+              }
+              onClick={() => void handleUndelete()}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+            >
+              {actionLoading ? '복구 중...' : '최종 복구'}
+            </button>
+          </div>
+        }
+      >
+        {undeleteTarget ? (
+          <div className="space-y-3 text-sm text-gray-700">
+            <p>
+              <strong>{undeleteTarget.name}</strong> 업체를 복구하시겠습니까?
+            </p>
+            <p className="text-xs text-gray-500">
+              복구 후 자동으로 고객앱에 공개되거나 구독 자동갱신이 재개되지 않습니다.
+              상태·구독을 별도로 확인해 주세요.
+            </p>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">복구 사유</label>
+              <textarea
+                value={undeleteReason}
+                onChange={(e) => setUndeleteReason(e.target.value)}
+                rows={2}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                placeholder="복구 사유"
+              />
+            </div>
+            <label className="flex items-start gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={undeleteConfirmChecked}
+                onChange={(e) => setUndeleteConfirmChecked(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>복구 안내를 확인했습니다.</span>
+            </label>
+          </div>
+        ) : null}
       </AdminModal>
     </div>
   )
