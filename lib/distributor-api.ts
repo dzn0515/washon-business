@@ -23,6 +23,10 @@ export type DistributorMe = {
   agentShare?: number | string | null
   agencyShare?: number | string | null
   distributorShare?: number | string | null
+  staffRole?: string | null
+  staffRoleLabel?: string | null
+  isOwner?: boolean
+  passwordResetRequired?: boolean
 }
 
 export type DistributorRecentItem = {
@@ -379,4 +383,167 @@ export async function fetchDistributorSettlement(
   id: string,
 ): Promise<DistributorSettlementDetail> {
   return apiFetch(`/distributor/settlements/${id}`)
+}
+
+// ---------------------------------------------------------------------------
+// Distributor Portal RBAC (separate from Admin RBAC)
+// ---------------------------------------------------------------------------
+
+export type DistributorMenuPermissionRow = {
+  menuKey: string
+  canView: boolean
+  canEdit: boolean
+  canDelete: boolean
+  canApprove: boolean
+  canDownload: boolean
+}
+
+export type DistributorMyPermissions = {
+  staffRole: string
+  staffRoleLabel: string
+  isOwner: boolean
+  distributorId: string
+  passwordResetRequired: boolean
+  permissions: DistributorMenuPermissionRow[]
+}
+
+/** GET /distributor/me/permissions */
+export async function fetchDistributorMyPermissions(): Promise<DistributorMyPermissions> {
+  return apiFetch('/distributor/me/permissions')
+}
+
+/** Formats a caught API error into a user-facing message, special-casing 403 permission errors. */
+export function formatDistributorPermissionError(
+  err: unknown,
+  fallback = '요청 처리에 실패했습니다.',
+): string {
+  const status = (err as (Error & { status?: number }) | undefined)?.status
+  if (status === 403) return '이 작업을 수행할 권한이 없습니다.'
+  if (err instanceof Error && err.message) return err.message
+  return fallback
+}
+
+// ---------------------------------------------------------------------------
+// Distributor staff management (OWNER only for mutations)
+// ---------------------------------------------------------------------------
+
+/** Assignable staff roles (OWNER is granted automatically, cannot be created). */
+export const DISTRIBUTOR_STAFF_ROLES = [
+  { key: 'OPERATIONS', label: '운영' },
+  { key: 'SALES', label: '영업' },
+  { key: 'FINANCE', label: '정산' },
+  { key: 'VIEWER', label: '조회' },
+] as const
+
+export const DISTRIBUTOR_STAFF_ROLE_LABELS: Record<string, string> = {
+  OWNER: '총판 대표',
+  OPERATIONS: '운영관리자',
+  SALES: '영업',
+  FINANCE: '정산',
+  VIEWER: '조회',
+}
+
+export type DistributorRolePermissions = {
+  role: string
+  roleLabel: string
+  isFixed: boolean
+  permissions: DistributorMenuPermissionRow[]
+}
+
+/** GET /distributor/permissions/roles */
+export async function fetchDistributorRolePermissions(): Promise<DistributorRolePermissions[]> {
+  return apiFetch('/distributor/permissions/roles')
+}
+
+/** PUT /distributor/permissions/roles/{role} */
+export async function saveDistributorRolePermissions(body: {
+  role: string
+  permissions: DistributorMenuPermissionRow[]
+}): Promise<{ role: string; permissions: DistributorMenuPermissionRow[] }> {
+  return apiFetch(`/distributor/permissions/roles/${encodeURIComponent(body.role)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ permissions: body.permissions }),
+  })
+}
+
+export type DistributorStaffItem = {
+  id: string
+  userId: string
+  name: string
+  email: string | null
+  staffRole: string
+  staffRoleLabel: string
+  isOwner: boolean
+  status: string
+  isActive: boolean
+  passwordResetRequired: boolean
+  lastLoginAt: string | null
+  createdAt: string | null
+  temporaryPassword?: string
+  loginUrl?: string
+}
+
+/** GET /distributor/staff */
+export async function listDistributorStaff(params?: {
+  q?: string
+  role?: string
+  status?: string
+  page?: number
+  pageSize?: number
+}): Promise<DistributorListResponse<DistributorStaffItem>> {
+  return apiFetch(
+    `/distributor/staff${qs({
+      q: params?.q,
+      role: params?.role,
+      status: params?.status,
+      page: params?.page ?? 1,
+      pageSize: params?.pageSize ?? 20,
+    })}`,
+  )
+}
+
+/** POST /distributor/staff */
+export async function createDistributorStaff(body: {
+  name: string
+  email: string
+  staffRole: string
+  temporaryPassword?: string
+  isActive?: boolean
+}): Promise<DistributorStaffItem> {
+  return apiFetch('/distributor/staff', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/** PATCH /distributor/staff/{id} */
+export async function updateDistributorStaff(
+  id: string,
+  body: { name?: string; staffRole?: string },
+): Promise<DistributorStaffItem> {
+  return apiFetch(`/distributor/staff/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+/** POST /distributor/staff/{id}/activate */
+export async function activateDistributorStaff(id: string): Promise<DistributorStaffItem> {
+  return apiFetch(`/distributor/staff/${id}/activate`, { method: 'POST' })
+}
+
+/** POST /distributor/staff/{id}/deactivate */
+export async function deactivateDistributorStaff(id: string): Promise<DistributorStaffItem> {
+  return apiFetch(`/distributor/staff/${id}/deactivate`, { method: 'POST' })
+}
+
+/** POST /distributor/staff/{id}/reset-password */
+export async function resetDistributorStaffPassword(
+  id: string,
+  temporaryPassword?: string,
+): Promise<DistributorStaffItem> {
+  return apiFetch(`/distributor/staff/${id}/reset-password`, {
+    method: 'POST',
+    body: JSON.stringify(temporaryPassword ? { temporaryPassword } : {}),
+  })
 }

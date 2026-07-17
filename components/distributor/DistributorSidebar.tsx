@@ -3,17 +3,20 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { clearAuthSession } from '@/lib/api-client'
+import { useDistributorPermissions } from '@/hooks/useDistributorPermissions'
 
 const NAV = [
-  { href: '/distributor', label: '대시보드', exact: true },
-  { href: '/distributor/agencies', label: '영업점' },
-  { href: '/distributor/agents', label: '영업사원' },
-  { href: '/distributor/partners', label: '업체' },
-  { href: '/distributor/leads', label: '입점 신청' },
-  { href: '/distributor/performance', label: '실적' },
-  { href: '/distributor/commission', label: '수수료' },
-  { href: '/distributor/settlements', label: '정산 내역' },
-  { href: '/distributor/me', label: '내 정보' },
+  { href: '/distributor', label: '대시보드', exact: true, key: 'dashboard' },
+  { href: '/distributor/agencies', label: '영업점', key: 'agencies' },
+  { href: '/distributor/agents', label: '영업사원', key: 'agents' },
+  { href: '/distributor/partners', label: '업체', key: 'partners' },
+  { href: '/distributor/leads', label: '입점 신청', key: 'leads' },
+  { href: '/distributor/performance', label: '실적', key: 'performance' },
+  { href: '/distributor/commission', label: '수수료', key: 'commission' },
+  { href: '/distributor/settlements', label: '정산 내역', key: 'settlements' },
+  { href: '/distributor/staff', label: '직원관리', key: 'staff' },
+  { href: '/distributor/roles', label: '권한관리', key: 'roles' },
+  { href: '/distributor/me', label: '내 정보', key: 'me' },
 ]
 
 function isActive(pathname: string, href: string, exact?: boolean) {
@@ -29,6 +32,8 @@ type Props = {
 export default function DistributorSidebar({ open, onClose }: Props) {
   const pathname = usePathname()
   const router = useRouter()
+  const { loaded, canView } = useDistributorPermissions()
+  const visibleNav = loaded ? NAV.filter((item) => canView(item.key)) : NAV
 
   const handleLogout = () => {
     clearAuthSession()
@@ -56,7 +61,7 @@ export default function DistributorSidebar({ open, onClose }: Props) {
           <p className="mt-0.5 text-xs text-slate-300/80">총판 포털</p>
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
-          {NAV.map((item) => {
+          {visibleNav.map((item) => {
             const active = isActive(pathname, item.href, item.exact)
             return (
               <Link
