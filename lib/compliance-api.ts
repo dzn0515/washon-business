@@ -1,6 +1,6 @@
 import { getAccessToken, clearAuthSession, AuthRequiredError, ensureLoggedIn } from '@/lib/api-client'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.autoon.kr/api/v1'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://api.autoon.kr/api/v1'
 
 async function complianceFetch<T>(path: string, options?: RequestInit): Promise<T> {
   if (!ensureLoggedIn()) throw new AuthRequiredError()
