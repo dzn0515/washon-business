@@ -272,7 +272,14 @@ function PendingCard({
       </p>
       <p className="text-sm text-gray-500 mt-1 flex items-start gap-1">
         <MapPin size={14} className="shrink-0 mt-0.5" />
-        {b.address || '-'}
+        <span>
+          {b.address || '-'}
+          {b.address ? (
+            <span className="block text-xs text-gray-400 mt-0.5">
+              {b.hasCoordinates ? '좌표 등록됨' : '좌표 미등록'}
+            </span>
+          ) : null}
+        </span>
       </p>
       <p className="text-xs text-gray-400 mt-2">
         업종: {getAdminBizTypeLabel(b.bizType)} · {getResourceLabel(b.bizType)}: {b.bayCount}개

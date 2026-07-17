@@ -291,6 +291,7 @@ export type AdminPartnerItem = {
   phone: string | null
   business_registration_no: string | null
   address: string | null
+  has_coordinates?: boolean
   biz_type: string
   bay_count: number
   status: string
@@ -302,6 +303,7 @@ export type AdminPartnerListItem = AdminBusinessListItem & {
   email: string
   businessRegistrationNo: string
   address: string
+  hasCoordinates: boolean
   bayCount: number
 }
 
@@ -335,6 +337,7 @@ function mapPartnerItem(p: AdminPartnerItem): AdminPartnerListItem {
     email: p.email ?? '',
     businessRegistrationNo: p.business_registration_no ?? '',
     address: p.address ?? '',
+    hasCoordinates: Boolean(p.has_coordinates),
     bayCount: p.bay_count,
   }
 }
