@@ -14,6 +14,15 @@ function formatTime(iso: string) {
   })
 }
 
+function notificationHref(n: {
+  booking_id: string | null
+  link_url?: string | null
+}): string | null {
+  if (n.link_url) return n.link_url
+  if (n.booking_id) return `/bookings/${n.booking_id}`
+  return null
+}
+
 export default function NotificationBell() {
   const { notifications, unreadCount, loading, isLive, markRead, markAllRead, refetch } =
     useNotifications()
@@ -64,38 +73,46 @@ export default function NotificationBell() {
 
           {loading ? (
             <p className="text-xs text-gray-400 px-3 py-4">불러오는 중...</p>
+          ) : !isLive ? (
+            <p className="text-xs text-red-500 px-3 py-4">알림을 불러오지 못했습니다.</p>
           ) : notifications.length === 0 ? (
             <p className="text-xs text-gray-400 px-3 py-4">알림이 없습니다.</p>
           ) : (
             <ul>
-              {notifications.map((n) => (
-                <li key={n.id} className="border-b border-gray-50 last:border-0">
-                  {n.booking_id ? (
-                    <Link
-                      href={`/bookings/${n.booking_id}`}
-                      onClick={() => {
-                        void markRead(n.id)
-                        setOpen(false)
-                      }}
-                      className={`block px-3 py-2.5 hover:bg-gray-50 ${n.is_read ? 'opacity-60' : ''}`}
-                    >
-                      <p className="text-sm font-medium text-gray-900">{n.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
-                      <p className="text-[10px] text-gray-400 mt-1">{formatTime(n.created_at)}</p>
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => void markRead(n.id)}
-                      className={`block w-full text-left px-3 py-2.5 hover:bg-gray-50 ${n.is_read ? 'opacity-60' : ''}`}
-                    >
-                      <p className="text-sm font-medium text-gray-900">{n.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
-                      <p className="text-[10px] text-gray-400 mt-1">{formatTime(n.created_at)}</p>
-                    </button>
-                  )}
-                </li>
-              ))}
+              {notifications.map((n) => {
+                const href = notificationHref(n)
+                const body = (
+                  <>
+                    <p className="text-sm font-medium text-gray-900">{n.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
+                    <p className="text-[10px] text-gray-400 mt-1">{formatTime(n.created_at)}</p>
+                  </>
+                )
+                return (
+                  <li key={n.id} className="border-b border-gray-50 last:border-0">
+                    {href ? (
+                      <Link
+                        href={href}
+                        onClick={() => {
+                          void markRead(n.id)
+                          setOpen(false)
+                        }}
+                        className={`block px-3 py-2.5 hover:bg-gray-50 ${n.is_read ? 'opacity-60' : ''}`}
+                      >
+                        {body}
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void markRead(n.id)}
+                        className={`block w-full text-left px-3 py-2.5 hover:bg-gray-50 ${n.is_read ? 'opacity-60' : ''}`}
+                      >
+                        {body}
+                      </button>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>

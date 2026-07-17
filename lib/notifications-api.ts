@@ -10,6 +10,7 @@ export type ApiNotification = {
   type: string
   is_read: boolean
   created_at: string
+  link_url?: string | null
 }
 
 export type NotificationList = {
