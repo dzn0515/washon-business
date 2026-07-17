@@ -17,6 +17,7 @@ const NAV = [
   { href: '/distributor/staff', label: '직원관리', key: 'staff' },
   { href: '/distributor/roles', label: '권한관리', key: 'roles' },
   { href: '/distributor/me', label: '내 정보', key: 'me' },
+  { href: '/distributor/support', label: '고객센터', key: 'me' },
 ]
 
 function isActive(pathname: string, href: string, exact?: boolean) {

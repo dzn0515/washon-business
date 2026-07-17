@@ -110,6 +110,7 @@ export const NAV_ITEMS = [
   { href: '/dashboard/operations/bays', label: '운영관리', icon: 'Wrench' as const },
   { href: '/dashboard/admin', label: '업체 승인', icon: 'ShieldCheck' as const },
   { href: '/dashboard/compliance', label: '사업자·정산 서류', icon: 'ShieldCheck' as const },
+  { href: '/dashboard/support', label: '고객센터', icon: 'Headphones' as const },
   { href: '/dashboard/settings', label: '설정', icon: 'Settings' as const },
 ]
 

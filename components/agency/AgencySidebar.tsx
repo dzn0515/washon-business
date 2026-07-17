@@ -13,6 +13,7 @@ const NAV = [
   { href: '/agency/commission', label: '수수료' },
   { href: '/agency/settlements', label: '정산 내역' },
   { href: '/agency/me', label: '내 정보' },
+  { href: '/agency/support', label: '고객센터' },
 ]
 
 function isActive(pathname: string, href: string, exact?: boolean) {

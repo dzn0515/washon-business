@@ -1130,68 +1130,6 @@ export type AdminStaffItem = {
   loginUrl?: string
 }
 
-const MOCK_CS: AdminCSInquiry[] = [
-  {
-    id: 'cs1',
-    type: 'customer',
-    title: '?? ?? ?? ??',
-    customerName: '???',
-    status: 'pending',
-    assignee: null,
-    createdAt: '2026-06-28T10:00:00',
-    content: '?? ??? ????? ??? ?? ???? ?????.',
-    replies: [],
-  },
-  {
-    id: 'cs2',
-    type: 'business',
-    title: '?? ?? ??',
-    businessName: '???? ???',
-    status: 'in_progress',
-    assignee: '???1',
-    createdAt: '2026-06-27T15:30:00',
-    content: '6? ?? ??? ?? ??? ????.',
-    replies: [
-      { content: '?? ????.', createdAt: '2026-06-27T16:00:00', author: '???1' },
-    ],
-  },
-  {
-    id: 'cs3',
-    type: 'report',
-    title: '?? ?? ??',
-    customerName: '???',
-    status: 'completed',
-    assignee: '???2',
-    createdAt: '2026-06-26T09:00:00',
-    content: '?? ???? ?? ??? ?? ?????.',
-    replies: [
-      { content: '?? ?? ?? ??????.', createdAt: '2026-06-26T11:00:00', author: '???2' },
-    ],
-  },
-]
-
-const MOCK_NOTICES: AdminNotice[] = [
-  {
-    id: 'n1',
-    title: '??? ?? ??',
-    target: 'all',
-    channels: ['push'],
-    sendType: 'immediate',
-    status: 'sent',
-    createdAt: '2026-06-28',
-  },
-  {
-    id: 'n2',
-    title: '?? ?? ??',
-    target: 'business',
-    channels: ['email'],
-    sendType: 'scheduled',
-    scheduledAt: '2026-06-30T09:00:00',
-    status: 'scheduled',
-    createdAt: '2026-06-27',
-  },
-]
-
 function parseList<T>(data: unknown, keys = ['items', 'inquiries', 'notices', 'data']): T[] {
   if (Array.isArray(data)) return data as T[]
   if (data && typeof data === 'object') {
@@ -1203,7 +1141,6 @@ function parseList<T>(data: unknown, keys = ['items', 'inquiries', 'notices', 'd
   return []
 }
 
-// TODO: GET /api/v1/admin/cs/inquiries ? ??? ???
 export async function fetchAdminCSInquiries(params?: {
   type?: string
   status?: string
@@ -1211,78 +1148,44 @@ export async function fetchAdminCSInquiries(params?: {
   page?: number
   limit?: number
 }): Promise<AdminCSInquiry[]> {
-  try {
-    const query = new URLSearchParams()
-    if (params?.type && params.type !== 'all') query.set('type', params.type)
-    if (params?.status && params.status !== 'all') query.set('status', params.status)
-    if (params?.search) query.set('search', params.search)
-    query.set('limit', String(params?.limit ?? 20))
-    if (params?.page) query.set('page', String(params.page))
-    const data = await adminFetch<unknown>(`/admin/cs/inquiries?${query}`)
-    return parseList<AdminCSInquiry>(data, ['inquiries', 'items'])
-  } catch {
-    if (!isDev) throw new Error('CS ?? ?? ??')
-    console.warn('[Admin][Dev] fetchAdminCSInquiries ? mock')
-    let list = [...MOCK_CS]
-    if (params?.type && params.type !== 'all') list = list.filter((i) => i.type === params.type)
-    if (params?.status && params.status !== 'all') list = list.filter((i) => i.status === params.status)
-    if (params?.search) {
-      const q = params.search.trim().toLowerCase()
-      list = list.filter((i) => i.title.toLowerCase().includes(q))
-    }
-    return list
-  }
+  const query = new URLSearchParams()
+  if (params?.type && params.type !== 'all') query.set('type', params.type)
+  if (params?.status && params.status !== 'all') query.set('status', params.status)
+  if (params?.search) query.set('search', params.search)
+  query.set('limit', String(params?.limit ?? 20))
+  if (params?.page) query.set('page', String(params.page))
+  const data = await adminFetchDetail<unknown>(`/admin/cs/inquiries?${query}`)
+  return parseList<AdminCSInquiry>(data, ['inquiries', 'items'])
 }
 
-// TODO: POST /api/v1/admin/cs/inquiries/{id}/reply ? ??? ???
 export async function replyAdminCSInquiry(
   id: string,
   reply: string,
 ): Promise<{ success: boolean }> {
-  try {
-    await adminFetch(`/admin/cs/inquiries/${id}/reply`, {
-      method: 'POST',
-      body: JSON.stringify({ reply }),
-    })
-    return { success: true }
-  } catch {
-    if (!isDev) throw new Error('?? ?? ??')
-    console.warn('[Admin][Dev] replyAdminCSInquiry ? mock')
-    return { success: true }
-  }
+  await adminFetchDetail(`/admin/cs/inquiries/${id}/reply`, {
+    method: 'POST',
+    body: JSON.stringify({ reply }),
+  })
+  return { success: true }
 }
 
-// TODO: GET /api/v1/admin/notices ? ??? ???
 export async function fetchAdminNotices(params?: {
   page?: number
   limit?: number
 }): Promise<AdminNotice[]> {
-  try {
-    const query = new URLSearchParams()
-    query.set('limit', String(params?.limit ?? 20))
-    if (params?.page) query.set('page', String(params.page))
-    const data = await adminFetch<unknown>(`/admin/notices?${query}`)
-    return parseList<AdminNotice>(data, ['notices', 'items'])
-  } catch {
-    if (!isDev) throw new Error('?? ?? ?? ??')
-    console.warn('[Admin][Dev] fetchAdminNotices ? mock')
-    return MOCK_NOTICES
-  }
+  const query = new URLSearchParams()
+  query.set('limit', String(params?.limit ?? 20))
+  if (params?.page) query.set('page', String(params.page))
+  const data = await adminFetchDetail<unknown>(`/admin/notices?${query}`)
+  return parseList<AdminNotice>(data, ['notices', 'items'])
 }
 
-// TODO: POST /api/v1/admin/notices ? ??? ???
 export async function sendAdminNotice(data: NoticePayload): Promise<{ success: boolean; id?: string }> {
-  try {
-    const res = await adminFetch<{ id?: string }>('/admin/notices', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    })
-    return { success: true, id: res?.id }
-  } catch {
-    if (!isDev) throw new Error('?? ?? ??')
-    console.warn('[Admin][Dev] sendAdminNotice ? mock')
-    return { success: true, id: 'mock-notice-1' }
-  }
+  const res = await adminFetchDetail<{ id?: string }>('/admin/notices', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return { success: true, id: res?.id }
 }
 
 export async function fetchAdminRolePermissions(): Promise<AdminRolePermissions[]> {
