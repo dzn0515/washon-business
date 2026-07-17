@@ -9,18 +9,27 @@ import AdminBadge from '@/components/admin/AdminBadge'
 import AdminModal from '@/components/admin/AdminModal'
 import { useToast } from '@/components/admin/AdminToast'
 import { PermissionGate } from '@/components/admin/PermissionGate'
+import { usePermission } from '@/hooks/useAdminPermissions'
 import {
+  attachAdminPartnerTag,
+  createAdminPartnerMemo,
+  deleteAdminPartnerMemo,
+  detachAdminPartnerTag,
   fetchAdminAllBusinesses,
   fetchAdminPartnerDeletionImpact,
   fetchAdminPartnerDetail,
+  fetchAdminPartnerTags,
   formatAdminPermissionError,
   softDeleteAdminPartner,
   undeleteAdminPartner,
+  updateAdminPartnerMemo,
   updateBusinessStatus,
   type AdminPartnerDeletionImpact,
   type AdminPartnerDetail,
   type AdminPartnerListItem,
+  type AdminPartnerMemoItem,
   type AdminPartnerSummary,
+  type AdminPartnerTagItem,
 } from '@/lib/admin-api'
 import {
   ADMIN_BIZ_TYPE_FILTERS,
@@ -82,10 +91,32 @@ function readParam(params: URLSearchParams, key: string, fallback = '') {
   return params.get(key) ?? fallback
 }
 
+function readTagIds(params: URLSearchParams): string[] {
+  const multi = params.getAll('tags')
+  if (multi.length) {
+    return multi
+      .flatMap((v) => v.split(','))
+      .map((v) => v.trim())
+      .filter(Boolean)
+  }
+  const raw = params.get('tags')
+  if (!raw) return []
+  return raw
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean)
+}
+
+function formatMemoTime(value: string | null | undefined) {
+  if (!value) return '-'
+  return value.slice(0, 19).replace('T', ' ')
+}
+
 export default function AdminBusinessesPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { showToast, ToastComponent } = useToast()
+  const { can: canBusiness } = usePermission('businesses')
 
   const [kpi, setKpi] = useState<KpiKey>((readParam(searchParams, 'kpi', 'all') as KpiKey) || 'all')
   const [bizType, setBizType] = useState<AdminBizTypeFilterKey>(
@@ -98,6 +129,8 @@ export default function AdminBusinessesPage() {
   const [searchInput, setSearchInput] = useState(readParam(searchParams, 'q'))
   const [page, setPage] = useState(Number(readParam(searchParams, 'page', '1')) || 1)
   const [pageSize, setPageSize] = useState(Number(readParam(searchParams, 'page_size', '30')) || 30)
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(() => readTagIds(searchParams))
+  const [tagCatalog, setTagCatalog] = useState<AdminPartnerTagItem[]>([])
   const [businesses, setBusinesses] = useState<AdminPartnerListItem[]>([])
   const [summary, setSummary] = useState<AdminPartnerSummary | null>(null)
   const [total, setTotal] = useState(0)
@@ -109,6 +142,11 @@ export default function AdminBusinessesPage() {
   const [actionLoading, setActionLoading] = useState(false)
   const [drawer, setDrawer] = useState<AdminPartnerDetail | null>(null)
   const [drawerLoading, setDrawerLoading] = useState(false)
+  const [memoDraft, setMemoDraft] = useState('')
+  const [memoPinned, setMemoPinned] = useState(false)
+  const [editingMemoId, setEditingMemoId] = useState<string | null>(null)
+  const [memoSaving, setMemoSaving] = useState(false)
+  const [tagSaving, setTagSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<AdminPartnerListItem | null>(null)
   const [deleteImpact, setDeleteImpact] = useState<AdminPartnerDeletionImpact | null>(null)
   const [deleteImpactLoading, setDeleteImpactLoading] = useState(false)
@@ -120,6 +158,7 @@ export default function AdminBusinessesPage() {
   const [undeleteConfirmChecked, setUndeleteConfirmChecked] = useState(false)
 
   const isDeletedVault = kpi === 'deleted'
+  const canEditOps = canBusiness('edit')
 
   const syncUrl = useCallback(
     (next: Record<string, string | number | undefined>) => {
@@ -147,8 +186,15 @@ export default function AdminBusinessesPage() {
       q: search,
       page,
       page_size: pageSize,
+      tags: selectedTagIds.length ? selectedTagIds.join(',') : undefined,
     })
-  }, [kpi, bizType, planTier, coords, sort, search, page, pageSize, syncUrl])
+  }, [kpi, bizType, planTier, coords, sort, search, page, pageSize, selectedTagIds, syncUrl])
+
+  useEffect(() => {
+    void fetchAdminPartnerTags()
+      .then(setTagCatalog)
+      .catch(() => setTagCatalog([]))
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -165,6 +211,7 @@ export default function AdminBusinessesPage() {
         deleted: kpi === 'deleted' ? 'only' : 'exclude',
         hasCoordinates: coords === 'yes' ? true : coords === 'no' ? false : null,
         includeSummary: true,
+        tagIds: selectedTagIds,
       })
       setBusinesses(data.items)
       setTotal(data.total)
@@ -178,7 +225,7 @@ export default function AdminBusinessesPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, bizType, planTier, page, pageSize, sort, kpi, coords])
+  }, [search, bizType, planTier, page, pageSize, sort, kpi, coords, selectedTagIds])
 
   useEffect(() => {
     void load()
@@ -186,6 +233,9 @@ export default function AdminBusinessesPage() {
 
   const openDrawer = async (id: string) => {
     setDrawerLoading(true)
+    setMemoDraft('')
+    setMemoPinned(false)
+    setEditingMemoId(null)
     try {
       const detail = await fetchAdminPartnerDetail(id)
       setDrawer(detail)
@@ -194,6 +244,115 @@ export default function AdminBusinessesPage() {
     } finally {
       setDrawerLoading(false)
     }
+  }
+
+  const refreshDrawer = async (id: string) => {
+    const detail = await fetchAdminPartnerDetail(id)
+    setDrawer(detail)
+  }
+
+  const handleSaveMemo = async () => {
+    if (!drawer || !memoDraft.trim()) return
+    setMemoSaving(true)
+    try {
+      if (editingMemoId) {
+        await updateAdminPartnerMemo(drawer.id, editingMemoId, {
+          content: memoDraft.trim(),
+          is_pinned: memoPinned,
+        })
+        showToast('메모를 수정했습니다.', 'success')
+      } else {
+        await createAdminPartnerMemo(drawer.id, {
+          content: memoDraft.trim(),
+          is_pinned: memoPinned,
+        })
+        showToast('메모를 등록했습니다.', 'success')
+      }
+      setMemoDraft('')
+      setMemoPinned(false)
+      setEditingMemoId(null)
+      await refreshDrawer(drawer.id)
+      void load()
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '메모 저장에 실패했습니다.'), 'error')
+    } finally {
+      setMemoSaving(false)
+    }
+  }
+
+  const handleEditMemo = (memo: AdminPartnerMemoItem) => {
+    setEditingMemoId(memo.id)
+    setMemoDraft(memo.content)
+    setMemoPinned(memo.is_pinned)
+  }
+
+  const handleDeleteMemo = async (memoId: string) => {
+    if (!drawer) return
+    if (!window.confirm('이 메모를 삭제할까요?')) return
+    setMemoSaving(true)
+    try {
+      await deleteAdminPartnerMemo(drawer.id, memoId)
+      showToast('메모를 삭제했습니다.', 'success')
+      if (editingMemoId === memoId) {
+        setEditingMemoId(null)
+        setMemoDraft('')
+        setMemoPinned(false)
+      }
+      await refreshDrawer(drawer.id)
+      void load()
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '메모 삭제에 실패했습니다.'), 'error')
+    } finally {
+      setMemoSaving(false)
+    }
+  }
+
+  const handleTogglePin = async (memo: AdminPartnerMemoItem) => {
+    if (!drawer) return
+    setMemoSaving(true)
+    try {
+      await updateAdminPartnerMemo(drawer.id, memo.id, { is_pinned: !memo.is_pinned })
+      await refreshDrawer(drawer.id)
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '핀 변경에 실패했습니다.'), 'error')
+    } finally {
+      setMemoSaving(false)
+    }
+  }
+
+  const handleAttachTag = async (tagId: string) => {
+    if (!drawer) return
+    setTagSaving(true)
+    try {
+      const tags = await attachAdminPartnerTag(drawer.id, tagId)
+      setDrawer({ ...drawer, tags })
+      void load()
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '태그 추가에 실패했습니다.'), 'error')
+    } finally {
+      setTagSaving(false)
+    }
+  }
+
+  const handleDetachTag = async (tagId: string) => {
+    if (!drawer) return
+    setTagSaving(true)
+    try {
+      const tags = await detachAdminPartnerTag(drawer.id, tagId)
+      setDrawer({ ...drawer, tags })
+      void load()
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '태그 제거에 실패했습니다.'), 'error')
+    } finally {
+      setTagSaving(false)
+    }
+  }
+
+  const toggleTagFilter = (tagId: string) => {
+    setSelectedTagIds((prev) =>
+      prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
+    )
+    setPage(1)
   }
 
   const handleStatusAction = async () => {
@@ -430,6 +589,7 @@ export default function AdminBusinessesPage() {
               setSort('created_at:desc')
               setSearch('')
               setSearchInput('')
+              setSelectedTagIds([])
               setPage(1)
               setPageSize(30)
             }}
@@ -438,6 +598,33 @@ export default function AdminBusinessesPage() {
             초기화
           </button>
         </div>
+        {tagCatalog.length ? (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            <span className="text-xs text-gray-500 self-center mr-1">
+              운영 태그 (다중 선택 · OR)
+            </span>
+            {tagCatalog.map((tag) => {
+              const active = selectedTagIds.includes(tag.id)
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => toggleTagFilter(tag.id)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition ${
+                    active ? 'text-white border-transparent' : 'bg-white text-gray-700 border-gray-200'
+                  }`}
+                  style={
+                    active
+                      ? { backgroundColor: tag.color, borderColor: tag.color }
+                      : { color: tag.color, borderColor: `${tag.color}55` }
+                  }
+                >
+                  {tag.name}
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
         <p className="text-xs text-gray-500">
           총 {total.toLocaleString()}건 · 서버 페이지네이션 · URL 필터 동기화
         </p>
@@ -473,6 +660,8 @@ export default function AdminBusinessesPage() {
                     { key: 'bizType', label: '업종', width: '90px' },
                     { key: 'region', label: '지역', width: '70px' },
                     { key: 'status', label: '상태', width: '90px' },
+                    { key: 'tags', label: '태그', width: '140px' },
+                    { key: 'latestMemo', label: '최근 메모', width: '160px' },
                     { key: 'plan', label: '플랜', width: '90px' },
                     { key: 'distributor', label: '총판', width: '100px' },
                     { key: 'agency', label: '영업점', width: '100px' },
@@ -497,6 +686,32 @@ export default function AdminBusinessesPage() {
                 b.recentReservations > 0 ? b.recentReservations : '예약 없음',
               coords: b.hasCoordinates ? '등록됨' : '미등록',
               deletedAt: b.deletedAt ? b.deletedAt.slice(0, 10) : '-',
+              tags: b.tags?.length ? (
+                <div className="flex flex-wrap gap-1">
+                  {b.tags.slice(0, 3).map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="inline-block text-[10px] px-1.5 py-0.5 rounded text-white"
+                      style={{ backgroundColor: tag.color }}
+                    >
+                      {tag.name}
+                    </span>
+                  ))}
+                  {b.tags.length > 3 ? (
+                    <span className="text-[10px] text-gray-400">+{b.tags.length - 3}</span>
+                  ) : null}
+                </div>
+              ) : (
+                <span className="text-xs text-gray-300">-</span>
+              ),
+              latestMemo: b.latestMemo?.content ? (
+                <span className="text-xs text-gray-600 line-clamp-2" title={b.latestMemo.content}>
+                  {b.latestMemo.is_pinned ? '[핀] ' : ''}
+                  {b.latestMemo.content}
+                </span>
+              ) : (
+                <span className="text-xs text-gray-300">-</span>
+              ),
               status: (
                 <AdminBadge
                   label={BUSINESS_STATUS_LABEL[b.status] ?? b.status}
@@ -677,6 +892,8 @@ export default function AdminBusinessesPage() {
                             agentName: drawer.agent_name ?? null,
                             franchiseName: drawer.franchise_name ?? null,
                             deletedAt: drawer.deleted_at ?? null,
+                            tags: drawer.tags ?? [],
+                            latestMemo: drawer.latest_memo ?? null,
                           })
                         }
                       }}
@@ -732,10 +949,157 @@ export default function AdminBusinessesPage() {
               ) : null}
             </div>
             <div>
+              <p className="text-xs font-semibold text-gray-500 mb-2">운영 태그</p>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {(drawer.tags ?? []).length ? (
+                  (drawer.tags ?? []).map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full text-white"
+                      style={{ backgroundColor: tag.color }}
+                    >
+                      {tag.name}
+                      {canEditOps ? (
+                        <button
+                          type="button"
+                          disabled={tagSaving}
+                          onClick={() => void handleDetachTag(tag.id)}
+                          className="opacity-80 hover:opacity-100"
+                          aria-label={`${tag.name} 제거`}
+                        >
+                          ×
+                        </button>
+                      ) : null}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-gray-400">연결된 태그가 없습니다.</span>
+                )}
+              </div>
+              <PermissionGate menuKey="businesses" action="edit">
+                <select
+                  disabled={tagSaving}
+                  defaultValue=""
+                  onChange={(e) => {
+                    const tagId = e.target.value
+                    e.target.value = ''
+                    if (tagId) void handleAttachTag(tagId)
+                  }}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5"
+                >
+                  <option value="">태그 추가…</option>
+                  {tagCatalog
+                    .filter((tag) => !(drawer.tags ?? []).some((t) => t.id === tag.id))
+                    .map((tag) => (
+                      <option key={tag.id} value={tag.id}>
+                        {tag.name}
+                      </option>
+                    ))}
+                </select>
+              </PermissionGate>
+            </div>
+            <div>
               <p className="text-xs font-semibold text-gray-500 mb-2">운영 메모</p>
-              <p className="text-xs text-gray-400 bg-gray-50 border border-dashed border-gray-200 rounded-lg px-3 py-3">
-                파트너 전용 메모 테이블/컬럼이 없어 이번 단계에서는 기반만 준비했습니다. (migration 보류)
-              </p>
+              <PermissionGate menuKey="businesses" action="edit">
+                <div className="space-y-2 mb-3">
+                  <textarea
+                    value={memoDraft}
+                    onChange={(e) => setMemoDraft(e.target.value)}
+                    rows={3}
+                    placeholder={editingMemoId ? '메모 수정…' : '내부 운영 메모 작성…'}
+                    className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2"
+                  />
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="inline-flex items-center gap-1.5 text-xs text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={memoPinned}
+                        onChange={(e) => setMemoPinned(e.target.checked)}
+                      />
+                      핀 고정
+                    </label>
+                    <div className="flex gap-2">
+                      {editingMemoId ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingMemoId(null)
+                            setMemoDraft('')
+                            setMemoPinned(false)
+                          }}
+                          className="text-xs px-2.5 py-1 border border-gray-200 rounded-lg"
+                        >
+                          취소
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        disabled={memoSaving || !memoDraft.trim()}
+                        onClick={() => void handleSaveMemo()}
+                        className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white disabled:opacity-50"
+                      >
+                        {memoSaving ? '저장 중…' : editingMemoId ? '메모 수정' : '메모 작성'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </PermissionGate>
+              {(drawer.recent_memos ?? drawer.memos ?? []).length ? (
+                <ul className="space-y-2">
+                  {(drawer.recent_memos ?? drawer.memos ?? []).slice(0, 5).map((memo) => (
+                    <li
+                      key={memo.id}
+                      className={`border rounded-lg px-3 py-2 ${
+                        memo.is_pinned ? 'border-amber-200 bg-amber-50/50' : 'border-gray-100'
+                      }`}
+                    >
+                      <div className="flex justify-between gap-2 mb-1">
+                        <span className="text-xs text-gray-500">
+                          {memo.is_pinned ? '[핀] ' : ''}
+                          {memo.author_name || `관리자#${memo.author_admin_id}`}
+                        </span>
+                        <span className="text-xs text-gray-400">{formatMemoTime(memo.created_at)}</span>
+                      </div>
+                      <p className="text-sm text-gray-800 whitespace-pre-wrap">{memo.content}</p>
+                      {memo.updated_at ? (
+                        <p className="text-[11px] text-gray-400 mt-1">
+                          수정 {formatMemoTime(memo.updated_at)}
+                        </p>
+                      ) : null}
+                      <PermissionGate menuKey="businesses" action="edit">
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            type="button"
+                            disabled={memoSaving}
+                            onClick={() => handleEditMemo(memo)}
+                            className="text-[11px] text-blue-600"
+                          >
+                            수정
+                          </button>
+                          <button
+                            type="button"
+                            disabled={memoSaving}
+                            onClick={() => void handleTogglePin(memo)}
+                            className="text-[11px] text-amber-700"
+                          >
+                            {memo.is_pinned ? '핀 해제' : '핀 고정'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={memoSaving}
+                            onClick={() => void handleDeleteMemo(memo.id)}
+                            className="text-[11px] text-red-600"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </PermissionGate>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-gray-400">등록된 운영 메모가 없습니다.</p>
+              )}
             </div>
             <div>
               <p className="text-xs font-semibold text-gray-500 mb-2">최근 변경 (감사로그)</p>

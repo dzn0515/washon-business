@@ -302,6 +302,25 @@ export async function fetchAdminDashboard(): Promise<AdminDashboardResponse> {
 
 export type AdminPartnerApiStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED' | 'INACTIVE'
 
+export type AdminPartnerTagItem = {
+  id: string
+  name: string
+  color: string
+  sort_order: number
+  is_active: boolean
+}
+
+export type AdminPartnerMemoItem = {
+  id: string
+  partner_id: string
+  author_admin_id: string
+  author_name: string | null
+  content: string
+  is_pinned: boolean
+  created_at: string
+  updated_at: string | null
+}
+
 export type AdminPartnerItem = {
   id: string
   business_name: string
@@ -331,6 +350,8 @@ export type AdminPartnerItem = {
   last_login_at?: string | null
   recent_reservations?: number
   deleted_at?: string | null
+  tags?: AdminPartnerTagItem[]
+  latest_memo?: AdminPartnerMemoItem | null
 }
 
 export type AdminPartnerSummary = {
@@ -360,6 +381,8 @@ export type AdminPartnerDetail = AdminPartnerItem & {
   recent_audits: AdminPartnerAuditItem[]
   partner_memo_supported: boolean
   partner_memo: string | null
+  recent_memos?: AdminPartnerMemoItem[]
+  memos?: AdminPartnerMemoItem[]
 }
 
 export type AdminPartnerListItem = AdminBusinessListItem & {
@@ -375,6 +398,8 @@ export type AdminPartnerListItem = AdminBusinessListItem & {
   agentName: string | null
   franchiseName: string | null
   deletedAt: string | null
+  tags: AdminPartnerTagItem[]
+  latestMemo: AdminPartnerMemoItem | null
 }
 
 function toPartnerStatusQuery(status?: string): AdminPartnerApiStatus | undefined {
@@ -416,6 +441,8 @@ function mapPartnerItem(p: AdminPartnerItem): AdminPartnerListItem {
     agentName: p.agent_name ?? null,
     franchiseName: p.franchise_name ?? null,
     deletedAt: p.deleted_at ?? null,
+    tags: p.tags ?? [],
+    latestMemo: p.latest_memo ?? null,
   }
 }
 
@@ -495,6 +522,7 @@ export type FetchAdminBusinessesParams = {
   createdFrom?: string
   createdTo?: string
   includeSummary?: boolean
+  tagIds?: string[]
 }
 
 // GET /api/v1/admin/partners — ops center list
@@ -516,6 +544,9 @@ export async function fetchAdminAllBusinesses(
   if (params?.createdFrom) qs.set('createdFrom', params.createdFrom)
   if (params?.createdTo) qs.set('createdTo', params.createdTo)
   if (params?.includeSummary) qs.set('includeSummary', 'true')
+  for (const tagId of params?.tagIds ?? []) {
+    if (tagId) qs.append('tagIds', tagId)
+  }
   qs.set('page', String(params?.page ?? 1))
   qs.set('pageSize', String(params?.pageSize ?? 30))
   const data = await adminFetch<AdminPartnerListResponse>(`/admin/partners?${qs}`)
@@ -528,6 +559,56 @@ export async function fetchAdminAllBusinesses(
     totalPages: data.total_pages ?? Math.max(1, Math.ceil((data.total ?? rows.length) / (data.pageSize || 30))),
     summary: data.summary ?? null,
   }
+}
+
+export async function fetchAdminPartnerTags(
+  includeInactive = false,
+): Promise<AdminPartnerTagItem[]> {
+  const qs = includeInactive ? '?includeInactive=true' : ''
+  return adminFetch<AdminPartnerTagItem[]>(`/admin/partner-tags${qs}`)
+}
+
+export async function createAdminPartnerMemo(
+  partnerId: string,
+  body: { content: string; is_pinned?: boolean },
+): Promise<AdminPartnerMemoItem> {
+  return adminFetch<AdminPartnerMemoItem>(`/admin/partners/${partnerId}/memos`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateAdminPartnerMemo(
+  partnerId: string,
+  memoId: string,
+  body: { content?: string; is_pinned?: boolean },
+): Promise<AdminPartnerMemoItem> {
+  return adminFetch<AdminPartnerMemoItem>(`/admin/partners/${partnerId}/memos/${memoId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deleteAdminPartnerMemo(partnerId: string, memoId: string): Promise<void> {
+  await adminFetch(`/admin/partners/${partnerId}/memos/${memoId}`, { method: 'DELETE' })
+}
+
+export async function attachAdminPartnerTag(
+  partnerId: string,
+  tagId: string,
+): Promise<AdminPartnerTagItem[]> {
+  return adminFetch<AdminPartnerTagItem[]>(`/admin/partners/${partnerId}/tags/${tagId}`, {
+    method: 'POST',
+  })
+}
+
+export async function detachAdminPartnerTag(
+  partnerId: string,
+  tagId: string,
+): Promise<AdminPartnerTagItem[]> {
+  return adminFetch<AdminPartnerTagItem[]>(`/admin/partners/${partnerId}/tags/${tagId}`, {
+    method: 'DELETE',
+  })
 }
 
 export async function fetchAdminPartnerSummary(): Promise<AdminPartnerSummary> {
