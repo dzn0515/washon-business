@@ -611,6 +611,197 @@ export async function detachAdminPartnerTag(
   })
 }
 
+/** Ops-center saved list filters (personal) */
+export type AdminSavedPartnerFilter = {
+  id: string
+  name: string
+  filters: Record<string, unknown>
+  is_default: boolean
+  sort_order: number
+  created_at: string
+  updated_at?: string | null
+}
+
+export type PartnerSelectionPayload = {
+  mode: 'IDS' | 'FILTER'
+  partner_ids?: number[]
+  filters?: Record<string, unknown>
+  excluded_partner_ids?: number[]
+}
+
+export type AdminPartnerBulkPreview = {
+  matched: number
+  deleted_count: number
+  active_count: number
+  assignable_count: number
+  skipped_deleted: number
+  tag_ids: number[]
+  agent_id: number | null
+  agent_name: string | null
+  notes: string[]
+}
+
+export type AdminPartnerBulkResult = {
+  requested: number
+  matched: number
+  updated: number
+  skipped: number
+  failed: number
+  action: string
+  notes: string[]
+}
+
+export async function fetchAdminPartnerSavedFilters(): Promise<AdminSavedPartnerFilter[]> {
+  return adminFetch<AdminSavedPartnerFilter[]>('/admin/partner-saved-filters')
+}
+
+export async function createAdminPartnerSavedFilter(body: {
+  name: string
+  filters: Record<string, unknown>
+  is_default?: boolean
+}): Promise<AdminSavedPartnerFilter> {
+  return adminFetch<AdminSavedPartnerFilter>('/admin/partner-saved-filters', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateAdminPartnerSavedFilter(
+  id: string,
+  body: {
+    name?: string
+    filters?: Record<string, unknown>
+    is_default?: boolean
+    sort_order?: number
+  },
+): Promise<AdminSavedPartnerFilter> {
+  return adminFetch<AdminSavedPartnerFilter>(`/admin/partner-saved-filters/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function deleteAdminPartnerSavedFilter(id: string): Promise<void> {
+  await adminFetch(`/admin/partner-saved-filters/${id}`, { method: 'DELETE' })
+}
+
+export async function setDefaultAdminPartnerSavedFilter(
+  id: string,
+): Promise<AdminSavedPartnerFilter> {
+  return adminFetch<AdminSavedPartnerFilter>(`/admin/partner-saved-filters/${id}/default`, {
+    method: 'POST',
+  })
+}
+
+function buildPartnerExportQs(params: {
+  filters?: Record<string, unknown>
+  partnerIds?: number[]
+}): string {
+  const qs = new URLSearchParams()
+  const f = params.filters ?? {}
+  const set = (key: string, value: unknown) => {
+    if (value === undefined || value === null || value === '' || value === 'all') return
+    if (typeof value === 'boolean') {
+      qs.set(key, value ? 'true' : 'false')
+      return
+    }
+    qs.set(key, String(value))
+  }
+  set('status', f.status)
+  set('bizType', f.bizType)
+  set('keyword', f.keyword)
+  set('region', f.region)
+  set('planTier', f.planTier)
+  set('hasCoordinates', f.hasCoordinates)
+  set('deleted', f.deleted)
+  set('distributorId', f.distributorId)
+  set('agencyId', f.agencyId)
+  set('agentId', f.agentId)
+  set('franchiseId', f.franchiseId)
+  set('createdFrom', f.createdFrom)
+  set('createdTo', f.createdTo)
+  set('lastLoginFrom', f.lastLoginFrom)
+  set('lastLoginTo', f.lastLoginTo)
+  set('kpi', f.kpi)
+  const tagIds = f.tagIds
+  if (Array.isArray(tagIds)) {
+    for (const id of tagIds) qs.append('tagIds', String(id))
+  }
+  for (const id of params.partnerIds ?? []) {
+    qs.append('partnerIds', String(id))
+  }
+  return qs.toString()
+}
+
+/** GET /admin/partners/export.csv — FILTER mode or IDS via partnerIds */
+export async function exportAdminPartnersCsv(params: {
+  filters?: Record<string, unknown>
+  partnerIds?: number[]
+}): Promise<void> {
+  const qs = buildPartnerExportQs(params)
+  const res = await fetch(`${API_BASE}/admin/partners/export.csv?${qs}`, {
+    headers: { Authorization: `Bearer ${getAdminToken()}` },
+  })
+  if (!res.ok) {
+    let detail = `API error: ${res.status}`
+    try {
+      const body = await res.json()
+      if (typeof body.detail === 'string') detail = body.detail
+    } catch {
+      /* ignore */
+    }
+    throw new Error(detail)
+  }
+  const blob = await res.blob()
+  const disposition = res.headers.get('Content-Disposition') ?? ''
+  const match = disposition.match(/filename="?([^";]+)"?/i)
+  const filename = match?.[1]?.trim() || 'partners_export.csv'
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+export async function previewAdminPartnersBulk(body: {
+  selection: PartnerSelectionPayload
+  action: 'TAGS_ADD' | 'TAGS_REMOVE' | 'ASSIGN' | 'UNASSIGN'
+  tag_ids?: number[]
+  agent_id?: number | null
+}): Promise<AdminPartnerBulkPreview> {
+  return adminFetch<AdminPartnerBulkPreview>('/admin/partners/bulk/preview', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function bulkAdminPartnerTags(body: {
+  selection: PartnerSelectionPayload
+  action: 'ADD' | 'REMOVE'
+  tag_ids: number[]
+  reason?: string
+}): Promise<AdminPartnerBulkResult> {
+  return adminFetch<AdminPartnerBulkResult>('/admin/partners/bulk/tags', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function bulkAdminPartnerAssignment(body: {
+  selection: PartnerSelectionPayload
+  action: 'ASSIGN' | 'UNASSIGN'
+  agent_id?: number | null
+  reason?: string
+}): Promise<AdminPartnerBulkResult> {
+  return adminFetch<AdminPartnerBulkResult>('/admin/partners/bulk/assignment', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
 export async function fetchAdminPartnerSummary(): Promise<AdminPartnerSummary> {
   return adminFetch<AdminPartnerSummary>('/admin/partners/summary')
 }

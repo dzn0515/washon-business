@@ -12,24 +12,37 @@ import { PermissionGate } from '@/components/admin/PermissionGate'
 import { usePermission } from '@/hooks/useAdminPermissions'
 import {
   attachAdminPartnerTag,
+  bulkAdminPartnerAssignment,
+  bulkAdminPartnerTags,
   createAdminPartnerMemo,
+  createAdminPartnerSavedFilter,
   deleteAdminPartnerMemo,
+  deleteAdminPartnerSavedFilter,
   detachAdminPartnerTag,
+  exportAdminPartnersCsv,
   fetchAdminAllBusinesses,
   fetchAdminPartnerDeletionImpact,
   fetchAdminPartnerDetail,
+  fetchAdminPartnerSavedFilters,
   fetchAdminPartnerTags,
+  fetchAdminSalesAgents,
   formatAdminPermissionError,
+  previewAdminPartnersBulk,
+  setDefaultAdminPartnerSavedFilter,
   softDeleteAdminPartner,
   undeleteAdminPartner,
   updateAdminPartnerMemo,
   updateBusinessStatus,
+  type AdminPartnerBulkPreview,
   type AdminPartnerDeletionImpact,
   type AdminPartnerDetail,
   type AdminPartnerListItem,
   type AdminPartnerMemoItem,
   type AdminPartnerSummary,
   type AdminPartnerTagItem,
+  type AdminSavedPartnerFilter,
+  type AdminSalesAgent,
+  type PartnerSelectionPayload,
 } from '@/lib/admin-api'
 import {
   ADMIN_BIZ_TYPE_FILTERS,
@@ -117,6 +130,7 @@ export default function AdminBusinessesPage() {
   const searchParams = useSearchParams()
   const { showToast, ToastComponent } = useToast()
   const { can: canBusiness } = usePermission('businesses')
+  const { can: canAssignment } = usePermission('sales_assignments')
 
   const [kpi, setKpi] = useState<KpiKey>((readParam(searchParams, 'kpi', 'all') as KpiKey) || 'all')
   const [bizType, setBizType] = useState<AdminBizTypeFilterKey>(
@@ -157,8 +171,78 @@ export default function AdminBusinessesPage() {
   const [undeleteReason, setUndeleteReason] = useState('')
   const [undeleteConfirmChecked, setUndeleteConfirmChecked] = useState(false)
 
+  const [savedFilters, setSavedFilters] = useState<AdminSavedPartnerFilter[]>([])
+  const [saveFilterName, setSaveFilterName] = useState('')
+  const [saveFilterOpen, setSaveFilterOpen] = useState(false)
+  const [savedFilterBusy, setSavedFilterBusy] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [filterSelectAll, setFilterSelectAll] = useState(false)
+  const [bulkMode, setBulkMode] = useState<'tags' | 'assignment' | null>(null)
+  const [bulkTagAction, setBulkTagAction] = useState<'ADD' | 'REMOVE'>('ADD')
+  const [bulkTagIds, setBulkTagIds] = useState<string[]>([])
+  const [bulkAgentId, setBulkAgentId] = useState('')
+  const [bulkAssignAction, setBulkAssignAction] = useState<'ASSIGN' | 'UNASSIGN'>('ASSIGN')
+  const [bulkReason, setBulkReason] = useState('')
+  const [bulkPreview, setBulkPreview] = useState<AdminPartnerBulkPreview | null>(null)
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkResultText, setBulkResultText] = useState('')
+  const [agents, setAgents] = useState<AdminSalesAgent[]>([])
+  const [csvBusy, setCsvBusy] = useState(false)
+
   const isDeletedVault = kpi === 'deleted'
   const canEditOps = canBusiness('edit')
+  const canDownload = canBusiness('download')
+  const canEditAssignment = canAssignment('edit')
+
+  const currentFilters = useMemo((): Record<string, unknown> => {
+    const filters: Record<string, unknown> = {
+      keyword: search || undefined,
+      bizType: bizType !== 'all' ? bizType : undefined,
+      planTier: planTier !== 'all' ? planTier : undefined,
+      hasCoordinates: coords === 'yes' ? true : coords === 'no' ? false : undefined,
+      kpi: kpi !== 'all' ? kpi : undefined,
+      deleted: kpi === 'deleted' ? 'only' : 'exclude',
+      sort,
+      pageSize,
+      tagIds: selectedTagIds.length ? selectedTagIds.map((id) => Number(id)) : undefined,
+    }
+    return Object.fromEntries(
+      Object.entries(filters).filter(([, v]) => v !== undefined && v !== '' && v !== 'all'),
+    )
+  }, [search, bizType, planTier, coords, kpi, sort, pageSize, selectedTagIds])
+
+  const selectionPayload = useCallback((): PartnerSelectionPayload => {
+    if (filterSelectAll) {
+      return { mode: 'FILTER', filters: currentFilters, excluded_partner_ids: [] }
+    }
+    return {
+      mode: 'IDS',
+      partner_ids: Array.from(selectedIds).map((id) => Number(id)),
+    }
+  }, [filterSelectAll, currentFilters, selectedIds])
+
+  const selectionCount = filterSelectAll ? total : selectedIds.size
+
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set())
+    setFilterSelectAll(false)
+  }, [])
+
+  const loadSavedFilters = useCallback(async () => {
+    try {
+      setSavedFilters(await fetchAdminPartnerSavedFilters())
+    } catch {
+      setSavedFilters([])
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadSavedFilters()
+  }, [loadSavedFilters])
+
+  useEffect(() => {
+    clearSelection()
+  }, [kpi, bizType, planTier, coords, sort, search, selectedTagIds, clearSelection])
 
   const syncUrl = useCallback(
     (next: Record<string, string | number | undefined>) => {
@@ -445,6 +529,194 @@ export default function AdminBusinessesPage() {
     }
   }
 
+  const applySavedFilter = (item: AdminSavedPartnerFilter) => {
+    const f = item.filters
+    setKpi((String(f.kpi || 'all') as KpiKey) || 'all')
+    setBizType((String(f.bizType || 'all') as AdminBizTypeFilterKey) || 'all')
+    setPlanTier(String(f.planTier || 'all'))
+    if (f.hasCoordinates === true) setCoords('yes')
+    else if (f.hasCoordinates === false) setCoords('no')
+    else setCoords('all')
+    setSort(String(f.sort || 'created_at:desc'))
+    setSearch(String(f.keyword || ''))
+    setSearchInput(String(f.keyword || ''))
+    setPageSize(Number(f.pageSize || 30) || 30)
+    const tags = Array.isArray(f.tagIds) ? f.tagIds.map((x) => String(x)) : []
+    setSelectedTagIds(tags)
+    setPage(1)
+    clearSelection()
+    showToast(`필터 "${item.name}" 적용`, 'success')
+  }
+
+  const handleSaveFilter = async () => {
+    if (!saveFilterName.trim()) return
+    setSavedFilterBusy(true)
+    try {
+      await createAdminPartnerSavedFilter({
+        name: saveFilterName.trim(),
+        filters: currentFilters,
+      })
+      setSaveFilterName('')
+      setSaveFilterOpen(false)
+      await loadSavedFilters()
+      showToast('필터를 저장했습니다.', 'success')
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '필터 저장에 실패했습니다.'), 'error')
+    } finally {
+      setSavedFilterBusy(false)
+    }
+  }
+
+  const toggleRowSelect = (id: string) => {
+    setFilterSelectAll(false)
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const togglePageSelect = () => {
+    const pageIds = businesses.map((b) => b.id)
+    const allSelected = pageIds.every((id) => selectedIds.has(id))
+    setFilterSelectAll(false)
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (allSelected) pageIds.forEach((id) => next.delete(id))
+      else pageIds.forEach((id) => next.add(id))
+      return next
+    })
+  }
+
+  const openBulkTags = (action: 'ADD' | 'REMOVE') => {
+    if (selectionCount <= 0) return
+    setBulkTagAction(action)
+    setBulkTagIds([])
+    setBulkReason('')
+    setBulkPreview(null)
+    setBulkResultText('')
+    setBulkMode('tags')
+  }
+
+  const openBulkAssignment = async () => {
+    if (selectionCount <= 0) return
+    setBulkAssignAction('ASSIGN')
+    setBulkAgentId('')
+    setBulkReason('')
+    setBulkPreview(null)
+    setBulkResultText('')
+    setBulkMode('assignment')
+    try {
+      const res = await fetchAdminSalesAgents({ status: 'ACTIVE', pageSize: 100 })
+      setAgents(res.items ?? [])
+    } catch {
+      setAgents([])
+    }
+  }
+
+  const runBulkPreview = async () => {
+    setBulkBusy(true)
+    setBulkPreview(null)
+    try {
+      if (bulkMode === 'tags') {
+        const preview = await previewAdminPartnersBulk({
+          selection: selectionPayload(),
+          action: bulkTagAction === 'ADD' ? 'TAGS_ADD' : 'TAGS_REMOVE',
+          tag_ids: bulkTagIds.map(Number),
+        })
+        setBulkPreview(preview)
+      } else if (bulkMode === 'assignment') {
+        const preview = await previewAdminPartnersBulk({
+          selection: selectionPayload(),
+          action: bulkAssignAction,
+          agent_id: bulkAssignAction === 'ASSIGN' ? Number(bulkAgentId) || null : null,
+        })
+        setBulkPreview(preview)
+      }
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '미리보기에 실패했습니다.'), 'error')
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  const runBulkExecute = async () => {
+    if (!bulkPreview) {
+      showToast('먼저 미리보기를 실행하세요.', 'error')
+      return
+    }
+    setBulkBusy(true)
+    setBulkResultText('')
+    try {
+      if (bulkMode === 'tags') {
+        if (!bulkTagIds.length) {
+          showToast('태그를 선택하세요.', 'error')
+          return
+        }
+        const result = await bulkAdminPartnerTags({
+          selection: selectionPayload(),
+          action: bulkTagAction,
+          tag_ids: bulkTagIds.map(Number),
+          reason: bulkReason.trim() || undefined,
+        })
+        setBulkResultText(
+          `요청 ${result.matched} · 변경 ${result.updated} · 건너뜀 ${result.skipped} · 실패 ${result.failed}`,
+        )
+        showToast('일괄 태그 작업을 완료했습니다.', 'success')
+      } else if (bulkMode === 'assignment') {
+        if (bulkAssignAction === 'ASSIGN' && !bulkAgentId) {
+          showToast('영업사원을 선택하세요.', 'error')
+          return
+        }
+        const result = await bulkAdminPartnerAssignment({
+          selection: selectionPayload(),
+          action: bulkAssignAction,
+          agent_id: bulkAssignAction === 'ASSIGN' ? Number(bulkAgentId) : null,
+          reason: bulkReason.trim() || undefined,
+        })
+        setBulkResultText(
+          `요청 ${result.matched} · 변경 ${result.updated} · 건너뜀 ${result.skipped} · 실패 ${result.failed}`,
+        )
+        showToast('일괄 담당자 작업을 완료했습니다.', 'success')
+      }
+      clearSelection()
+      void load()
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, '일괄 작업에 실패했습니다.'), 'error')
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  const handleCsv = async (mode: 'selected' | 'filter') => {
+    setCsvBusy(true)
+    try {
+      if (mode === 'selected') {
+        if (filterSelectAll) {
+          await exportAdminPartnersCsv({ filters: currentFilters })
+        } else {
+          const ids = Array.from(selectedIds).map(Number)
+          if (!ids.length) {
+            showToast('선택된 업체가 없습니다.', 'error')
+            return
+          }
+          await exportAdminPartnersCsv({ partnerIds: ids })
+        }
+      } else {
+        await exportAdminPartnersCsv({ filters: currentFilters })
+      }
+      showToast('CSV 다운로드를 시작했습니다.', 'success')
+    } catch (e) {
+      showToast(formatAdminPermissionError(e, 'CSV 다운로드에 실패했습니다.'), 'error')
+    } finally {
+      setCsvBusy(false)
+    }
+  }
+
+  const pageAllSelected =
+    businesses.length > 0 && businesses.every((b) => selectedIds.has(b.id)) && !filterSelectAll
+
   return (
     <div className="space-y-6">
       {ToastComponent}
@@ -625,10 +897,146 @@ export default function AdminBusinessesPage() {
             })}
           </div>
         ) : null}
+
+        <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
+          <span className="text-xs text-gray-500">저장 필터</span>
+          {savedFilters.map((sf) => (
+            <div key={sf.id} className="inline-flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => applySavedFilter(sf)}
+                className={`text-xs px-2.5 py-1 rounded-lg border ${
+                  sf.is_default
+                    ? 'border-blue-300 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                {sf.name}
+                {sf.is_default ? ' ★' : ''}
+              </button>
+              <button
+                type="button"
+                title="기본 필터"
+                onClick={() => {
+                  void setDefaultAdminPartnerSavedFilter(sf.id)
+                    .then(() => loadSavedFilters())
+                    .catch((e) =>
+                      showToast(formatAdminPermissionError(e, '기본 필터 설정 실패'), 'error'),
+                    )
+                }}
+                className="text-[10px] text-gray-400 hover:text-blue-600"
+              >
+                기본
+              </button>
+              <button
+                type="button"
+                title="삭제"
+                onClick={() => {
+                  if (!window.confirm(`"${sf.name}" 필터를 삭제할까요?`)) return
+                  void deleteAdminPartnerSavedFilter(sf.id)
+                    .then(() => loadSavedFilters())
+                    .catch((e) =>
+                      showToast(formatAdminPermissionError(e, '필터 삭제 실패'), 'error'),
+                    )
+                }}
+                className="text-[10px] text-gray-400 hover:text-red-600"
+              >
+                삭제
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => setSaveFilterOpen(true)}
+            className="text-xs px-2.5 py-1 rounded-lg border border-dashed border-gray-300 text-gray-600 hover:bg-gray-50"
+          >
+            현재 조건 저장
+          </button>
+          <PermissionGate menuKey="businesses" action="download">
+            <button
+              type="button"
+              disabled={csvBusy}
+              onClick={() => void handleCsv('filter')}
+              className="text-xs px-2.5 py-1 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40"
+            >
+              검색결과 CSV
+            </button>
+          </PermissionGate>
+        </div>
+
         <p className="text-xs text-gray-500">
           총 {total.toLocaleString()}건 · 서버 페이지네이션 · URL 필터 동기화
+          {filterSelectAll
+            ? ` · 검색 결과 전체 ${total.toLocaleString()}개 선택`
+            : selectedIds.size
+              ? ` · 선택 ${selectedIds.size.toLocaleString()}개`
+              : ''}
         </p>
       </div>
+
+      {selectionCount > 0 ? (
+        <div className="sticky top-0 z-10 bg-slate-900 text-white rounded-xl px-4 py-3 flex flex-wrap items-center gap-2 shadow-lg">
+          <span className="text-sm font-medium">
+            {filterSelectAll
+              ? `검색 결과 전체 ${total.toLocaleString()}개 선택`
+              : `선택 ${selectedIds.size.toLocaleString()}개`}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setFilterSelectAll(true)
+              setSelectedIds(new Set())
+            }}
+            className="text-xs px-2.5 py-1 rounded bg-white/10 hover:bg-white/20"
+          >
+            검색 결과 전체 선택
+          </button>
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="text-xs px-2.5 py-1 rounded bg-white/10 hover:bg-white/20"
+          >
+            선택 해제
+          </button>
+          {canEditOps ? (
+            <>
+              <button
+                type="button"
+                onClick={() => openBulkTags('ADD')}
+                className="text-xs px-2.5 py-1 rounded bg-blue-500 hover:bg-blue-400"
+              >
+                태그 추가
+              </button>
+              <button
+                type="button"
+                onClick={() => openBulkTags('REMOVE')}
+                className="text-xs px-2.5 py-1 rounded bg-blue-500 hover:bg-blue-400"
+              >
+                태그 제거
+              </button>
+            </>
+          ) : null}
+          {canEditAssignment ? (
+            <button
+              type="button"
+              onClick={() => void openBulkAssignment()}
+              className="text-xs px-2.5 py-1 rounded bg-emerald-500 hover:bg-emerald-400"
+            >
+              담당자 변경
+            </button>
+          ) : null}
+          {canDownload ? (
+            <button
+              type="button"
+              disabled={csvBusy}
+              onClick={() => void handleCsv('selected')}
+              className="text-xs px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 disabled:opacity-40"
+            >
+              선택 CSV
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {error ? (
         <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
@@ -648,6 +1056,7 @@ export default function AdminBusinessesPage() {
             columns={
               isDeletedVault
                 ? [
+                    { key: 'select', label: '선택', width: '48px' },
                     { key: 'name', label: '업체명' },
                     { key: 'bizType', label: '업종', width: '90px' },
                     { key: 'region', label: '지역', width: '70px' },
@@ -656,6 +1065,7 @@ export default function AdminBusinessesPage() {
                     { key: 'actions', label: '작업', width: '150px' },
                   ]
                 : [
+                    { key: 'select', label: '선택', width: '48px' },
                     { key: 'name', label: '업체명' },
                     { key: 'bizType', label: '업종', width: '90px' },
                     { key: 'region', label: '지역', width: '70px' },
@@ -675,6 +1085,15 @@ export default function AdminBusinessesPage() {
             }
             data={businesses.map((b) => ({
               ...b,
+              select: (
+                <input
+                  type="checkbox"
+                  checked={filterSelectAll || selectedIds.has(b.id)}
+                  onChange={() => toggleRowSelect(b.id)}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={`${b.name} 선택`}
+                />
+              ),
               bizType: getAdminBizTypeLabel(b.bizType),
               region: b.regionCode || '-',
               plan: b.planTier || b.plan || '-',
@@ -776,9 +1195,15 @@ export default function AdminBusinessesPage() {
             emptyMessage="조건에 맞는 업체가 없습니다."
           />
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 text-sm text-gray-500">
-            <span>
-              {page}/{totalPages}페이지
-            </span>
+            <div className="flex items-center gap-3">
+              <label className="inline-flex items-center gap-1.5 text-xs">
+                <input type="checkbox" checked={pageAllSelected} onChange={togglePageSelect} />
+                현재 페이지 전체 선택
+              </label>
+              <span>
+                {page}/{totalPages}페이지
+              </span>
+            </div>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -1345,6 +1770,193 @@ export default function AdminBusinessesPage() {
             </label>
           </div>
         ) : null}
+      </AdminModal>
+
+      <AdminModal
+        open={saveFilterOpen}
+        onClose={() => {
+          if (savedFilterBusy) return
+          setSaveFilterOpen(false)
+        }}
+        title="현재 검색 조건 저장"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              disabled={savedFilterBusy}
+              onClick={() => setSaveFilterOpen(false)}
+              className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              disabled={savedFilterBusy || !saveFilterName.trim()}
+              onClick={() => void handleSaveFilter()}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-600 disabled:opacity-50"
+            >
+              {savedFilterBusy ? '저장 중...' : '저장'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3 text-sm">
+          <p className="text-xs text-gray-500">
+            page는 저장되지 않습니다. 저장 후 적용 시 1페이지부터 조회됩니다.
+          </p>
+          <input
+            value={saveFilterName}
+            onChange={(e) => setSaveFilterName(e.target.value)}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+            placeholder="예: 강원도 Premium 업체"
+            maxLength={80}
+          />
+        </div>
+      </AdminModal>
+
+      <AdminModal
+        open={bulkMode !== null}
+        onClose={() => {
+          if (bulkBusy) return
+          setBulkMode(null)
+        }}
+        title={
+          bulkMode === 'tags'
+            ? bulkTagAction === 'ADD'
+              ? '일괄 태그 추가'
+              : '일괄 태그 제거'
+            : bulkAssignAction === 'UNASSIGN'
+              ? '일괄 담당 해제'
+              : '일괄 담당자 변경'
+        }
+        size="md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              disabled={bulkBusy}
+              onClick={() => setBulkMode(null)}
+              className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm"
+            >
+              닫기
+            </button>
+            <button
+              type="button"
+              disabled={bulkBusy}
+              onClick={() => void runBulkPreview()}
+              className="border border-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 disabled:opacity-50"
+            >
+              미리보기
+            </button>
+            <button
+              type="button"
+              disabled={bulkBusy || !bulkPreview}
+              onClick={() => void runBulkExecute()}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-600 disabled:opacity-50"
+            >
+              {bulkBusy ? '처리 중...' : '실행'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3 text-sm text-gray-700">
+          <p>
+            대상:{' '}
+            {filterSelectAll
+              ? `검색 결과 전체 (약 ${total.toLocaleString()}건, 서버 재계산)`
+              : `${selectedIds.size.toLocaleString()}개 ID`}
+          </p>
+          {bulkMode === 'tags' ? (
+            <div className="flex flex-wrap gap-1.5">
+              {tagCatalog.map((tag) => {
+                const active = bulkTagIds.includes(tag.id)
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() =>
+                      setBulkTagIds((prev) =>
+                        prev.includes(tag.id)
+                          ? prev.filter((id) => id !== tag.id)
+                          : [...prev, tag.id],
+                      )
+                    }
+                    className={`text-xs px-2.5 py-1 rounded-full border ${
+                      active ? 'text-white border-transparent' : 'border-gray-200'
+                    }`}
+                    style={
+                      active
+                        ? { backgroundColor: tag.color }
+                        : { color: tag.color, borderColor: `${tag.color}55` }
+                    }
+                  >
+                    {tag.name}
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <select
+                value={bulkAssignAction}
+                onChange={(e) =>
+                  setBulkAssignAction(e.target.value as 'ASSIGN' | 'UNASSIGN')
+                }
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="ASSIGN">영업사원 배정/변경</option>
+                <option value="UNASSIGN">배정 해제</option>
+              </select>
+              {bulkAssignAction === 'ASSIGN' ? (
+                <select
+                  value={bulkAgentId}
+                  onChange={(e) => setBulkAgentId(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                >
+                  <option value="">영업사원 선택</option>
+                  {agents.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                      {a.agencyName ? ` · ${a.agencyName}` : ''}
+                      {a.distributorName ? ` · ${a.distributorName}` : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+              <p className="text-xs text-gray-500">
+                과거 배정·수수료 이력은 유지되고, 활성 배정만 변경됩니다. 삭제 업체는
+                건너뜁니다.
+              </p>
+            </div>
+          )}
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">사유 (선택)</label>
+            <input
+              value={bulkReason}
+              onChange={(e) => setBulkReason(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+              maxLength={255}
+            />
+          </div>
+          {bulkPreview ? (
+            <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 text-xs space-y-1">
+              <p>매칭 {bulkPreview.matched} · 활성 {bulkPreview.active_count} · 삭제 {bulkPreview.deleted_count}</p>
+              {bulkPreview.assignable_count > 0 ? (
+                <p>배정 가능 {bulkPreview.assignable_count} · 삭제 건너뜀 {bulkPreview.skipped_deleted}</p>
+              ) : null}
+              {bulkPreview.agent_name ? <p>변경 담당: {bulkPreview.agent_name}</p> : null}
+              {bulkPreview.notes.map((n) => (
+                <p key={n} className="text-gray-500">
+                  {n}
+                </p>
+              ))}
+            </div>
+          ) : null}
+          {bulkResultText ? (
+            <p className="text-sm text-blue-700 font-medium">{bulkResultText}</p>
+          ) : null}
+        </div>
       </AdminModal>
     </div>
   )
