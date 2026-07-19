@@ -143,9 +143,12 @@ export default function InquiryForm() {
         <p className="text-sm text-gray-500">
           승인 상태는 입력하신 이메일로 안내드리며, 승인 전에는 로그인할 수 없습니다.
         </p>
-        <Link href="/login" className="inline-block text-sm font-semibold text-blue-600 underline">
+        <a
+          href="https://business.autoon.kr/login"
+          className="inline-block text-sm font-semibold text-blue-600 underline"
+        >
           로그인 페이지로 이동
-        </Link>
+        </a>
       </div>
     )
   }

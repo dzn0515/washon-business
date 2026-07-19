@@ -118,7 +118,14 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 
     freeTrialNote: '첫 3개월 무료',
 
-    features: ['기본 CRM', '예약관리', '고객관리', '기본 노출 500m 포함'],
+    features: [
+      '예약 관리',
+      '고객 관리',
+      '차량 이력',
+      '매출·정산 기본 기능',
+      '기본 500m 노출',
+      '자동화 기능 미포함',
+    ],
 
     includedExposureRadiusMeters: 500,
 
@@ -142,15 +149,13 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 
       'Basic 전체 포함',
 
-      '자동화 기능 포함',
+      '생일 쿠폰 자동화',
 
-      '재방문 알림',
+      '리뷰 요청 자동화',
 
-      '생일 쿠폰 자동 발송',
+      '재방문 알림 자동화',
 
-      '리뷰 작성 요청 자동 발송',
-
-      '기본 노출 500m 포함',
+      '기본 500m 노출',
 
     ],
 

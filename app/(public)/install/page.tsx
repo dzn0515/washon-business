@@ -8,15 +8,15 @@ type Step = 'popup' | 'installing' | 'homescreen'
 
 const HOME_APPS = [
   { id: 'kakao', label: '카카오톡', bg: 'bg-[#FEE500]', icon: MessageCircle, iconClass: 'text-gray-900' },
-  { id: 'washon', label: 'AUTOON', bg: 'bg-[#1A6DFF]', emoji: '💧' },
+  { id: 'autoon', label: 'AUTOON', bg: 'bg-[#1A6DFF]', emoji: '💧' },
   { id: 'naver', label: '네이버지도', bg: 'bg-[#03C75A]', icon: MapPin, iconClass: 'text-white' },
   { id: 'camera', label: '카메라', bg: 'bg-gray-200', icon: Camera, iconClass: 'text-gray-700' },
 ] as const
 
-function WashOnIcon({ size = 'md' }: { size?: 'sm' | 'md' }) {
+function AutoonIcon({ size = 'md' }: { size?: 'sm' | 'md' }) {
   const box = size === 'sm' ? 'w-14 h-14 rounded-2xl text-2xl' : 'w-12 h-12 rounded-2xl text-xl'
   return (
-    <div className={`${box} bg-[#1A6DFF] flex items-center justify-center shadow-md`}>
+    <div className={`${box} bg-[#1A6DFF] flex items-center justify-center shadow-md`} aria-hidden>
       💧
     </div>
   )
@@ -69,10 +69,10 @@ export default function InstallPage() {
           <div className="absolute inset-0 flex items-end sm:items-center justify-center p-4 bg-black/30">
             <div className="bg-white rounded-2xl shadow-xl border w-full p-6 space-y-5">
               <div className="flex items-center gap-3">
-                <WashOnIcon />
+                <AutoonIcon />
                 <div>
                   <p className="font-bold text-gray-900">AUTOON</p>
-                  <p className="text-sm text-gray-500">세차 예약을 더 빠르게</p>
+                  <p className="text-sm text-gray-500">차량 관리 예약을 더 빠르게</p>
                 </div>
               </div>
               <p className="text-sm text-gray-600 leading-relaxed">
@@ -99,7 +99,7 @@ export default function InstallPage() {
         {step === 'installing' && (
           <div className="absolute inset-0 flex items-center justify-center p-6">
             <div className="bg-white rounded-2xl shadow-xl border w-full p-8 text-center space-y-6">
-              <WashOnIcon />
+              <AutoonIcon />
               <div>
                 <p className="text-lg font-semibold text-gray-900">
                   {installDone ? '설치 완료!' : '설치 중...'}
@@ -133,7 +133,7 @@ export default function InstallPage() {
                       <button
                         key={app.id}
                         type="button"
-                        onClick={app.id === 'washon' ? () => router.push('/sparkling') : undefined}
+                        onClick={app.id === 'autoon' ? () => router.push('/sparkling') : undefined}
                         className="flex flex-col items-center gap-1.5"
                       >
                         {'emoji' in app ? (

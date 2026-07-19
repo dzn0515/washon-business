@@ -2,19 +2,40 @@ import LandingNav from '@/components/landing/LandingNav'
 import LandingFooter from '@/components/landing/LandingFooter'
 
 export const metadata = {
-  title: 'AUTOON | 자동차 서비스 예약·운영 관리 플랫폼',
+  title: 'AUTOON | 차량 관리 예약·매장 CRM 플랫폼',
   description:
-    '세차, 덴트복원, 타이어, 디테일링, 배터리, 유리복원, 블랙박스, 오일교환 업체를 위한 예약·고객·매출 관리 SaaS입니다.',
-  keywords:
-    '세차장 예약 관리, 덴트복원샵 관리, 타이어샵 예약, 디테일링샵 관리, 배터리 교체 예약, 썬팅샵 관리, 블랙박스 설치 예약, 오일교환 예약, 자동차 서비스 플랫폼',
+    '가까운 차량 관리 매장 예약과 업체용 예약·고객·매출·재방문 관리. 세차, 타이어, 썬팅, 디테일링, 덴트 등 AUTOON 하나로.',
+  keywords: [
+    '차량 관리 예약',
+    '자동차 관리 앱',
+    '세차장 예약',
+    '차량 관리 CRM',
+    '매장 예약 관리',
+    '고객 관리 프로그램',
+    '타이어 예약',
+    '썬팅 예약',
+    'AUTOON',
+    '오토온',
+  ],
+  alternates: {
+    canonical: 'https://autoon.kr',
+  },
   openGraph: {
-    title: 'AUTOON | 자동차 서비스 예약·운영 관리 플랫폼',
+    title: 'AUTOON | 차량 관리 예약·매장 CRM 플랫폼',
     description:
-      '세차, 덴트복원, 타이어, 디테일링, 배터리, 유리복원, 블랙박스, 오일교환 업체를 위한 예약·고객·매출 관리 SaaS입니다.',
+      '고객은 가까운 차량 관리 매장을 예약하고, 업체는 예약·고객·매출·재방문을 한곳에서 관리합니다.',
     url: 'https://autoon.kr',
+    siteName: 'AUTOON',
+    locale: 'ko_KR',
     type: 'website',
     images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'AUTOON' }],
-    // TODO: /public/og-image.png 실제 이미지로 교체
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AUTOON | 차량 관리 예약·매장 CRM 플랫폼',
+    description:
+      '고객은 가까운 차량 관리 매장을 예약하고, 업체는 예약·고객·매출·재방문을 한곳에서 관리합니다.',
+    images: ['/og-image.png'],
   },
 }
 

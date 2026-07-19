@@ -3,8 +3,12 @@ import './globals.css'
 import UpdateNotifier from '@/components/UpdateNotifier'
 
 export const metadata: Metadata = {
-  title: 'AUTOON Business — 세차장 관리자',
-  description: 'AUTOON 세차장 사장님 관리자 웹 (business.autoon.kr)',
+  metadataBase: new URL('https://autoon.kr'),
+  title: {
+    default: 'AUTOON | 차량 관리 예약·매장 CRM',
+    template: '%s | AUTOON',
+  },
+  description: 'AUTOON 차량 관리 예약·매장 CRM (autoon.kr / business.autoon.kr)',
 }
 
 export const viewport: Viewport = {

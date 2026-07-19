@@ -1,6 +1,6 @@
 export const metadata = {
   title: '회사 소개 | AUTOON',
-  description: 'AUTOON은 전국 자동차 서비스 매장의 디지털 전환을 돕는 B2B SaaS + 예약 플랫폼입니다.',
+  description: 'AUTOON은 차량 관리 매장의 예약·CRM·재방문 운영을 돕는 B2B SaaS + 예약 플랫폼입니다.',
 }
 
 const CURRENT_SERVICES = [
@@ -50,9 +50,10 @@ export default function AboutPage() {
     <>
       <section className="py-16 md:py-24 bg-white">
         <div className="max-w-6xl mx-auto px-4 md:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900">자동차 생활 서비스를 연결합니다</h1>
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900">차량 관리 서비스를 연결합니다</h1>
           <p className="mt-6 text-lg text-gray-600 max-w-2xl mx-auto">
-            AUTOON은 전국 자동차 서비스 매장의 디지털 전환을 돕는 B2B SaaS + 예약 플랫폼입니다.
+            AUTOON은 세차·타이어·썬팅·디테일링·덴트 등 차량 관리 매장의 예약·CRM·재방문 운영을 돕는
+            B2B SaaS + 예약 플랫폼입니다.
           </p>
         </div>
       </section>

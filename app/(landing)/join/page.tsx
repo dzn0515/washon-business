@@ -13,19 +13,21 @@ const TARGETS = [
 
 const FEATURES = [
   '온라인 예약: 실시간 슬롯 선택, 날짜·시간 예약',
-  '슬롯 관리: 베이별 예약 현황, 이중 예약 원천 차단',
-  '베이·직원 자동배정',
-  '고객 CRM: 방문이력, 단골태그, 고객 메모',
+  '슬롯 관리: 베이별 예약 현황, 이중 예약 방지',
+  '고객 CRM: 방문 이력, 차량 정보, 단골 관리',
   '쿠폰 관리: 발급·사용 내역',
-  '매출 관리: 일별·월별 정산 자동화',
-  '알림: 카카오 알림톡, 앱 푸시',
+  '매출·정산 기본 기능',
+  '자동화(Standard+): 생일 쿠폰 · 리뷰 요청 · 재방문 알림',
+  '거리 기반 노출: 플랜 기본 노출 + 추가 광고상품',
+  '알림: 고객앱 Push 및 앱 내 알림',
 ]
 
 const STEPS = ['문의 접수', '담당자 상담', '매장 등록', '메뉴/가격 설정', '예약 오픈']
 
 export const metadata = {
   title: '입점 안내 | AUTOON',
-  description: '자동차 서비스 업체 입점 안내. 매장 정보를 남겨주시면 담당자가 확인 후 연락드립니다.',
+  description:
+    '차량 관리 매장 입점 안내. Basic 첫 3개월 무료 · Standard·Premium 자동화 · 거리 기반 광고. 담당자가 확인 후 연락드립니다.',
 }
 
 export default function JoinPage() {
@@ -87,7 +89,10 @@ export default function JoinPage() {
             ))}
           </div>
           <p className="mt-10 text-center text-gray-600">
-            요금제는 매장 규모에 따라 상담 후 안내드립니다.
+            공개 요금은 Basic 월 28,000원 · Standard 월 59,000원 · Premium 월 99,000원(VAT 별도)입니다.{' '}
+            <a href="/#pricing" className="text-blue-600 hover:underline">
+              요금제 자세히 보기
+            </a>
           </p>
         </div>
       </section>

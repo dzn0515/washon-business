@@ -5,6 +5,10 @@ import { useEffect, useState } from 'react'
 
 const NAV_LINKS = [
   { href: '/', label: '홈' },
+  { href: '/#features', label: '기능' },
+  { href: '/#pricing', label: '요금제' },
+  { href: '/#ads', label: '광고' },
+  { href: '/#faq', label: 'FAQ' },
   { href: '/join', label: '입점 안내' },
   { href: '/about', label: '회사 소개' },
 ]
@@ -43,20 +47,21 @@ export default function LandingNav() {
             href="/join"
             className="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-xl hover:border-gray-400 transition-colors"
           >
-            입점 문의
+            입점 신청
           </Link>
-          <Link
-            href="/login"
+          <a
+            href="https://business.autoon.kr/login"
             className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-colors"
           >
             사장님 로그인
-          </Link>
+          </a>
         </nav>
 
         <button
           type="button"
           className="lg:hidden p-2 text-gray-700"
-          aria-label="메뉴"
+          aria-label={open ? '메뉴 닫기' : '메뉴 열기'}
+          aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
           {open ? '✕' : '☰'}
@@ -80,15 +85,15 @@ export default function LandingNav() {
             className="block text-center text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-xl"
             onClick={() => setOpen(false)}
           >
-            입점 문의
+            입점 신청
           </Link>
-          <Link
-            href="/login"
+          <a
+            href="https://business.autoon.kr/login"
             className="block text-center text-sm bg-blue-600 text-white px-4 py-2 rounded-xl"
             onClick={() => setOpen(false)}
           >
             사장님 로그인
-          </Link>
+          </a>
         </div>
       ) : null}
     </header>
