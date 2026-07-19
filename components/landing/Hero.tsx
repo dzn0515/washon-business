@@ -29,19 +29,13 @@ export default function Hero() {
               href="/join"
               className="inline-flex justify-center bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-colors"
             >
-              업체용 입점 신청
+              입점신청
             </Link>
             <a
-              href="https://business.autoon.kr/login"
+              href="https://business.autoon.kr/demo"
               className="inline-flex justify-center border border-gray-300 text-gray-700 px-8 py-4 rounded-xl font-semibold text-lg hover:border-gray-400 transition-colors"
             >
-              사장님 로그인
-            </a>
-            <a
-              href="#pricing"
-              className="inline-flex justify-center border border-blue-200 text-blue-700 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-blue-50 transition-colors"
-            >
-              요금제 보기
+              데모보기
             </a>
           </div>
         </div>
