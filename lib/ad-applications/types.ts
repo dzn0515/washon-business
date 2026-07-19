@@ -17,6 +17,22 @@ export type AdApplicationStatusHistory = {
   by: 'admin' | 'system'
 }
 
+export type PremiumEligibility = {
+  eligible: boolean
+  canApprove: boolean
+  blockingReasons: string[]
+  checks?: Array<{ key: string; ok: boolean; message: string }>
+  subscriptionStatus?: string | null
+  bizType?: string
+  hasImage?: boolean
+  hasDescription?: boolean
+  hasHours?: boolean
+  activeMenuCount?: number
+}
+
+/** @deprecated use PremiumEligibility */
+export type NationwideEligibility = PremiumEligibility
+
 export type AdminAdApplication = {
   id: string
   businessId: string
@@ -36,6 +52,8 @@ export type AdminAdApplication = {
   applicationMemo: string
   adminMemo: string
   rejectReason?: string
+  exposureKind?: string | null
+  premiumEligibility?: PremiumEligibility | null
   statusHistory: AdApplicationStatusHistory[]
 }
 

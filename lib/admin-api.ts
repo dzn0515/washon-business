@@ -1552,7 +1552,36 @@ function mapAdApplication(row: Record<string, unknown>): AdminAdApplication {
         : row.rejectReason != null
           ? String(row.rejectReason)
           : undefined,
+    exposureKind:
+      row.exposure_kind != null
+        ? String(row.exposure_kind)
+        : row.exposureKind != null
+          ? String(row.exposureKind)
+          : undefined,
+    premiumEligibility: mapPremiumEligibility(
+      row.premium_eligibility ?? row.premiumEligibility,
+    ),
     statusHistory: historyRaw.map(mapStatusHistoryEntry),
+  }
+}
+
+function mapPremiumEligibility(value: unknown) {
+  if (!value || typeof value !== 'object') return undefined
+  const row = value as Record<string, unknown>
+  return {
+    eligible: Boolean(row.eligible),
+    canApprove: Boolean(row.canApprove ?? row.can_approve),
+    blockingReasons: Array.isArray(row.blockingReasons ?? row.blocking_reasons)
+      ? ((row.blockingReasons ?? row.blocking_reasons) as string[])
+      : [],
+    subscriptionStatus:
+      row.subscriptionStatus != null || row.subscription_status != null
+        ? String(row.subscriptionStatus ?? row.subscription_status)
+        : null,
+    hasImage: Boolean(row.hasImage ?? row.has_image),
+    hasDescription: Boolean(row.hasDescription ?? row.has_description),
+    hasHours: Boolean(row.hasHours ?? row.has_hours),
+    activeMenuCount: Number(row.activeMenuCount ?? row.active_menu_count ?? 0),
   }
 }
 
@@ -1625,6 +1654,17 @@ export type AdminSubscriptionItem = {
   updatedAt: string | null
   partnerCreatedAt?: string | null
   isFreeTrial: boolean
+  canUseAutomation?: boolean | null
+  includedExposureRadiusMeters?: number | null
+  activeAdRadiusMeters?: number | null
+  activeAdProductId?: string | null
+  effectiveExposureRadiusMeters?: number | null
+  revisitAutomationAvailable?: boolean | null
+  revisitEnabled?: boolean | null
+  revisitIntervalDays?: number | null
+  revisitLastRunAt?: string | null
+  revisitSentTotal?: number | null
+  revisitFailedTotal?: number | null
   events?: AdminSubscriptionEventItem[]
 }
 

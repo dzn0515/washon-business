@@ -722,10 +722,10 @@ export const mockAds = {
   monthly_exposure: 2847,
   clicks: 312,
   booking_conversions: 38,
-  radius_km: 5,
+  radius_km: 0.5,
   conversion_rate: 1.3,
   app_maintenance_fee: 28000,
-  exposure_status: '기본 반경 5km',
+  exposure_status: '기본 반경 500m',
   ad_status: '미이용',
   automation_status: '미이용',
 }
@@ -744,10 +744,11 @@ export const mockBillingHistory = [
 ]
 
 export const mockExposurePlans = [
-  { id: 'basic', label: '기본 반경', radius: '5km', extra_fee: 0, selected: true },
-  { id: 'extend', label: '확장 반경', radius: '10km', extra_fee: 15000, selected: false },
-  { id: 'wide', label: '광역 반경', radius: '30km', extra_fee: 30000, selected: false },
-  { id: 'nation', label: '전국 노출', radius: '전국', extra_fee: 50000, selected: false },
+  { id: 'basic', label: '기본 반경', radius: '500m', extra_fee: 0, selected: true },
+  { id: 'exposure-1km', label: '반경 1km 노출', radius: '1km', extra_fee: 15000, selected: false },
+  { id: 'exposure-1_5km', label: '반경 1.5km 노출', radius: '1.5km', extra_fee: 30000, selected: false },
+  { id: 'exposure-3km', label: '반경 3km 노출', radius: '3km', extra_fee: 50000, selected: false },
+  { id: 'exposure-10km-premium', label: '10km 프리미엄 노출', radius: '10km', extra_fee: 100000, selected: false },
 ]
 
 export const mockPremiumProducts = [

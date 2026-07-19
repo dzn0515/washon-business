@@ -5,6 +5,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import AutomationSettingCard from '@/components/ads/AutomationSettingCard'
 import MetricCard from '@/components/ads/MetricCard'
 import StatusBadge from '@/components/ads/StatusBadge'
+import { fetchBusinessAdProducts } from '@/lib/ad-applications/business-api'
 import {
   fetchBirthdayCouponIssuances,
   fetchBirthdayCouponMetrics,
@@ -112,6 +113,7 @@ export default function BirthdayCouponSettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [automationAllowed, setAutomationAllowed] = useState<boolean | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [metrics, setMetrics] = useState({ issued: 0, used: 0, rate: 0 })
   const [month, setMonth] = useState(() => {
@@ -128,12 +130,14 @@ export default function BirthdayCouponSettingsPage() {
 
   const load = useCallback(async () => {
     try {
-      const [me, settings, m] = await Promise.all([
+      const [me, settings, m, catalog] = await Promise.all([
         fetchBusinessMe(),
         fetchBirthdayCouponSettings(),
         fetchBirthdayCouponMetrics(),
+        fetchBusinessAdProducts().catch(() => null),
       ])
       setBusinessName(me.name)
+      setAutomationAllowed(catalog?.can_use_automation ?? null)
       const nextForm = settingsToForm(settings)
       setForm(nextForm)
       setSavedForm(nextForm)
@@ -166,6 +170,10 @@ export default function BirthdayCouponSettingsPage() {
 
   const handleSave = async () => {
     if (validationError) return
+    if (automationAllowed === false) {
+      setSaveError('자동화 기능은 Standard 플랜부터 사용할 수 있습니다.')
+      return
+    }
     setSaving(true)
     setSaveError(null)
     try {
@@ -200,6 +208,14 @@ export default function BirthdayCouponSettingsPage() {
       ) : null}
 
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {automationAllowed === false ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          자동화 기능은 Standard 플랜부터 사용할 수 있습니다.{' '}
+          <Link href="/dashboard/billing" className="font-medium text-blue-600 underline">
+            플랜 업그레이드
+          </Link>
+        </div>
+      ) : null}
       {toast ? (
         <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
           {toast}
@@ -293,7 +309,9 @@ export default function BirthdayCouponSettingsPage() {
       <div className="flex justify-end">
         <button
           type="button"
-          disabled={!dirty || !!validationError || saving}
+          disabled={
+            automationAllowed === false || !dirty || !!validationError || saving
+          }
           onClick={() => void handleSave()}
           className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300"
         >

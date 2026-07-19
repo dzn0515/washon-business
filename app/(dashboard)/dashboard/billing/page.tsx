@@ -228,6 +228,14 @@ export default function BillingPage() {
                     {plan.freeTrialNote && (
                       <p className="text-sm text-blue-600 font-medium mt-1">{plan.freeTrialNote}</p>
                     )}
+                    <ul className="mt-3 space-y-1">
+                      {plan.features.map((f) => (
+                        <li key={f} className="text-xs text-gray-600 flex gap-1.5">
+                          <span className="text-blue-500">·</span>
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                   <button
                     type="button"

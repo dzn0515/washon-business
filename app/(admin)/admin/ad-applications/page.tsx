@@ -36,6 +36,12 @@ const STATUS_TABS: { key: 'all' | AdApplicationStatus; label: string }[] = [
   { key: 'ENDED', label: '종료' },
 ]
 
+const KIND_TABS: { key: 'all' | 'REGION' | 'PREMIUM'; label: string }[] = [
+  { key: 'all', label: '전체 유형' },
+  { key: 'REGION', label: '지역 광고' },
+  { key: 'PREMIUM', label: '10km 프리미엄' },
+]
+
 const STATUS_VARIANT: Record<
   AdApplicationStatus,
   'success' | 'warning' | 'error' | 'info' | 'neutral'
@@ -51,6 +57,25 @@ function won(amount: number) {
   return amount.toLocaleString() + '원'
 }
 
+const EXPOSURE_KIND_LABEL: Record<string, string> = {
+  REGION: '지역 광고',
+  PREMIUM: '10km 프리미엄',
+  DEFAULT: '기본',
+}
+
+function resolveExposureKind(app: AdminAdApplication): string | null {
+  if (app.exposureKind) return app.exposureKind
+  if (app.productId === 'exposure-10km-premium') return 'PREMIUM'
+  if (app.productId === 'exposure-nation') return 'PREMIUM'
+  if (app.productType === 'exposure') return 'REGION'
+  return null
+}
+
+function exposureKindLabel(kind: string | null | undefined): string | null {
+  if (!kind) return null
+  return EXPOSURE_KIND_LABEL[kind] ?? kind
+}
+
 function formatHistoryTime(iso: string) {
   return iso.slice(0, 16).replace('T', ' ')
 }
@@ -59,6 +84,7 @@ export default function AdminAdApplicationsPage() {
   const { showToast, ToastComponent } = useToast()
   const [applications, setApplications] = useState<AdminAdApplication[]>([])
   const [statusTab, setStatusTab] = useState<'all' | AdApplicationStatus>('all')
+  const [kindTab, setKindTab] = useState<'all' | 'REGION' | 'PREMIUM'>('all')
   const [detail, setDetail] = useState<AdminAdApplication | null>(null)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
@@ -87,13 +113,18 @@ export default function AdminAdApplicationsPage() {
     load()
   }, [load])
 
-  const filtered = useMemo(
-    () =>
-      statusTab === 'all'
-        ? applications
-        : applications.filter((a) => a.status === statusTab),
-    [applications, statusTab],
-  )
+  const filtered = useMemo(() => {
+    return applications.filter((a) => {
+      if (statusTab !== 'all' && a.status !== statusTab) return false
+      if (kindTab === 'all') return true
+      const kind = resolveExposureKind(a)
+      if (kindTab === 'PREMIUM') return kind === 'PREMIUM'
+      if (kindTab === 'REGION') {
+        return a.productType === 'exposure' && kind !== 'PREMIUM'
+      }
+      return true
+    })
+  }, [applications, statusTab, kindTab])
 
   const openDetail = (app: AdminAdApplication) => {
     setDetail(app)
@@ -222,6 +253,33 @@ export default function AdminAdApplicationsPage() {
       )}
 
       <div className="flex flex-wrap gap-2">
+        {KIND_TABS.map((tab) => {
+          const count =
+            tab.key === 'all'
+              ? applications.length
+              : applications.filter((a) => {
+                  const kind = resolveExposureKind(a)
+                  if (tab.key === 'PREMIUM') return kind === 'PREMIUM'
+                  return a.productType === 'exposure' && kind !== 'PREMIUM'
+                }).length
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setKindTab(tab.key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
+                kindTab === tab.key
+                  ? 'bg-teal-50 text-teal-700 border-teal-200'
+                  : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              {tab.label} {count}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="flex flex-wrap gap-2">
         {STATUS_TABS.map((tab) => {
           const count =
             tab.key === 'all'
@@ -311,9 +369,19 @@ export default function AdminAdApplicationsPage() {
                 </button>
                 <button
                   type="button"
-                  disabled={processing}
+                  disabled={
+                    processing ||
+                    (resolveExposureKind(detail) === 'PREMIUM' &&
+                      detail.premiumEligibility?.canApprove === false)
+                  }
                   onClick={onApprove}
                   className="flex-1 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                  title={
+                    resolveExposureKind(detail) === 'PREMIUM' &&
+                    detail.premiumEligibility?.canApprove === false
+                      ? '10km 프리미엄 승인 조건을 충족하지 않습니다.'
+                      : undefined
+                  }
                 >
                   승인
                 </button>
@@ -349,7 +417,17 @@ export default function AdminAdApplicationsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <p className="text-gray-400 text-xs">상품명</p>
-                  <p className="font-medium text-gray-900">{detail.productName}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium text-gray-900">{detail.productName}</p>
+                    {exposureKindLabel(resolveExposureKind(detail)) ? (
+                      <AdminBadge
+                        label={exposureKindLabel(resolveExposureKind(detail))!}
+                        variant={
+                          resolveExposureKind(detail) === 'PREMIUM' ? 'info' : 'neutral'
+                        }
+                      />
+                    ) : null}
+                  </div>
                 </div>
                 <div>
                   <p className="text-gray-400 text-xs">유형</p>
@@ -364,6 +442,32 @@ export default function AdminAdApplicationsPage() {
                   <p className="font-semibold text-blue-600">{won(detail.amount)}</p>
                 </div>
               </div>
+              {detail.premiumEligibility ? (
+                <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 space-y-1">
+                  <p className="text-xs font-medium text-gray-800">
+                    프리미엄 신청 자격{' '}
+                    {detail.premiumEligibility.eligible ? '충족' : '미충족'}
+                  </p>
+                  <ul className="text-xs text-gray-600 list-disc pl-4 space-y-0.5">
+                    <li>이미지: {detail.premiumEligibility.hasImage ? '있음' : '없음'}</li>
+                    <li>
+                      소개: {detail.premiumEligibility.hasDescription ? '있음' : '없음'}
+                    </li>
+                    <li>영업시간: {detail.premiumEligibility.hasHours ? '있음' : '없음'}</li>
+                    <li>활성 메뉴: {detail.premiumEligibility.activeMenuCount ?? 0}개</li>
+                    <li>
+                      구독: {detail.premiumEligibility.subscriptionStatus ?? '없음'}
+                    </li>
+                  </ul>
+                  {detail.premiumEligibility.blockingReasons?.length ? (
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4 text-xs text-amber-700">
+                      {detail.premiumEligibility.blockingReasons.map((reason) => (
+                        <li key={reason}>{reason}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : null}
             </section>
 
             <section>

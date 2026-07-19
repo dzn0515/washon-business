@@ -2,12 +2,18 @@ import { apiFetch } from '@/lib/api-client'
 import type {
   BusinessAdProductState,
   BusinessAdSummary,
+  PremiumEligibility,
 } from '@/lib/ad-applications/types'
 import {
   EXPOSURE_PRODUCT_IDS,
   isExposureProductId,
 } from '@/lib/billing/ad-product-selection'
-import { getAdProduct } from '@/lib/billing/catalog'
+import {
+  DEFAULT_EXPOSURE_RADIUS_METERS,
+  formatDefaultExposureLabel,
+  getAdProduct,
+  LEGACY_EXPOSURE_PRODUCT_IDS,
+} from '@/lib/billing/catalog'
 
 export type BusinessAdApplicationRow = {
   id: string
@@ -22,6 +28,43 @@ export type BusinessAdApplicationRow = {
   endDate: string | null
   applicantMemo: string
 }
+
+export type AdProductCatalogItem = {
+  sku: string
+  name: string
+  radius_meters: number | null
+  monthly_price: number
+  vat_excluded: boolean
+  purchasable: boolean
+  blocked_reason?: string | null
+  requires_admin_approval: boolean
+  exposure_kind: string | null
+  tier?: string | null
+  description: string
+  benefits?: string[]
+}
+
+export type BusinessAdProductsResponse = {
+  default_exposure: {
+    name: string
+    radius_meters: number
+    included_in_subscription: boolean
+  }
+  products: AdProductCatalogItem[]
+  other?: AdProductCatalogItem[]
+  current_plan?: string | null
+  included_exposure_radius_meters?: number | null
+  effective_exposure_radius_meters?: number | null
+  active_ad_radius_meters?: number | null
+  active_ad_product_id?: string | null
+  can_use_automation?: boolean | null
+  plan_features?: Record<string, unknown> | null
+  default_exposure_radius_meters?: number
+  regional?: AdProductCatalogItem[]
+  premium?: AdProductCatalogItem
+}
+
+export type { PremiumEligibility }
 
 function mapApiStatus(status: string): BusinessAdProductState['displayStatus'] | null {
   switch (status) {
@@ -65,21 +108,36 @@ export function applicationsToProductStates(
   return states
 }
 
+function isLegacyExposureId(productId: string): boolean {
+  return (LEGACY_EXPOSURE_PRODUCT_IDS as readonly string[]).includes(productId)
+}
+
 function formatExposureRange(states: BusinessAdProductState[]): string {
-  const activeExposure = [...EXPOSURE_PRODUCT_IDS]
-    .reverse()
-    .find((id) => states.find((s) => s.productId === id)?.displayStatus === 'active')
-  if (activeExposure === 'exposure-nation') return '전국 노출'
-  if (activeExposure === 'exposure-20km') return '반경 20km'
-  if (activeExposure === 'exposure-10km') return '반경 10km'
+  const defaultLabel = formatDefaultExposureLabel()
+
+  const activeExposure =
+    [...EXPOSURE_PRODUCT_IDS]
+      .reverse()
+      .find((id) => states.find((s) => s.productId === id)?.displayStatus === 'active') ??
+    LEGACY_EXPOSURE_PRODUCT_IDS.find(
+      (id) => states.find((s) => s.productId === id)?.displayStatus === 'active',
+    ) ??
+    null
+
+  if (activeExposure) {
+    return getAdProduct(activeExposure)?.name ?? '노출 이용중'
+  }
+
   const pending = states.find(
-    (s) => isExposureProductId(s.productId) && s.displayStatus === 'pending',
+    (s) =>
+      (isExposureProductId(s.productId) || isLegacyExposureId(s.productId)) &&
+      s.displayStatus === 'pending',
   )
   if (pending) {
     const p = getAdProduct(pending.productId)
-    return p ? `${p.name} 신청 대기` : '기본 반경 5km'
+    return p ? `${p.name} 신청 대기` : defaultLabel
   }
-  return '기본 반경 5km'
+  return defaultLabel
 }
 
 function formatAutomationStatus(states: BusinessAdProductState[]): string {
@@ -113,6 +171,14 @@ export async function fetchBusinessAdApplications(): Promise<BusinessAdApplicati
   return data.items ?? []
 }
 
+export async function fetchBusinessAdProducts(): Promise<BusinessAdProductsResponse> {
+  return apiFetch<BusinessAdProductsResponse>('/business/ad-products')
+}
+
+export async function fetchPremiumEligibility(): Promise<PremiumEligibility> {
+  return apiFetch<PremiumEligibility>('/business/ad-products/premium-eligibility')
+}
+
 export async function submitBusinessAdApplications(
   productIds: string[],
   applicantMemo = '',
@@ -132,3 +198,16 @@ export function getProductState(
 ): BusinessAdProductState | undefined {
   return states.find((s) => s.productId === productId)
 }
+
+export function catalogItemToAdProduct(item: AdProductCatalogItem) {
+  return {
+    id: item.sku,
+    category: 'exposure' as const,
+    name: item.name,
+    description: item.description,
+    price: item.monthly_price,
+    billingType: 'monthly' as const,
+  }
+}
+
+export { DEFAULT_EXPOSURE_RADIUS_METERS, formatDefaultExposureLabel }

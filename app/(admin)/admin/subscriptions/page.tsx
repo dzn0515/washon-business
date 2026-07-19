@@ -334,7 +334,15 @@ export default function AdminSubscriptionsPage() {
       />
 
       <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700">
-        Basic 28,000원(수수료 8.9%, 첫 3개월 무료) · Standard 59,000원(6.9%) · Premium 99,000원(4.9%)
+        <p>
+          Basic 28,000원(수수료 8.9%, 첫 3개월 무료) · Standard 59,000원(6.9%) · Premium
+          99,000원(4.9%) · VAT 별도
+        </p>
+        <ul className="mt-2 space-y-1 text-xs text-slate-600 list-disc pl-4">
+          <li>Basic: 기본 CRM · 예약/고객관리 · 기본 노출 500m</li>
+          <li>Standard: Basic + 자동화(재방문·생일쿠폰·리뷰요청)</li>
+          <li>Premium: Standard + 1.5km 광고 노출 기본 포함(별도 광고 구매 없음)</li>
+        </ul>
       </div>
 
       <div className="flex flex-wrap gap-2 items-end bg-white border border-gray-200 rounded-xl p-4">
@@ -530,6 +538,16 @@ export default function AdminSubscriptionsPage() {
                 </p>
               </div>
               <div>
+                <p className="text-xs text-gray-400">자동화</p>
+                <p className="font-semibold">
+                  {detail.canUseAutomation == null
+                    ? '-'
+                    : detail.canUseAutomation
+                      ? '사용 가능'
+                      : '사용 불가'}
+                </p>
+              </div>
+              <div>
                 <p className="text-xs text-gray-400">상태</p>
                 <AdminBadge
                   label={statusLabel(detail.status)}
@@ -572,6 +590,67 @@ export default function AdminSubscriptionsPage() {
                 />
               </div>
             </section>
+
+            <section className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-1">
+              <p className="text-xs font-medium text-gray-400 mb-2">재방문 알림</p>
+              <p className="text-sm text-gray-800">
+                사용 가능:{' '}
+                {detail.revisitAutomationAvailable == null
+                  ? '-'
+                  : detail.revisitAutomationAvailable
+                    ? '예'
+                    : '아니오'}
+              </p>
+              <p className="text-sm text-gray-800">
+                설정 활성: {detail.revisitEnabled ? 'ON' : 'OFF'}
+                {detail.revisitIntervalDays != null
+                  ? ` · 기준 ${detail.revisitIntervalDays}일`
+                  : ''}
+              </p>
+              <p className="text-sm text-gray-800">
+                최근 실행:{' '}
+                {detail.revisitLastRunAt
+                  ? detail.revisitLastRunAt.slice(0, 19).replace('T', ' ')
+                  : '기록 없음'}
+              </p>
+              <p className="text-sm text-gray-800">
+                누적 발송 {detail.revisitSentTotal ?? 0}건 · 실패{' '}
+                {detail.revisitFailedTotal ?? 0}건
+              </p>
+            </section>
+
+            {(detail.includedExposureRadiusMeters != null ||
+              detail.effectiveExposureRadiusMeters != null) && (
+              <section className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-1">
+                <p className="text-xs font-medium text-gray-400 mb-2">광고 노출 반경</p>
+                <p className="text-sm text-gray-800">
+                  플랜 포함 반경:{' '}
+                  {detail.includedExposureRadiusMeters != null
+                    ? detail.includedExposureRadiusMeters >= 1000
+                      ? `${detail.includedExposureRadiusMeters / 1000}km`
+                      : `${detail.includedExposureRadiusMeters}m`
+                    : '-'}
+                </p>
+                <p className="text-sm text-gray-800">
+                  별도 광고:{' '}
+                  {detail.activeAdRadiusMeters != null
+                    ? `${
+                        detail.activeAdRadiusMeters >= 1000
+                          ? `${detail.activeAdRadiusMeters / 1000}km`
+                          : `${detail.activeAdRadiusMeters}m`
+                      }${detail.activeAdProductId ? ` (${detail.activeAdProductId})` : ''}`
+                    : '없음'}
+                </p>
+                <p className="text-sm font-semibold text-gray-900">
+                  최종 적용 반경:{' '}
+                  {detail.effectiveExposureRadiusMeters != null
+                    ? detail.effectiveExposureRadiusMeters >= 1000
+                      ? `${detail.effectiveExposureRadiusMeters / 1000}km`
+                      : `${detail.effectiveExposureRadiusMeters}m`
+                    : '-'}
+                </p>
+              </section>
+            )}
 
             <section>
               <p className="text-xs font-medium text-gray-400 mb-1">관리자 메모</p>
