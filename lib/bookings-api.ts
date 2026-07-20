@@ -65,9 +65,36 @@ export type BlockReservationPayload = {
   note?: string
 }
 
-export async function fetchBusinessReservations(bookingDate?: string): Promise<ApiBooking[]> {
-  const qs = bookingDate ? `?booking_date=${bookingDate}` : ''
-  return apiFetch<ApiBooking[]>(`/business/reservations/${qs}`)
+export type ReservationListQuery = {
+  bookingDate?: string
+  dateFrom?: string
+  dateTo?: string
+  status?: string
+  statuses?: string
+  paymentStatuses?: string
+  sort?: 'booking_datetime_asc' | 'booking_datetime_desc'
+  limit?: number
+}
+
+export async function fetchBusinessReservations(
+  bookingDateOrQuery?: string | ReservationListQuery,
+): Promise<ApiBooking[]> {
+  const params = new URLSearchParams()
+  if (typeof bookingDateOrQuery === 'string') {
+    if (bookingDateOrQuery) params.set('booking_date', bookingDateOrQuery)
+  } else if (bookingDateOrQuery) {
+    const q = bookingDateOrQuery
+    if (q.bookingDate) params.set('booking_date', q.bookingDate)
+    if (q.dateFrom) params.set('date_from', q.dateFrom)
+    if (q.dateTo) params.set('date_to', q.dateTo)
+    if (q.status) params.set('status', q.status)
+    if (q.statuses) params.set('statuses', q.statuses)
+    if (q.paymentStatuses) params.set('payment_statuses', q.paymentStatuses)
+    if (q.sort) params.set('sort', q.sort)
+    if (q.limit != null) params.set('limit', String(q.limit))
+  }
+  const qs = params.toString()
+  return apiFetch<ApiBooking[]>(`/business/reservations/${qs ? `?${qs}` : ''}`)
 }
 
 /** @deprecated use fetchBusinessReservations */

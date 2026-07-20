@@ -30,6 +30,8 @@ import {
   useDashboardToday,
   type DashboardTodayBooking,
 } from '@/lib/hooks/useDashboardToday'
+import UpcomingBookingCard from '@/components/dashboard/UpcomingBookingCard'
+import { useUpcomingBookings } from '@/lib/hooks/useUpcomingBookings'
 import { useOperationalInsights } from '@/lib/hooks/useOperationalInsights'
 import { resolveResourceLabel } from '@/lib/resource-label'
 
@@ -66,6 +68,13 @@ function BookingRow({
 
 export default function DashboardPage() {
   const { today, loading, isDemo, isUnavailable, refetch, todayDate } = useDashboardToday()
+  const {
+    items: upcoming,
+    imminent,
+    counts: upcomingCounts,
+    loading: upcomingLoading,
+    refetch: refetchUpcoming,
+  } = useUpcomingBookings(5)
   const { display: businessDisplay } = useBusinessMe()
   const resourceLabel = resolveResourceLabel(
     businessDisplay?.bizType,
@@ -103,10 +112,11 @@ export default function DashboardPage() {
               type="button"
               onClick={() => {
                 void refetch()
+                void refetchUpcoming()
                 void extras.refetchSales()
                 void extras.refetchCustomers()
               }}
-              disabled={loading}
+              disabled={loading || upcomingLoading}
               className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 flex items-center gap-1"
             >
               <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
@@ -259,16 +269,16 @@ export default function DashboardPage() {
           </DashboardSection>
 
           <DashboardSection
-            title="다음 예약"
-            actionHref={href('/dashboard/reservations')}
-            actionLabel="전체보기"
+            title="다음 예약 (오늘)"
+            actionHref={href('/dashboard/reservations?filter=today')}
+            actionLabel="오늘 전체"
           >
             {today.next_bookings.length === 0 ? (
               <DashboardEmptyState
-                title="남은 예약이 없습니다"
-                description="새 예약을 등록하면 일정을 바로 확인할 수 있습니다."
-                actionHref={href('/dashboard/reservations')}
-                actionLabel="예약 관리"
+                title="오늘 남은 예약이 없습니다"
+                description="예정 예약에서 내일 이후 일정을 확인하세요."
+                actionHref={href('/dashboard/reservations?filter=upcoming')}
+                actionLabel="전체 예정"
               />
             ) : (
               today.next_bookings.map((b) => (
@@ -279,12 +289,67 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
+      {!isUnavailable && !isDemo ? (
+        <DashboardSection
+          title="예정 예약"
+          actionHref={href('/dashboard/reservations?filter=upcoming')}
+          actionLabel="전체 예약 보기"
+        >
+          <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="rounded-lg bg-gray-50 px-2.5 py-2">
+              <p className="text-[11px] text-gray-400">오늘</p>
+              <p className="text-sm font-semibold">{upcomingCounts.today}건</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 px-2.5 py-2">
+              <p className="text-[11px] text-gray-400">내일</p>
+              <p className="text-sm font-semibold">{upcomingCounts.tomorrow}건</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 px-2.5 py-2">
+              <p className="text-[11px] text-gray-400">7일</p>
+              <p className="text-sm font-semibold">{upcomingCounts.next7}건</p>
+            </div>
+            <div className="rounded-lg bg-amber-50 px-2.5 py-2">
+              <p className="text-[11px] text-amber-700">결제대기</p>
+              <p className="text-sm font-semibold text-amber-800">
+                {upcomingCounts.paymentPending}건
+              </p>
+            </div>
+          </div>
+
+          {imminent.length > 0 ? (
+            <div className="mb-3 rounded-xl border border-orange-200 bg-orange-50/60 p-3 space-y-2">
+              <p className="text-xs font-semibold text-orange-700">곧 시작하는 예약</p>
+              {imminent.map((item) => (
+                <UpcomingBookingCard key={`imminent-${item.id}`} item={item} href={href} />
+              ))}
+            </div>
+          ) : null}
+
+          {upcomingLoading ? (
+            <p className="text-sm text-gray-400">예정 예약을 불러오는 중…</p>
+          ) : upcoming.length === 0 ? (
+            <DashboardEmptyState
+              title="예정된 예약이 없습니다"
+              description="오늘 이후 확정·결제대기 예약이 여기 표시됩니다."
+              actionHref={href('/dashboard/reservations')}
+              actionLabel="예약 관리"
+            />
+          ) : (
+            <div className="space-y-2">
+              {upcoming.map((item) => (
+                <UpcomingBookingCard key={item.id} item={item} href={href} />
+              ))}
+            </div>
+          )}
+        </DashboardSection>
+      ) : null}
+
       <div className="flex justify-end">
         <Link
-          href={href('/dashboard/reservations/calendar')}
+          href={href('/dashboard/reservations?filter=calendar')}
           className="text-sm text-blue-600 font-medium flex items-center gap-0.5"
         >
-          {resourceLabel} 캘린더 보기 <ChevronRight size={14} />
+          월간 달력 보기 <ChevronRight size={14} />
         </Link>
       </div>
     </div>
