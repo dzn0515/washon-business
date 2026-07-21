@@ -205,6 +205,20 @@ export async function adminPublishNotice(id: string) {
   return supportFetch(`/admin/support/notices/${id}/publish`, { method: 'POST' })
 }
 
+export async function adminSendExpoPush(body: {
+  title: string
+  body: string
+  noticeId?: number
+  deepLink?: string
+  userIds?: number[]
+  audience?: string
+}) {
+  return supportFetch<Record<string, unknown>>('/admin/support/push', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
 export async function adminEndNotice(id: string) {
   return supportFetch(`/admin/support/notices/${id}/end`, { method: 'POST' })
 }
