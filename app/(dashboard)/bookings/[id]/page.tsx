@@ -81,13 +81,22 @@ export default function BookingDetailPage() {
             <span className="text-gray-500">결제상태</span>
             {booking.payment_status ? (
               <Badge className={PAYMENT_STATUS_STYLE[booking.payment_status]}>
-                {PAYMENT_STATUS_LABEL[booking.payment_status]}
+                {booking.payment_method === 'ONSITE' && booking.payment_status === 'UNPAID'
+                  ? '현장 결제 예정'
+                  : PAYMENT_STATUS_LABEL[booking.payment_status]}
               </Badge>
+            ) : null}
+            {booking.payment_method === 'ONSITE' ? (
+              <Badge className="bg-slate-100 text-slate-700">현장결제</Badge>
             ) : null}
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">결제방법</span>
             <span>{booking.payment_method ? PAYMENT_METHOD_LABEL[booking.payment_method] : '-'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">예약금액</span>
+            <span className="font-semibold">{formatMoney(booking.price)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500">결제금액</span>
@@ -101,7 +110,12 @@ export default function BookingDetailPage() {
           <Button
             className="flex-1"
             size="sm"
-            disabled={updatingPayment || !isLive || booking.status === 'cancelled' || booking.payment_status === 'PAID'}
+            disabled={
+              updatingPayment ||
+              !isLive ||
+              booking.status === 'cancelled' ||
+              booking.payment_status === 'PAID'
+            }
             onClick={() =>
               void updatePayment({
                 payment_method: 'onsite',
@@ -127,6 +141,16 @@ export default function BookingDetailPage() {
             환불 처리
           </Button>
         </div>
+        {booking.payment_method === 'ONSITE' && booking.payment_status === 'UNPAID' ? (
+          <p className="mt-2 text-xs text-slate-600">
+            현장결제 예약입니다. 방문 시 매장에서 결제받은 뒤 위 버튼으로 완료 처리할 수 있습니다.
+          </p>
+        ) : null}
+        {booking.status === 'pending' &&
+        booking.payment_status !== 'PAID' &&
+        booking.payment_method !== 'ONSITE' ? (
+          <p className="mt-2 text-xs text-amber-600">결제대기 · 고객 결제 완료 후 자동 확정됩니다.</p>
+        ) : null}
         {updatingPayment ? <p className="text-xs text-gray-400 mt-2">처리 중...</p> : null}
         {paymentError ? <p className="text-xs text-red-600 mt-2">{paymentError}</p> : null}
       </Card>
@@ -198,6 +222,7 @@ export default function BookingDetailPage() {
       <Card title="상태 변경">
         <BookingStatusActions
           status={booking.status}
+          paymentStatus={booking.payment_status}
           disabled={updating || !isLive}
           onAction={(s) => void updateStatus(s)}
         />
