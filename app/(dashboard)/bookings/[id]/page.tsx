@@ -222,7 +222,6 @@ export default function BookingDetailPage() {
       <Card title="상태 변경">
         <BookingStatusActions
           status={booking.status}
-          paymentStatus={booking.payment_status}
           disabled={updating || !isLive}
           onAction={(s) => void updateStatus(s)}
         />
