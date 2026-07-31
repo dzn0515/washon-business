@@ -25,6 +25,7 @@ export type UpcomingItem = {
   price: number
   status: BookingStatus
   payment_status: PaymentStatus
+  payment_method?: "onsite" | "app" | "none"
   relative: string
   imminent: boolean
   imminentText?: string
@@ -38,6 +39,7 @@ function mapItem(b: ApiBooking, now: Date): UpcomingItem {
     startTime: b.start_time,
     status,
     paymentStatus: payment_status,
+    paymentMethod: b.payment_method,
     now,
   })
   return {
@@ -52,6 +54,7 @@ function mapItem(b: ApiBooking, now: Date): UpcomingItem {
     price: b.price,
     status,
     payment_status,
+    payment_method: b.payment_method,
     relative: relativeBookingLabel(b.booking_date.slice(0, 10), now),
     imminent,
     imminentText: imminent ? imminentLabel(b.start_time, now) : undefined,
@@ -116,7 +119,9 @@ export function useUpcomingBookings(limit = 5) {
         tomorrow: tomorrowRaw.filter((b) => b.source !== "block").length,
         next7: weekRaw.filter((b) => b.source !== "block").length,
         paymentPending: pendingRaw.filter(
-          (b) => isPaymentPending(b.status, b.payment_status) && b.source !== "block",
+          (b) =>
+            isPaymentPending(b.status, b.payment_status, b.payment_method) &&
+            b.source !== "block",
         ).length,
       })
     } catch (e) {

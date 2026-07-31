@@ -35,6 +35,7 @@ export type ReservationRow = Omit<(typeof mockTodayBookings)[number], 'id' | 'st
   id: string | number
   status: BookingStatus
   payment_status?: PaymentStatus
+  payment_method?: 'onsite' | 'app' | 'none'
   source: ReservationSource
   block_reason?: string | null
   end_time?: string
@@ -82,6 +83,7 @@ function mapBookingRow(b: ApiBooking, menuMap: Record<string, ApiMenu>): Reserva
     bay_name: b.bay_name,
     status: mapBookingStatus(b.status),
     payment_status: mapPaymentStatus(b.payment_status ?? 'unpaid'),
+    payment_method: b.payment_method,
     price: b.price,
     source,
     block_reason: b.block_reason ?? undefined,
@@ -251,7 +253,9 @@ export function useReservations(initialDate?: string) {
         tomorrow: tomorrowRaw.filter((b) => b.source !== 'block').length,
         next7: weekRaw.filter((b) => b.source !== 'block').length,
         paymentPending: pendingRaw.filter(
-          (b) => isPaymentPending(b.status, b.payment_status) && b.source !== 'block',
+          (b) =>
+            isPaymentPending(b.status, b.payment_status, b.payment_method) &&
+            b.source !== 'block',
         ).length,
       })
 
@@ -301,7 +305,7 @@ export function useReservations(initialDate?: string) {
       if (!d) continue
       if (!map[d]) map[d] = { total: 0, confirmed: 0, pending: 0 }
       map[d].total += 1
-      if (isPaymentPending(b.status, b.payment_status)) map[d].pending += 1
+      if (isPaymentPending(b.status, b.payment_status, b.payment_method)) map[d].pending += 1
       else if (b.status === 'confirmed' || b.payment_status === 'PAID') map[d].confirmed += 1
     }
     return map

@@ -11,7 +11,8 @@ type Props = {
 }
 
 export default function UpcomingBookingCard({ item, href }: Props) {
-  const pending = isPaymentPending(item.status, item.payment_status)
+  const pending = isPaymentPending(item.status, item.payment_status, item.payment_method)
+  const onsite = (item.payment_method ?? '').toLowerCase() === 'onsite'
   const detailHref = href(`/bookings/${item.id}?date=${item.booking_date}`)
 
   return (
@@ -42,6 +43,11 @@ export default function UpcomingBookingCard({ item, href }: Props) {
           {item.imminentText ? (
             <span className="inline-block rounded-full bg-orange-600 px-2 py-0.5 text-[10px] font-semibold text-white">
               {item.imminentText}
+            </span>
+          ) : null}
+          {onsite ? (
+            <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-700">
+              현장결제
             </span>
           ) : null}
           {pending ? (

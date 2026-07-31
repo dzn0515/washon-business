@@ -138,7 +138,8 @@ function ReservationsPageInner() {
             </div>
           ) : (
             bookings.map((b) => {
-              const pending = isPaymentPending(b.status, b.payment_status)
+              const pending = isPaymentPending(b.status, b.payment_status, b.payment_method)
+              const onsite = (b.payment_method ?? '').toLowerCase() === 'onsite'
               const dateLabel = b.booking_date
                 ? relativeBookingLabel(b.booking_date)
                 : selectedDate
@@ -187,11 +188,16 @@ function ReservationsPageInner() {
                       <Badge className={RESERVATION_SOURCE_STYLE[b.source]}>
                         {RESERVATION_SOURCE_LABEL[b.source]}
                       </Badge>
+                      {onsite ? (
+                        <Badge className="bg-slate-100 text-slate-700">현장결제</Badge>
+                      ) : null}
                       {b.source !== 'block' && b.payment_status ? (
                         <Badge className={PAYMENT_STATUS_STYLE[b.payment_status as PaymentStatus]}>
                           {pending
                             ? '결제대기'
-                            : PAYMENT_STATUS_LABEL[b.payment_status as PaymentStatus]}
+                            : onsite && b.payment_status === 'UNPAID'
+                              ? '현장 결제 예정'
+                              : PAYMENT_STATUS_LABEL[b.payment_status as PaymentStatus]}
                         </Badge>
                       ) : null}
                       {b.source !== 'block' ? (

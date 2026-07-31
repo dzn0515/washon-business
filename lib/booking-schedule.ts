@@ -51,23 +51,40 @@ export function relativeBookingLabel(bookingDateIso: string, now = new Date()): 
   return format(target, "M월 d일", { locale: ko })
 }
 
-export function isPaymentPending(status: string, paymentStatus?: string | null): boolean {
-  return status.toLowerCase() === "pending" && (paymentStatus ?? "unpaid").toLowerCase() === "unpaid"
+/**
+ * PG payment-hold waiting for online checkout.
+ * ONSITE unpaid is NOT payment-pending — do not amber-highlight as 결제대기.
+ */
+export function isPaymentPending(
+  status: string,
+  paymentStatus?: string | null,
+  paymentMethod?: string | null,
+): boolean {
+  const method = (paymentMethod ?? "").toLowerCase()
+  if (method === "onsite") return false
+  return (
+    status.toLowerCase() === "pending" &&
+    (paymentStatus ?? "unpaid").toLowerCase() === "unpaid"
+  )
 }
 
 export function isConfirmedPaid(status: string, paymentStatus?: string | null): boolean {
   return status.toLowerCase() === "confirmed" && (paymentStatus ?? "").toLowerCase() === "paid"
 }
 
-/** Imminent: confirmed+paid, today, start within next 60 minutes and not past. */
+/** Imminent: confirmed (+paid or onsite unpaid), today, start within next 60 minutes. */
 export function isImminentBooking(opts: {
   bookingDate: string
   startTime: string
   status: string
   paymentStatus?: string | null
+  paymentMethod?: string | null
   now?: Date
 }): boolean {
-  if (!isConfirmedPaid(opts.status, opts.paymentStatus)) return false
+  const confirmed = opts.status.toLowerCase() === "confirmed"
+  const onsite = (opts.paymentMethod ?? "").toLowerCase() === "onsite"
+  if (!confirmed) return false
+  if (!onsite && !isConfirmedPaid(opts.status, opts.paymentStatus)) return false
   const now = opts.now ?? new Date()
   if (opts.bookingDate !== toIsoDate(now)) return false
   const [hh, mm] = opts.startTime.slice(0, 5).split(":").map(Number)
