@@ -20,6 +20,7 @@ export const RESERVED_STORE_SLUGS = new Set([
   'delete-account',
   'privacy',
   'terms',
+  'refund',
   'api',
   'oauth',
   'store',

@@ -67,10 +67,20 @@ export default function LandingFooter() {
                   개인정보처리방침
                 </Link>
               </li>
+              <li>
+                <Link href="/refund" className="hover:text-blue-600 transition-colors">
+                  환불정책
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
         <p className="text-xs text-gray-400 mt-10 text-center">© 2026 Sellem Inc. All rights reserved.</p>
+        <div className="text-xs text-gray-400 mt-2 text-center leading-relaxed space-y-1">
+          <p>상호 : 설렘주의 | 대표자 : 변광택 | 사업자등록번호 : 106-21-18384</p>
+          <p>사업장 주소 : 강원도 원주시 북원로2425번길 41</p>
+          <p>전화번호 : 010-2725-0175 | 통신판매업 신고번호 : 2024-강원원주-02169</p>
+        </div>
       </div>
     </footer>
   )

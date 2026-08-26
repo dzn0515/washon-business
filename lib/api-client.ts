@@ -242,6 +242,10 @@ export async function apiFetch<T = unknown>(path: string, options?: RequestInit)
     try {
       const body = await res.json()
       if (typeof body.detail === 'string') detail = body.detail
+      else if (body.detail && typeof body.detail === 'object' && 'message' in body.detail) {
+        const message = String((body.detail as { message?: string }).message || '')
+        if (message) detail = message
+      }
     } catch {
       /* ignore */
     }

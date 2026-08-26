@@ -30,7 +30,20 @@ import {
   REGIONAL_EXPOSURE_PRODUCTS,
   type AdProduct,
 } from '@/lib/billing/catalog'
+import { isExposureProductId } from '@/lib/billing/ad-product-selection'
 import { handleApplyAdProduct } from '@/lib/billing/handleApplyAdProduct'
+import { savePendingSaasCheckout } from '@/lib/billing/pendingCheckout'
+import { requestTossBillingAuth } from '@/lib/billing/tossBilling'
+import { vatQuote } from '@/lib/billing/vat'
+import ChargeBreakdown from '@/components/billing/ChargeBreakdown'
+import { fetchBillingMethods } from '@/lib/business-payments-api'
+import {
+  fetchSaasBillingConfig,
+  fetchSaasBillingQuote,
+  type SaasBillingConfig,
+  type SaasBillingMethod,
+  type SaasBillingQuote,
+} from '@/lib/saas-billing-api'
 import { useAdProductSelection } from '@/lib/hooks/useAdProductSelection'
 import { BTN_PRIMARY, SECTION_LABEL, won } from '@/lib/dashboard-ui'
 
@@ -171,8 +184,13 @@ export default function AdsPage() {
     count: number
     monthly: number
     oneTime: number
+    charged?: number
   } | null>(null)
   const [gridEpoch, setGridEpoch] = useState(0)
+  const [billingConfig, setBillingConfig] = useState<SaasBillingConfig | null>(null)
+  const [billingMethods, setBillingMethods] = useState<SaasBillingMethod[]>([])
+  const [selectedMethodId, setSelectedMethodId] = useState<number | 'new'>('new')
+  const [adQuote, setAdQuote] = useState<SaasBillingQuote | null>(null)
 
   const refreshApplications = useCallback(async () => {
     setLoading(true)
@@ -251,6 +269,26 @@ export default function AdsPage() {
     }
   }, [isDemo, refreshApplications, refreshCatalog])
 
+  useEffect(() => {
+    if (isDemo) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const [cfg, methods] = await Promise.all([fetchSaasBillingConfig(), fetchBillingMethods()])
+        if (cancelled) return
+        setBillingConfig(cfg)
+        setBillingMethods(methods.items)
+        const def = methods.items.find((m) => m.is_default)
+        setSelectedMethodId(def?.id ?? 'new')
+      } catch {
+        /* checkout still handles missing config */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [isDemo])
+
   const getDisplayStatus = useCallback(
     (productId: string): BusinessProductDisplayStatus =>
       getProductState(productStates, productId)?.displayStatus ?? 'available',
@@ -303,23 +341,54 @@ export default function AdsPage() {
     setSubmitting(true)
     setApplyError(null)
     try {
-      const result = await handleApplyAdProduct(selectedProducts)
+      const exposureItems = selectedProducts.filter((p) => isExposureProductId(p.id))
+      const cfg = billingConfig ?? (await fetchSaasBillingConfig().catch(() => null))
+      if (exposureItems.length > 0) {
+        if (!cfg?.billing_available) {
+          throw new Error('광고 결제가 아직 연결되지 않았습니다.')
+        }
+        const useExisting = selectedMethodId !== 'new' && typeof selectedMethodId === 'number'
+        if (!useExisting && cfg.widget === 'requestBillingAuth' && cfg.payment_gateway === 'toss') {
+          savePendingSaasCheckout({
+            kind: 'ad',
+            productIds: exposureItems.map((p) => p.id),
+            applicationProductIds: selectedProducts
+              .filter((p) => !isExposureProductId(p.id))
+              .map((p) => p.id),
+          })
+          await requestTossBillingAuth({
+            clientKey: cfg.client_key,
+            customerKey: cfg.customer_key,
+            successUrl: `${window.location.origin}/dashboard/billing/callback`,
+            failUrl: `${window.location.origin}/dashboard/ads?billing=fail`,
+          })
+          return
+        }
+      }
+      const result = await handleApplyAdProduct(selectedProducts, {
+        billingMethodId: selectedMethodId === 'new' ? undefined : selectedMethodId,
+        authKey:
+          selectedMethodId === 'new' && exposureItems.length > 0 ? 'mock_auth' : undefined,
+        customerKey: cfg?.customer_key,
+      })
       if (!result.success) {
         setApplyError('신청에 실패했습니다. 잠시 후 다시 시도해 주세요.')
         return
       }
+      const exposureSupply = exposureItems.reduce((sum, p) => sum + p.price, 0)
       setLastApplied({
         count: result.items.length,
         monthly: paymentTotals.monthly,
         oneTime: paymentTotals.oneTime,
+        charged: exposureSupply > 0 ? vatQuote(exposureSupply).charge_amount : undefined,
       })
       clearSelection()
       await refreshApplications()
       setGridEpoch((v) => v + 1)
       setCheckoutOpen(false)
       setModalOpen(true)
-    } catch {
-      setApplyError('신청에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+    } catch (e) {
+      setApplyError(e instanceof Error ? e.message : '결제에 실패했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
       setSubmitting(false)
     }
@@ -423,8 +492,8 @@ export default function AdsPage() {
           onToggle={toggleProduct}
           blockedBySku={blockedBySku}
         />
-        <p className="mt-2 text-xs text-gray-500">
-          지역 노출 요금은 VAT 별도입니다. (1km / 1.5km / 3km)
+            <p className="mt-2 text-xs text-gray-500">
+          지역 노출 요금은 VAT 별도입니다. 카드 청구 시 10% VAT가 포함됩니다. (1km / 1.5km / 3km)
         </p>
       </section>
 
@@ -433,7 +502,7 @@ export default function AdsPage() {
         <div className="mb-3 rounded-xl border border-teal-100 bg-teal-50/60 p-4">
           <p className="text-sm font-semibold text-gray-900">{premiumProduct.name}</p>
           <p className="mt-1 text-xs text-gray-600">
-            월 {won(premiumProduct.price)} · VAT 별도
+            월 {won(premiumProduct.price)} · VAT 별도 · 청구 {won(vatQuote(premiumProduct.price).charge_amount)}
           </p>
           <p className="mt-2 text-xs text-gray-600">
             반경 10km 이내 고객에게 노출됩니다.
@@ -541,7 +610,21 @@ export default function AdsPage() {
             <button
               type="button"
               disabled={!canSubmit}
-              onClick={() => setCheckoutOpen(true)}
+              onClick={async () => {
+                setCheckoutOpen(true)
+                const exposure = selectedProducts.filter((p) => isExposureProductId(p.id))
+                if (exposure.length === 1) {
+                  try {
+                    setAdQuote(
+                      await fetchSaasBillingQuote({ kind: 'ad', productId: exposure[0].id }),
+                    )
+                  } catch {
+                    setAdQuote(null)
+                  }
+                } else {
+                  setAdQuote(null)
+                }
+              }}
               className={`${BTN_PRIMARY} shrink-0 px-4 py-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50`}
             >
               {isDemo ? '데모 · 신청 불가' : '결제 신청'}
@@ -596,35 +679,78 @@ export default function AdsPage() {
         <div className="mt-4 space-y-1.5 border-t border-gray-100 pt-4 text-sm">
           {paymentTotals.monthly > 0 ? (
             <div className="flex justify-between text-gray-600">
-              <span>월 정기 결제</span>
+              <span>월 이용료 (VAT 별도)</span>
               <span className="font-semibold">{won(paymentTotals.monthly)}</span>
             </div>
           ) : null}
           {paymentTotals.oneTime > 0 ? (
             <div className="flex justify-between text-gray-600">
-              <span>1회 결제</span>
+              <span>1회 결제 (VAT 별도)</span>
               <span className="font-semibold">{won(paymentTotals.oneTime)}</span>
             </div>
           ) : null}
-          <div className="flex justify-between pt-1">
-            <span className="font-medium text-gray-700">합계</span>
-            <span className="text-base font-bold text-blue-600">{won(paymentTotals.total)}</span>
-          </div>
+          {selectedProducts.some((p) => isExposureProductId(p.id)) ? (
+            <ChargeBreakdown
+              quote={
+                adQuote ?? {
+                  kind: 'ad',
+                  order_name: 'AUTOON 광고상품',
+                  ...vatQuote(
+                    selectedProducts
+                      .filter((p) => isExposureProductId(p.id))
+                      .reduce((sum, p) => sum + p.price, 0),
+                  ),
+                }
+              }
+            />
+          ) : (
+            <div className="flex justify-between pt-1">
+              <span className="font-medium text-gray-700">합계</span>
+              <span className="text-base font-bold text-blue-600">{won(paymentTotals.total)}</span>
+            </div>
+          )}
         </div>
-        <p className="mt-3 text-xs text-gray-400">VAT 별도 · PG 수수료 별도 · FCM 앱 푸시 전용</p>
+        {billingMethods.length > 0 ? (
+          <div className="mt-3 space-y-1.5">
+            <p className="text-xs font-medium text-gray-500">결제 카드</p>
+            {billingMethods.map((m) => (
+              <label key={m.id} className="flex items-center gap-2 text-sm text-gray-800">
+                <input
+                  type="radio"
+                  name="ad-billing-method"
+                  checked={selectedMethodId === m.id}
+                  onChange={() => setSelectedMethodId(m.id)}
+                />
+                {m.card_company ?? m.provider} {m.card_number_masked}
+              </label>
+            ))}
+            <label className="flex items-center gap-2 text-sm text-gray-800">
+              <input
+                type="radio"
+                name="ad-billing-method"
+                checked={selectedMethodId === 'new'}
+                onChange={() => setSelectedMethodId('new')}
+              />
+              새 카드 등록
+            </label>
+          </div>
+        ) : null}
+        <p className="mt-3 text-xs text-gray-400">
+          지역 노출·10km Premium은 카드 결제 후 활성화됩니다. 그 외 상품은 신청 접수입니다. 카드정보는
+          AUTOON에 저장하지 않습니다.
+        </p>
         {applyError ? <p className="mt-2 text-xs text-red-600">{applyError}</p> : null}
       </SlideUpSheet>
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="신청 접수" size="sm">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="결제 완료" size="sm">
         <p className="text-sm leading-relaxed text-gray-600">
-          상품 신청이 접수되었습니다.
-          <br />
-          본사 확인 후 적용됩니다.
+          광고상품 결제가 완료되었습니다. 지역 노출은 바로 활성화되며, 10km Premium은 관리자 승인 후
+          적용됩니다.
         </p>
         {lastApplied ? (
           <p className="mt-3 text-xs text-gray-400">
-            선택 {lastApplied.count}건 · 월 {won(lastApplied.monthly)} · 1회{' '}
-            {won(lastApplied.oneTime)} (VAT 별도)
+            선택 {lastApplied.count}건 · 월 {won(lastApplied.monthly)}
+            {lastApplied.charged ? ` · 카드 청구 ${won(lastApplied.charged)}` : ''}
           </p>
         ) : null}
         <button

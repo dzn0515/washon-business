@@ -33,7 +33,11 @@ export default function PricingSection() {
                 ) : null}
                 <h3 className="text-xl font-semibold text-gray-900">{plan.name}</h3>
                 <p className="mt-2 text-2xl font-bold text-blue-600">{formatPrice(plan.price)}</p>
-                <p className="mt-1 text-xs text-gray-500">VAT 별도 · 예약 플랫폼 수수료 {plan.platformFee}~</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  VAT 별도 · VAT {(plan.price * 0.1).toLocaleString('ko-KR')}원 · 청구{' '}
+                  {(plan.price * 1.1).toLocaleString('ko-KR')}원 · 매월 · 결제일로부터 1개월
+                </p>
+                <p className="mt-1 text-xs text-gray-500">예약 플랫폼 수수료 {plan.platformFee}~</p>
                 {plan.freeTrialNote ? (
                   <p className="mt-1 text-sm font-medium text-blue-600">{plan.freeTrialNote}</p>
                 ) : null}

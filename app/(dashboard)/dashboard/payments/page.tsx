@@ -166,6 +166,12 @@ export default function PaymentsSettlementsPage() {
               <li className="text-gray-400">등록된 카드 없음</li>
             )}
           </ul>
+          <a
+            href="/dashboard/billing"
+            className="mt-3 inline-block text-sm font-medium text-blue-600 hover:underline"
+          >
+            요금제에서 카드 등록·구독 결제 →
+          </a>
         </section>
       </div>
     </div>

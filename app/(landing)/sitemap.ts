@@ -8,5 +8,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: 'https://autoon.kr/about', lastModified: new Date(), priority: 0.7 },
     { url: 'https://autoon.kr/privacy', lastModified: new Date(), priority: 0.3 },
     { url: 'https://autoon.kr/terms', lastModified: new Date(), priority: 0.3 },
+    { url: 'https://autoon.kr/refund', lastModified: new Date(), priority: 0.3 },
   ]
 }
